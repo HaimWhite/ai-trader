@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 트레이더 대시보드</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1a1d21;--sub:#6b7280;--line:#e5e7eb;--up:#e0343b;--down:#2563eb}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#181b21;--text:#e8eaed;--sub:#9aa0a6;--line:#2a2e36;--up:#ff6b6b;--down:#6ea8ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI","Malgun Gothic",sans-serif;padding:16px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--sub);font-size:13px;margin-bottom:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}
+.card,.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card .l{color:var(--sub);font-size:12px}
+.card .v{font-size:22px;font-weight:600;margin-top:4px}
+.box{margin-bottom:16px}
+.box h2{font-size:15px;margin:0 0 10px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--sub);font-weight:500}
+td.r{white-space:normal;text-align:left;color:var(--sub)}
+.up{color:var(--up)}.down{color:var(--down)}
+.empty{color:var(--sub);font-size:13px;padding:8px 0}
+svg{width:100%;height:auto;display:block}
+.err{background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI 트레이더 대시보드</h1>
+  <div class="sub" id="updated">불러오는 중...</div>
+  <div id="error"></div>
+  <div class="cards">
+    <div class="card"><div class="l">총 평가금액</div><div class="v" id="equity">-</div></div>
+    <div class="card"><div class="l">수익률</div><div class="v" id="ret">-</div></div>
+    <div class="card"><div class="l">현금</div><div class="v" id="cash">-</div></div>
+  </div>
+  <div class="box"><h2>자산 추이</h2><div id="chart"></div></div>
+  <div class="box"><h2>보유 종목</h2><div class="scroll" id="holdings"></div></div>
+  <div class="box"><h2>오늘의 판단</h2><div class="scroll" id="signals"></div></div>
+  <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const won = n => Math.round(n).toLocaleString("ko-KR") + "원";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cls = n => n > 0 ? "up" : n < 0 ? "down" : "";
+const sign = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+
+async function load(name){
+  const r = await fetch("data/" + name + ".json?t=" + Date.now());
+  if(!r.ok) throw new Error(name + ".json 을 불러오지 못했습니다 (" + r.status + ")");
+  return r.json();
+}
+
+function table(headers, rows){
+  if(!rows.length) return '<div class="empty">내역이 없습니다.</div>';
+  return "<table><tr>" + headers.map(h => "<th>" + h + "</th>").join("") + "</tr>" + rows.join("") + "</table>";
+}
+
+function drawChart(history){
+  if(history.length < 2){
+    $("chart").innerHTML = '<div class="empty">데이터가 2일 이상 쌓이면 차트가 표시됩니다.</div>';
+    return;
+  }
+  const W = 600, H = 200, P = 8;
+  const ys = history.map(h => h.equity);
+  let min = Math.min(...ys), max = Math.max(...ys);
+  if(min === max){ min -= 1; max += 1; }
+  const x = i => P + (W - 2*P) * i / (history.length - 1);
+  const y = v => H - P - (H - 2*P) * (v - min) / (max - min);
+  const pts = history.map((h, i) => x(i).toFixed(1) + "," + y(h.equity).toFixed(1)).join(" ");
+  const up = ys[ys.length-1] >= ys[0];
+  const color = up ? "var(--up)" : "var(--down)";
+  $("chart").innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '"><polyline fill="none" stroke="' + color + '" stroke-width="2" points="' + pts + '"/></svg>' +
+    '<div class="sub" style="margin:6px 0 0">' + esc(history[0].date) + ' ~ ' + esc(history[history.length-1].date) +
+    ' | 최저 ' + won(min) + ' / 최고 ' + won(max) + '</div>';
+}
+
+async function main(){
+  try{
+    const [latest, account, trades, history] = await Promise.all([
+      load("latest"), load("account"), load("trades"), load("history")
+    ]);
+    $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)";
+    $("equity").textContent = won(latest.equity);
+    $("ret").textContent = sign(latest.return_pct);
+    $("ret").className = "v " + cls(latest.return_pct);
+    $("cash").textContent = won(latest.cash);
+    drawChart(history);
+
+    const hrows = Object.entries(account.positions).map(([code, p]) => {
+      const price = latest.symbols[code] ? latest.symbols[code].price : p.avg_price;
+      const pl = (price / p.avg_price - 1) * 100;
+      return "<tr><td>" + esc(p.name) + "</td><td>" + p.qty + "</td><td>" + won(p.avg_price) +
+        "</td><td>" + won(price) + "</td><td>" + won(price * p.qty) +
+        '</td><td class="' + cls(pl) + '">' + sign(pl) + "</td></tr>";
+    });
+    $("holdings").innerHTML = table(["종목","수량","매입가","현재가","평가금액","수익률"], hrows);
+
+    const srows = Object.values(latest.symbols).map(s =>
+      "<tr><td>" + esc(s.name) + "</td><td>" + won(s.price) + "</td><td>" + esc(s.signal) +
+      "</td><td>" + esc(s.action) + '</td><td class="r">' + esc(s.reason) + "</td></tr>");
+    $("signals").innerHTML = table(["종목","현재가","신호","행동","근거"], srows);
+
+    const trows = trades.slice(-30).reverse().map(t =>
+      "<tr><td>" + esc(t.time) + "</td><td>" + esc(t.name) + '</td><td class="' + (t.side === "BUY" ? "up" : "down") + '">' +
+      (t.side === "BUY" ? "매수" : "매도") + "</td><td>" + won(t.price) + "</td><td>" + t.qty +
+      '</td><td class="' + cls(t.pnl) + '">' + (t.side === "SELL" ? won(t.pnl) : "-") +
+      '</td><td class="r">' + esc(t.reason) + "</td></tr>");
+    $("trades").innerHTML = table(["시간","종목","구분","체결가","수량","손익","사유"], trows);
+  }catch(e){
+    $("updated").textContent = "";
+    $("error").innerHTML = '<div class="err">' + esc(e.message) + '<br>main.py를 먼저 실행해서 data 폴더에 파일이 생겼는지 확인하세요.</div>';
+  }
+}
+main();
+</script>
+</body>
+</html>
