@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 
 import FinanceDataReader as fdr
+import numpy as np
 import pandas as pd
 
 import config
@@ -17,35 +18,39 @@ def load_data():
     return frames
 
 
-def prepare(frames):
+def prepare(frames, ma_list):
+    """날짜 목록과 종목별 numpy 배열(시가, 종가, 이동평균들)을 만듭니다."""
     idx = pd.DatetimeIndex(sorted(set().union(*[set(df.index) for df in frames.values()])))
     data = {}
     for code, df in frames.items():
         d = df.reindex(idx)
-        d["Close"] = d["Close"].ffill()
-        d["Open"] = d["Open"].where(d["Open"] > 0).fillna(d["Close"])
-        d["ma_s"] = d["Close"].rolling(config.SHORT_MA).mean()
-        d["ma_l"] = d["Close"].rolling(config.LONG_MA).mean()
-        data[code] = d
+        close = d["Close"].ffill()
+        op = d["Open"].where(d["Open"] > 0).fillna(close)
+        data[code] = {
+            "open": op.to_numpy(dtype=float),
+            "close": close.to_numpy(dtype=float),
+            "ma": {n: close.rolling(n).mean().to_numpy(dtype=float) for n in ma_list},
+        }
     return idx, data
 
 
-def simulate(idx, data):
+def simulate(n_days, data, short, long_, stop, filter_n=None):
+    """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수"""
     n = len(data)
     cash = float(config.INITIAL_CASH)
-    pos = {}        # code -> {qty, avg, cost}
-    pending = {}    # code -> ("BUY"/"SELL", 사유)
-    blocked = set() # 손절 후 재진입 대기
+    pos = {}         # code -> {qty, avg, cost}
+    pending = {}     # code -> ("BUY"/"SELL", 사유)
+    blocked = set()  # 손절 후 재진입 대기
     curve, trades = [], []
 
-    for i, d in enumerate(idx):
+    for i in range(n_days):
         # 1) 전날 신호를 오늘 시가에 체결 (미래 정보를 쓰지 않기 위해)
         if pending:
             for code, (side, why) in list(pending.items()):
                 if side != "SELL" or code not in pos:
                     continue
-                op = data[code].at[d, "Open"]
-                if pd.isna(op):
+                op = data[code]["open"][i]
+                if np.isnan(op):
                     continue
                 price = op * (1 - config.SLIPPAGE_RATE)
                 amount = price * pos[code]["qty"]
@@ -58,11 +63,11 @@ def simulate(idx, data):
 
             buys = [c for c, (s, _) in pending.items() if s == "BUY" and c not in pos]
             if buys:
-                eq_open = cash + sum(p["qty"] * data[c].at[d, "Open"] for c, p in pos.items())
+                eq_open = cash + sum(p["qty"] * data[c]["open"][i] for c, p in pos.items())
                 budget = eq_open / n
                 for code in buys:
-                    op = data[code].at[d, "Open"]
-                    if pd.isna(op):
+                    op = data[code]["open"][i]
+                    if np.isnan(op):
                         continue
                     price = op * (1 + config.SLIPPAGE_RATE)
                     qty = int(min(budget, cash) // (price * (1 + config.FEE_RATE)))
@@ -74,19 +79,24 @@ def simulate(idx, data):
                     del pending[code]
 
         # 2) 종가 기준 평가
-        equity = cash + sum(p["qty"] * data[c].at[d, "Close"] for c, p in pos.items())
-        curve.append(equity)
+        curve.append(cash + sum(p["qty"] * data[c]["close"][i] for c, p in pos.items()))
 
         # 3) 종가 기준으로 내일 주문할 신호 판단
-        for code in data:
-            row = data[code].iloc[i]
-            if pd.isna(row["ma_l"]) or pd.isna(row["Close"]):
+        for code, dd in data.items():
+            c = dd["close"][i]
+            ms = dd["ma"][short][i]
+            ml = dd["ma"][long_][i]
+            if np.isnan(ml) or np.isnan(c):
                 continue
-            bullish = row["ma_s"] > row["ma_l"]
+            bullish = ms > ml
+            entry_ok = True
+            if filter_n:
+                mf = dd["ma"][filter_n][i]
+                entry_ok = (not np.isnan(mf)) and c > mf
             if not bullish:
                 blocked.discard(code)
             if code in pos:
-                if row["Close"] / pos[code]["avg"] - 1 <= config.STOP_LOSS_PCT:
+                if stop is not None and c / pos[code]["avg"] - 1 <= stop:
                     pending[code] = ("SELL", "손절")
                     blocked.add(code)
                 elif not bullish:
@@ -94,7 +104,7 @@ def simulate(idx, data):
                 else:
                     pending.pop(code, None)
             else:
-                if bullish and code not in blocked:
+                if bullish and entry_ok and code not in blocked:
                     pending[code] = ("BUY", "상승 추세")
                 else:
                     pending.pop(code, None)
@@ -115,19 +125,24 @@ def metrics(values, dates):
     }
 
 
+def benchmark_curve(data, start):
+    """3종목을 같은 비중으로 사서 계속 들고 있을 때의 자산 곡선"""
+    n_days = len(next(iter(data.values()))["close"])
+    return [
+        config.INITIAL_CASH * sum(dd["close"][i] / dd["close"][start] for dd in data.values()) / len(data)
+        for i in range(start, n_days)
+    ]
+
+
 def main():
     frames = load_data()
-    idx, data = prepare(frames)
+    idx, data = prepare(frames, [config.SHORT_MA, config.LONG_MA])
     start = config.LONG_MA          # 이동평균이 계산되기 시작하는 시점부터 비교
-    curve, trades = simulate(idx, data)
+    curve, trades = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT)
 
     dates = idx[start:]
     strat = curve[start:]
-    first_close = {c: data[c]["Close"].iloc[start] for c in data}
-    bench = [
-        config.INITIAL_CASH * sum(data[c]["Close"].iloc[i] / first_close[c] for c in data) / len(data)
-        for i in range(start, len(idx))
-    ]
+    bench = benchmark_curve(data, start)
 
     wins = [t for t in trades if t["pnl"] > 0]
     by_symbol = {}
@@ -139,8 +154,7 @@ def main():
             "pnl": round(sum(t["pnl"] for t in ts)),
         }
 
-    step = 5
-    keep = list(range(0, len(dates), step))
+    keep = list(range(0, len(dates), 5))
     if keep[-1] != len(dates) - 1:
         keep.append(len(dates) - 1)
 

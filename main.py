@@ -10,7 +10,7 @@ from broker import PaperBroker
 
 def main():
     broker = PaperBroker()
-    start = (datetime.now() - timedelta(days=150)).strftime("%Y-%m-%d")
+    start = (datetime.now() - timedelta(days=400)).strftime("%Y-%m-%d")
     prices = {}
     latest = {}
     n = len(config.SYMBOLS)
