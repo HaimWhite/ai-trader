@@ -41,6 +41,7 @@ svg{width:100%;height:auto;display:block}
     <div class="card"><div class="l">현금</div><div class="v" id="cash">-</div></div>
   </div>
   <div class="box"><h2>자산 추이</h2><div id="chart"></div></div>
+  <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
   <div class="box"><h2>보유 종목</h2><div class="scroll" id="holdings"></div></div>
   <div class="box"><h2>오늘의 판단</h2><div class="scroll" id="signals"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
@@ -120,6 +121,35 @@ async function main(){
     $("error").innerHTML = '<div class="err">' + esc(e.message) + '<br>main.py를 먼저 실행해서 data 폴더에 파일이 생겼는지 확인하세요.</div>';
   }
 }
+
+async function backtest(){
+  try{
+    const b = await load("backtest");
+    const c = b.curve, W = 600, H = 200, P = 8;
+    const all = c.flatMap(r => [r.strategy, r.benchmark]);
+    let min = Math.min(...all), max = Math.max(...all);
+    if(min === max){ min -= 1; max += 1; }
+    const x = i => P + (W - 2*P) * i / (c.length - 1);
+    const y = v => H - P - (H - 2*P) * (v - min) / (max - min);
+    const line = (key, color, dash) => '<polyline fill="none" stroke="' + color + '" stroke-width="2"' + (dash ? ' stroke-dasharray="5 4"' : '') +
+      ' points="' + c.map((r, i) => x(i).toFixed(1) + "," + y(r[key]).toFixed(1)).join(" ") + '"/>';
+    const m = (k, f) => "<td>" + f(b.strategy[k]) + "</td><td>" + f(b.benchmark[k]) + "</td>";
+    const pct = v => '<span class="' + cls(v) + '">' + sign(v) + "</span>";
+    const sym = Object.entries(b.by_symbol).map(([n, v]) =>
+      "<tr><td>" + esc(n) + "</td><td>" + v.trades + "</td><td>" + v.win_rate + '%</td><td class="' + cls(v.pnl) + '">' + won(v.pnl) + "</td></tr>");
+    $("bt").innerHTML =
+      '<div class="sub" style="margin-bottom:8px">기간: ' + esc(b.period[0]) + " ~ " + esc(b.period[1]) + " (수수료·세금·슬리피지 반영, 다음날 시가 체결 가정)</div>" +
+      '<svg viewBox="0 0 ' + W + " " + H + '">' + line("benchmark", "var(--sub)", true) + line("strategy", "var(--up)", false) + "</svg>" +
+      '<div class="sub" style="margin:6px 0 10px">실선: 이동평균 전략 / 점선: 단순 보유(3종목 동일 비중)</div>' +
+      '<div class="scroll"><table><tr><th>지표</th><th>전략</th><th>단순 보유</th></tr>' +
+      "<tr><td>총 수익률</td>" + m("total_return", pct) + "</tr>" +
+      "<tr><td>연환산 수익률</td>" + m("cagr", pct) + "</tr>" +
+      "<tr><td>최대 낙폭</td>" + m("mdd", pct) + "</tr></table></div>" +
+      '<div class="sub" style="margin:10px 0 6px">전략 거래 ' + b.trade_count + "회 | 승률 " + b.win_rate + "% | 평균 손익 " + b.avg_trade_pct + "%</div>" +
+      '<div class="scroll"><table><tr><th>종목</th><th>거래수</th><th>승률</th><th>누적 손익</th></tr>' + sym.join("") + "</table></div>";
+  }catch(e){ /* 결과 파일이 없으면 안내 문구 유지 */ }
+}
+backtest();
 main();
 </script>
 </body>

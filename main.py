@@ -30,6 +30,7 @@ def main():
             print(f"[{name}] 시세 조회 실패: {e}")
 
     budget = broker.equity(prices) / n
+    blocked = broker.account.setdefault("blocked", [])
 
     for code, df in frames.items():
         name = config.SYMBOLS[code]
@@ -38,14 +39,24 @@ def main():
         held = broker.account["positions"].get(code)
         action = "관망"
 
+        # 하락 추세가 확인되면 손절 후 재진입 대기를 해제
+        if info["signal"] == "SELL" and code in blocked:
+            blocked.remove(code)
+
         # 1) 손절 우선
         if held and price / held["avg_price"] - 1 <= config.STOP_LOSS_PCT:
             t = broker.sell(code, price, "손절")
-            action = f"손절 매도 {t['qty']}주" if t else action
+            if t:
+                action = f"손절 매도 {t['qty']}주"
+                if code not in blocked:
+                    blocked.append(code)
         # 2) 전략 신호
         elif info["signal"] == "BUY" and not held:
-            t = broker.buy(code, name, price, budget, info["reason"])
-            action = f"매수 {t['qty']}주" if t else "매수 불가(자금 부족)"
+            if code in blocked:
+                action = "관망(손절 후 재진입 대기)"
+            else:
+                t = broker.buy(code, name, price, budget, info["reason"])
+                action = f"매수 {t['qty']}주" if t else "매수 불가(자금 부족)"
         elif info["signal"] == "SELL" and held:
             t = broker.sell(code, price, info["reason"])
             action = f"매도 {t['qty']}주" if t else action
