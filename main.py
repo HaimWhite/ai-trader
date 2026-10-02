@@ -10,7 +10,7 @@ from broker import PaperBroker
 
 def main():
     broker = PaperBroker()
-    start = (datetime.now() - timedelta(days=400)).strftime("%Y-%m-%d")
+    start = config.PRICE_HISTORY_START
     prices = {}
     latest = {}
     n = len(config.SYMBOLS)
@@ -76,8 +76,22 @@ def main():
     broker.record_history(equity)
     broker.save()
 
+    # 대시보드 주가 그래프용 시세 저장 (조회에 실패한 종목은 이전 기록 유지)
+    pfile = config.DATA_DIR / "prices.json"
+    pdata = json.load(open(pfile, encoding="utf-8")) if pfile.exists() else {}
+    pdata = {c: v for c, v in pdata.items() if c in config.SYMBOLS}
+    for code, df in frames.items():
+        pdata[code] = {
+            "name": config.SYMBOLS[code],
+            "dates": [d.strftime("%Y-%m-%d") for d in df.index],
+            "close": [int(x) for x in df["Close"]],
+        }
+    with open(pfile, "w", encoding="utf-8") as f:
+        json.dump(pdata, f, ensure_ascii=False, separators=(",", ":"))
+
     latest_out = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "initial_cash": config.INITIAL_CASH,
         "cash": broker.account["cash"],
         "equity": round(equity),
         "return_pct": round((equity / config.INITIAL_CASH - 1) * 100, 2),

@@ -1,5 +1,12 @@
 {
-  "cash": 9978001,
-  "positions": {},
+  "cash": 8123475,
+  "positions": {
+    "105560": {
+      "name": "KB금융",
+      "qty": 11,
+      "avg_price": 168568,
+      "cost_basis": 1854526
+    }
+  },
   "blocked": []
 }
