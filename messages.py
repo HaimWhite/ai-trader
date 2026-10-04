@@ -1,0 +1,82 @@
+"""디스코드 알림 문구 (AI 비서 보고 말투). 말투를 바꾸고 싶으면 이 파일만 고치면 됩니다."""
+import config
+
+BOSS = "하임님"   # 비서가 부르는 호칭 (원하는 호칭으로 바꾸세요)
+
+
+def plain_reason(reason):
+    if reason == "손절":
+        return f"매입가 대비 {abs(config.STOP_LOSS_PCT) * 100:.0f}% 이상 하락해 손절 기준에 도달했습니다."
+    if "상승 추세" in reason:
+        return "단기 평균이 장기 평균 위로 올라와 상승 흐름으로 판단했습니다."
+    if "하락 추세" in reason:
+        return "단기 평균이 장기 평균 아래로 내려와 하락 흐름으로 판단했습니다."
+    return reason
+
+
+def daily_message(equity, return_pct, cash, trades, failed):
+    if return_pct > 0:
+        mood = f"시작 금액 대비 {return_pct}% 높은 수준입니다."
+    elif return_pct < 0:
+        mood = f"시작 금액 대비 {abs(return_pct)}% 낮은 수준입니다."
+    else:
+        mood = "시작 금액과 동일한 수준입니다."
+    lines = [
+        f"{BOSS}, 오늘 장 마감 보고드립니다.",
+        f"총 자산은 {equity:,.0f}원이며, {mood} (현금 {cash:,.0f}원)",
+        "",
+    ]
+
+    if trades:
+        lines.append(f"오늘 매매는 {len(trades)}건 진행했습니다.")
+        for t in trades:
+            if t["side"] == "BUY":
+                lines.append(f"• {t['name']} {t['qty']}주를 {t['price']:,}원에 매수했습니다. {plain_reason(t['reason'])}")
+            else:
+                result = f"{abs(t['pnl']):,.0f}원 {'수익' if t['pnl'] >= 0 else '손실'}"
+                lines.append(f"• {t['name']} {t['qty']}주를 {t['price']:,}원에 매도했습니다. {plain_reason(t['reason'])} 이번 거래는 {result}입니다.")
+    else:
+        lines.append("오늘은 매매 없이 시장을 계속 지켜봤습니다. 특이사항은 없습니다.")
+
+    if failed:
+        lines.append("")
+        lines.append(f"한 가지 더 보고드립니다. {', '.join(failed)} 시세를 가져오지 못했습니다. 확인이 필요합니다.")
+    return "\n".join(lines)
+
+
+def error_message(tb):
+    return (f"{BOSS}, 보고드릴 문제가 있습니다.\n"
+            "프로그램 실행 중 오류가 발생해 오늘 매매가 정상 처리되지 않았을 수 있습니다. 확인 부탁드립니다.\n"
+            "```\n" + tb[-1200:] + "\n```")
+
+
+def _mood(return_pct):
+    if return_pct > 0:
+        return f"시작 금액 대비 {return_pct}% 높은 수준입니다."
+    if return_pct < 0:
+        return f"시작 금액 대비 {abs(return_pct)}% 낮은 수준입니다."
+    return "시작 금액과 동일한 수준입니다."
+
+
+def midday_message(now_text, equity, return_pct, cash, holdings, failed, closed=False):
+    if closed:
+        return (f"{BOSS}, 오늘은 휴장이거나 실시간 시세가 아직 반영되지 않아 중간 보고를 생략합니다.\n"
+                "오후 4시에 다시 보고드리겠습니다.")
+    lines = [
+        f"{BOSS}, 점심 중간 보고드립니다. ({now_text} 기준)",
+        f"총 자산은 {equity:,.0f}원이며, {_mood(return_pct)} (현금 {cash:,.0f}원)",
+        "",
+    ]
+    if holdings:
+        lines.append("보유 종목 현황입니다.")
+        for h in holdings:
+            r = (h["price"] / h["avg"] - 1) * 100
+            lines.append(f"• {h['name']} {h['qty']}주: 현재가 {h['price']:,.0f}원 (매입가 대비 {r:+.2f}%)")
+    else:
+        lines.append("현재 보유 중인 종목은 없습니다.")
+    if failed:
+        lines.append("")
+        lines.append(f"{', '.join(failed)} 시세를 가져오지 못해 매입가 기준으로 계산했습니다.")
+    lines.append("")
+    lines.append("매매는 오후 4시 마감 후 최종 판단하여 보고드리겠습니다.")
+    return "\n".join(lines)

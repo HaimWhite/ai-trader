@@ -1,9 +1,11 @@
 import json
+import sys
 from datetime import datetime, timedelta
 
 import FinanceDataReader as fdr
 
 import config
+import messages
 import notify
 import strategy
 from broker import PaperBroker
@@ -108,22 +110,46 @@ def main():
     print(f"현금: {broker.account['cash']:,.0f}원")
     print(f"총 평가금액: {equity:,.0f}원 (수익률 {latest_out['return_pct']}%)")
 
-    # 디스코드 알림 (하루 요약 + 이번 실행의 거래)
-    lines = [f"📊 {datetime.now():%Y-%m-%d} 총 평가금액 {equity:,.0f}원 (수익률 {latest_out['return_pct']}%, 현금 {broker.account['cash']:,.0f}원)"]
-    for t in broker.trades[n_before:]:
-        side = "매수" if t["side"] == "BUY" else "매도"
-        extra = f" | 손익 {t['pnl']:+,.0f}원" if t["side"] == "SELL" else ""
-        lines.append(f"{'🔴' if side == '매수' else '🔵'} {side} {t['name']} {t['qty']}주 @ {t['price']:,}원{extra} ({t['reason']})")
-    # 거래가 있었을 때만 역할을 멘션
-    notify.send("\n".join(lines), mention=bool(broker.trades[n_before:]))
-    if failed:
-        notify.send("⚠️ 시세 조회 실패: " + ", ".join(failed), mention=True, channel="alert")
+    # 디스코드 알림 (문구는 messages.py 에서 수정)
+    new_trades = broker.trades[n_before:]
+    text = messages.daily_message(equity, latest_out["return_pct"], broker.account["cash"], new_trades, failed)
+    # 거래가 있었거나 시세 조회에 실패했을 때만 푸시 알림이 울리게 보냄
+    notify.send(text, mention=bool(new_trades) or bool(failed))
+
+
+def report():
+    """점심 중간 보고: 매매도 저장도 하지 않고 현재 평가금액만 디스코드로 알립니다."""
+    broker = PaperBroker()
+    now = datetime.now()
+    start = (now - timedelta(days=10)).strftime("%Y-%m-%d")
+    ref = fdr.DataReader(next(iter(config.SYMBOLS)), start).dropna()
+    if ref.index[-1].date() != now.date():
+        notify.send(messages.midday_message("", 0, 0, 0, [], [], closed=True))
+        print("오늘 시세가 반영되지 않았습니다 (휴장 또는 지연). 보고를 생략합니다.")
+        return
+
+    prices, holdings, failed = {}, [], []
+    for code, pos in broker.account["positions"].items():
+        try:
+            price = float(fdr.DataReader(code, start).dropna()["Close"].iloc[-1])
+        except Exception as e:
+            print(f"[{pos['name']}] 시세 조회 실패: {e}")
+            price = pos["avg_price"]
+            failed.append(pos["name"])
+        prices[code] = price
+        holdings.append({"name": pos["name"], "qty": pos["qty"], "price": price, "avg": pos["avg_price"]})
+
+    equity = broker.equity(prices)
+    ret = round((equity / config.INITIAL_CASH - 1) * 100, 2)
+    text = messages.midday_message(now.strftime("%H:%M"), equity, ret, broker.account["cash"], holdings, failed)
+    print(text)
+    notify.send(text, mention=bool(failed))
 
 
 if __name__ == "__main__":
     try:
-        main()
+        report() if "--report" in sys.argv else main()
     except Exception:
         import traceback
-        notify.send("⚠️ ai-trader 실행 오류\n" + traceback.format_exc()[-1500:], mention=True, channel="alert")
+        notify.send(messages.error_message(traceback.format_exc()), mention=True)
         raise
