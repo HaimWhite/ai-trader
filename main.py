@@ -4,14 +4,17 @@ from datetime import datetime, timedelta
 import FinanceDataReader as fdr
 
 import config
+import notify
 import strategy
 from broker import PaperBroker
 
 
 def main():
     broker = PaperBroker()
+    n_before = len(broker.trades)
     start = config.PRICE_HISTORY_START
     prices = {}
+    failed = []
     latest = {}
     n = len(config.SYMBOLS)
 
@@ -28,6 +31,7 @@ def main():
             prices[code] = float(df["Close"].iloc[-1])
         except Exception as e:
             print(f"[{name}] 시세 조회 실패: {e}")
+            failed.append(name)
 
     budget = broker.equity(prices) / n
     blocked = broker.account.setdefault("blocked", [])
@@ -104,6 +108,22 @@ def main():
     print(f"현금: {broker.account['cash']:,.0f}원")
     print(f"총 평가금액: {equity:,.0f}원 (수익률 {latest_out['return_pct']}%)")
 
+    # 디스코드 알림 (하루 요약 + 이번 실행의 거래)
+    lines = [f"📊 {datetime.now():%Y-%m-%d} 총 평가금액 {equity:,.0f}원 (수익률 {latest_out['return_pct']}%, 현금 {broker.account['cash']:,.0f}원)"]
+    for t in broker.trades[n_before:]:
+        side = "매수" if t["side"] == "BUY" else "매도"
+        extra = f" | 손익 {t['pnl']:+,.0f}원" if t["side"] == "SELL" else ""
+        lines.append(f"{'🔴' if side == '매수' else '🔵'} {side} {t['name']} {t['qty']}주 @ {t['price']:,}원{extra} ({t['reason']})")
+    # 거래가 있었을 때만 역할을 멘션
+    notify.send("\n".join(lines), mention=bool(broker.trades[n_before:]))
+    if failed:
+        notify.send("⚠️ 시세 조회 실패: " + ", ".join(failed), mention=True, channel="alert")
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        notify.send("⚠️ ai-trader 실행 오류\n" + traceback.format_exc()[-1500:], mention=True, channel="alert")
+        raise
