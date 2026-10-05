@@ -4,6 +4,28 @@ import config
 BOSS = "하임님"   # 비서가 부르는 호칭 (원하는 호칭으로 바꾸세요)
 
 
+def _report_title(now=None):
+    """보고하는 시각에 맞는 제목: 장 마감 후에만 '장 마감 보고'라고 합니다."""
+    from datetime import datetime, time as dtime
+    now = now or datetime.now()
+    if now.weekday() >= 5:
+        return "휴장일 점검"
+    if now.time() < dtime(9, 0):
+        return "개장 전 점검"
+    if now.time() < dtime(15, 30):
+        return "장중 점검"
+    return "오늘 장 마감"
+
+
+def _report_note(now=None):
+    title = _report_title(now)
+    if title == "장중 점검":
+        return "\n아직 장이 끝나지 않아 현재가 기준입니다."
+    if title in ("개장 전 점검", "휴장일 점검"):
+        return "\n새 시세가 없어 마지막 종가 기준입니다."
+    return ""
+
+
 def plain_reason(reason):
     if reason == "손절":
         return f"매입가 대비 {abs(config.STOP_LOSS_PCT) * 100:.0f}% 이상 하락해 손절 기준에 도달했습니다."
@@ -46,7 +68,7 @@ def daily_message(equity, return_pct, cash, trades, failed, news=None, news_bloc
     else:
         mood = "시작 금액과 동일한 수준입니다."
     lines = [
-        f"{BOSS}, 오늘 장 마감 보고드립니다.",
+        f"{BOSS}, {_report_title()} 보고드립니다." + _report_note(),
         f"총 자산은 {equity:,.0f}원이며, {mood} (현금 {cash:,.0f}원)",
         "",
     ]

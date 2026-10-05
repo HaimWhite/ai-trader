@@ -121,9 +121,11 @@ function chart(el, series, o){
     g += '<line class="gl" x1="' + L + '" x2="' + (W-R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/>' +
          '<text class="ax" x="' + (L-6) + '" y="' + (Y(v)+4) + '" text-anchor="end">' + fmt(v) + "</text>";
   });
-  ticks(x0, x1, 4).forEach((t, i) => {
-    g += '<text class="ax" x="' + X(t) + '" y="' + (H-8) + '" text-anchor="' + (i === 0 ? "start" : i === 3 ? "end" : "middle") + '">' +
-         new Date(t).toISOString().slice(0, 10) + "</text>";
+  const nx = Math.max(2, Math.min(5, Math.floor((W - L - R) / 78)));   // 화면이 좁으면 날짜 수를 줄임
+  const spanDays = (x1 - x0) / 864e5;
+  const dlabel = t => { const d = new Date(t).toISOString(); return spanDays > 400 ? d.slice(2, 4) + "." + d.slice(5, 7) : d.slice(5, 7) + "/" + d.slice(8, 10); };
+  ticks(x0, x1, nx).forEach((t, i) => {
+    g += '<text class="ax" x="' + X(t) + '" y="' + (H-8) + '" text-anchor="' + (i === 0 ? "start" : i === nx - 1 ? "end" : "middle") + '">' + dlabel(t) + "</text>";
   });
   if(o.base != null){
     g += '<line x1="' + L + '" x2="' + (W-R) + '" y1="' + Y(o.base) + '" y2="' + Y(o.base) + '" style="stroke:var(--sub)" stroke-dasharray="4 4"/>' +

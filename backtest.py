@@ -34,7 +34,7 @@ def prepare(frames, ma_list):
     return idx, data
 
 
-def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None):
+def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None):
     """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
@@ -45,6 +45,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
     pending = {}     # code -> ("BUY"/"SELL", 사유)
     blocked = set()  # 손절 후 재진입 대기
     streak = {}      # 종목별 상승 신호 연속 일수
+    below = {}       # 종가가 단기선 아래인 연속 일수
     curve, trades = [], []
 
     for i in range(n_days):
@@ -97,12 +98,15 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                 continue
             bullish = ms > ml
             streak[code] = streak.get(code, 0) + 1 if bullish else 0
+            below[code] = below.get(code, 0) + 1 if c < ms else 0
             entry_ok = True
             if confirm > 1 and streak[code] < confirm:
                 entry_ok = False
             if gap and not ms > ml * (1 + gap):
                 entry_ok = False
             if pullback and not c <= ms * (1 - pullback):
+                entry_ok = False
+            if fast_exit and not c > ms:   # 빠른 청산을 쓰면, 가격이 단기선 위로 돌아온 뒤에만 재진입
                 entry_ok = False
             if filter_n:
                 mf = dd["ma"][filter_n][i]
@@ -118,6 +122,8 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                 elif trail is not None and c <= pos[code]["peak"] * (1 - trail):
                     pending[code] = ("SELL", "추적손절")
                     blocked.add(code)
+                elif fast_exit and below[code] >= fast_exit:
+                    pending[code] = ("SELL", "단기 이탈")
                 elif not bullish:
                     pending[code] = ("SELL", "하락 추세")
                 else:
