@@ -1,11 +1,23 @@
 {
-  "cash": 8123475,
+  "cash": 4887831,
   "positions": {
     "105560": {
       "name": "KB금융",
       "qty": 11,
       "avg_price": 168568,
       "cost_basis": 1854526
+    },
+    "AAPL": {
+      "name": "애플",
+      "qty": 4,
+      "avg_price": 454469,
+      "cost_basis": 1822420
+    },
+    "MSFT": {
+      "name": "마이크로소프트",
+      "qty": 2,
+      "avg_price": 704850,
+      "cost_basis": 1413224
     }
   },
   "blocked": []

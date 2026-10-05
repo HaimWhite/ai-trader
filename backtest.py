@@ -2,7 +2,7 @@
 import json
 from datetime import datetime
 
-import FinanceDataReader as fdr
+import market
 import numpy as np
 import pandas as pd
 
@@ -12,7 +12,7 @@ import config
 def load_data():
     frames = {}
     for code, name in config.SYMBOLS.items():
-        df = fdr.DataReader(code, config.BACKTEST_START).dropna(subset=["Close"])
+        df = market.load_prices(code, config.BACKTEST_START)
         frames[code] = df
         print(f"[{name}] {len(df)}일치 데이터")
     return frames
@@ -54,7 +54,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None):
                     continue
                 price = op * (1 - config.SLIPPAGE_RATE)
                 amount = price * pos[code]["qty"]
-                proceeds = amount - amount * config.FEE_RATE - amount * config.SELL_TAX_RATE
+                proceeds = amount - amount * config.fee_rate(code) - amount * config.sell_tax_rate(code)
                 pnl = proceeds - pos[code]["cost"]
                 trades.append({"code": code, "pnl": pnl, "pnl_pct": pnl / pos[code]["cost"] * 100, "why": why})
                 cash += proceeds
@@ -64,16 +64,19 @@ def simulate(n_days, data, short, long_, stop, filter_n=None):
             buys = [c for c, (s, _) in pending.items() if s == "BUY" and c not in pos]
             if buys:
                 eq_open = cash + sum(p["qty"] * data[c]["open"][i] for c, p in pos.items())
-                budget = eq_open / n
+                budget = eq_open / min(n, config.MAX_POSITIONS)
                 for code in buys:
+                    if len(pos) >= config.MAX_POSITIONS:
+                        del pending[code]
+                        continue
                     op = data[code]["open"][i]
                     if np.isnan(op):
                         continue
                     price = op * (1 + config.SLIPPAGE_RATE)
-                    qty = int(min(budget, cash) // (price * (1 + config.FEE_RATE)))
+                    qty = int(min(budget, cash) // (price * (1 + config.fee_rate(code))))
                     if qty > 0:
                         amount = price * qty
-                        cost = amount + amount * config.FEE_RATE
+                        cost = amount + amount * config.fee_rate(code)
                         cash -= cost
                         pos[code] = {"qty": qty, "avg": price, "cost": cost}
                     del pending[code]

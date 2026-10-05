@@ -20,3 +20,5 @@ To https://github.com/HaimWhite/ai-trader.git
  1 file changed, 9 insertions(+), 9 deletions(-)
 To https://github.com/HaimWhite/ai-trader.git
    1cfb2d7..96d88ba  main -> main
+===== 2026-10-05 12:30:00.29 (report) ===== 
+오늘 시세가 반영되지 않았습니다 (휴장 또는 지연). 보고를 생략합니다.

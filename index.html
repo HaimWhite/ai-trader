@@ -207,8 +207,11 @@ function render(){
     ], {fmt: v => v.toFixed(0) + "%", base: 0, baseLabel: "시작"});
   }
 
-  $("signals").innerHTML = table(["종목","현재가","신호","행동","근거"], Object.values(latest.symbols).map(s =>
-    "<tr><td>" + esc(s.name) + "</td><td>" + won(s.price) + "</td><td>" + esc(s.signal) + "</td><td>" + esc(s.action) + '</td><td class="r">' + esc(s.reason) + "</td></tr>"));
+  $("signals").innerHTML = table(["종목","현재가","신호","행동","근거","뉴스"], Object.values(latest.symbols).map(s => {
+    const n = s.news, L = {"2":"큰 호재","1":"호재","0":"중립","-1":"악재","-2":"큰 악재"};
+    const nt = n ? '<span class="' + cls(n.score) + '">' + (L[n.score] || "") + "</span> " + esc(n.summary) : "-";
+    return "<tr><td>" + esc(s.name) + "</td><td>" + won(s.price) + "</td><td>" + esc(s.signal) + "</td><td>" + esc(s.action) + '</td><td class="r">' + esc(s.reason) + '</td><td class="r">' + nt + "</td></tr>";
+  }));
   $("trades").innerHTML = table(["시간","종목","구분","체결가","수량","손익","사유"], trades.slice(-30).reverse().map(t =>
     "<tr><td>" + esc(t.time) + "</td><td>" + esc(t.name) + '</td><td class="' + (t.side === "BUY" ? "up" : "down") + '">' + (t.side === "BUY" ? "매수" : "매도") +
     "</td><td>" + won(t.price) + "</td><td>" + t.qty + '</td><td class="' + cls(t.pnl) + '">' + (t.side === "SELL" ? signWon(t.pnl) : "-") + '</td><td class="r">' + esc(t.reason) + "</td></tr>"));

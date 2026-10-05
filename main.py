@@ -5,7 +5,9 @@ from datetime import datetime, timedelta
 import FinanceDataReader as fdr
 
 import config
+import market
 import messages
+import news
 import notify
 import strategy
 from broker import PaperBroker
@@ -17,6 +19,7 @@ def main():
     start = config.PRICE_HISTORY_START
     prices = {}
     failed = []
+    news_list, news_blocked, warnings = [], [], []
     latest = {}
     n = len(config.SYMBOLS)
 
@@ -25,7 +28,7 @@ def main():
     frames = {}
     for code, name in config.SYMBOLS.items():
         try:
-            df = fdr.DataReader(code, start).dropna()
+            df = market.load_prices(code, start)
             if len(df) < config.LONG_MA + 1:
                 print(f"[{name}] 데이터가 부족해서 건너뜁니다.")
                 continue
@@ -35,7 +38,7 @@ def main():
             print(f"[{name}] 시세 조회 실패: {e}")
             failed.append(name)
 
-    budget = broker.equity(prices) / n
+    budget = broker.equity(prices) / min(n, config.MAX_POSITIONS)
     blocked = broker.account.setdefault("blocked", [])
 
     for code, df in frames.items():
@@ -44,6 +47,14 @@ def main():
         info = strategy.analyze(df)
         held = broker.account["positions"].get(code)
         action = "관망"
+
+        # 뉴스 확인 (악재일 때 매수 보류용 참고 정보)
+        news_info = {"score": 0, "summary": "", "ok": True}
+        if config.USE_NEWS:
+            news_info = news.get_news(code, name)
+            news_list.append({"name": name, **news_info})
+            if held and news_info["ok"] and news_info["score"] <= config.NEWS_WARN_HELD_SCORE:
+                warnings.append(f"주의: 보유 중인 {name}에 큰 악재 뉴스가 있습니다. {news_info['summary']} 직접 확인해 주세요.")
 
         # 하락 추세가 확인되면 손절 후 재진입 대기를 해제
         if info["signal"] == "SELL" and code in blocked:
@@ -60,6 +71,11 @@ def main():
         elif info["signal"] == "BUY" and not held:
             if code in blocked:
                 action = "관망(손절 후 재진입 대기)"
+            elif news_info["ok"] and news_info["score"] <= config.NEWS_BLOCK_BUY_SCORE:
+                action = "관망(악재 뉴스로 매수 보류)"
+                news_blocked.append(name)
+            elif len(broker.account["positions"]) >= config.MAX_POSITIONS:
+                action = "관망(동시 보유 한도)"
             else:
                 t = broker.buy(code, name, price, budget, info["reason"])
                 action = f"매수 {t['qty']}주" if t else "매수 불가(자금 부족)"
@@ -75,6 +91,7 @@ def main():
             "signal": info["signal"],
             "reason": info["reason"],
             "action": action,
+            "news": {"score": news_info["score"], "summary": news_info["summary"]},
         }
         print(f"[{name}] 종가 {price:,.0f}원 | {info['reason']} | {action}")
 
@@ -112,9 +129,10 @@ def main():
 
     # 디스코드 알림 (문구는 messages.py 에서 수정)
     new_trades = broker.trades[n_before:]
-    text = messages.daily_message(equity, latest_out["return_pct"], broker.account["cash"], new_trades, failed)
+    text = messages.daily_message(equity, latest_out["return_pct"], broker.account["cash"], new_trades, failed,
+                                  news_list if config.USE_NEWS else None, news_blocked, warnings)
     # 거래가 있었거나 시세 조회에 실패했을 때만 푸시 알림이 울리게 보냄
-    notify.send(text, mention=bool(new_trades) or bool(failed))
+    notify.send(text, mention=bool(new_trades) or bool(failed) or bool(warnings))
 
 
 def report():
@@ -122,7 +140,7 @@ def report():
     broker = PaperBroker()
     now = datetime.now()
     start = (now - timedelta(days=10)).strftime("%Y-%m-%d")
-    ref = fdr.DataReader(next(iter(config.SYMBOLS)), start).dropna()
+    ref = fdr.DataReader(next(c for c in config.SYMBOLS if not config.is_us(c)), start).dropna()
     if ref.index[-1].date() != now.date():
         notify.send(messages.midday_message("", 0, 0, 0, [], [], closed=True))
         print("오늘 시세가 반영되지 않았습니다 (휴장 또는 지연). 보고를 생략합니다.")
@@ -131,7 +149,7 @@ def report():
     prices, holdings, failed = {}, [], []
     for code, pos in broker.account["positions"].items():
         try:
-            price = float(fdr.DataReader(code, start).dropna()["Close"].iloc[-1])
+            price = float(market.load_prices(code, start)["Close"].iloc[-1])
         except Exception as e:
             print(f"[{pos['name']}] 시세 조회 실패: {e}")
             price = pos["avg_price"]

@@ -14,7 +14,31 @@ def plain_reason(reason):
     return reason
 
 
-def daily_message(equity, return_pct, cash, trades, failed):
+LABEL = {2: "큰 호재", 1: "호재", 0: "중립", -1: "악재", -2: "큰 악재"}
+
+
+def _news_lines(news, blocked, warnings):
+    if not news:
+        return []
+    lines = [""]
+    if all(not n["ok"] for n in news):
+        lines.append("뉴스 분석에 실패해 이번에는 뉴스를 반영하지 못했습니다.")
+        return lines
+    notable = [n for n in news if n["ok"] and n["score"] != 0]
+    if notable:
+        lines.append("뉴스도 함께 확인했습니다.")
+        for n in notable:
+            lines.append(f"• {n['name']}: {LABEL[n['score']]} - {n['summary']}")
+    else:
+        lines.append("뉴스는 특이사항이 없었습니다.")
+    for name in blocked:
+        lines.append(f"{name}는 매수 신호가 있었지만 악재 뉴스가 있어 매수를 보류했습니다.")
+    for w in warnings:
+        lines.append(w)
+    return lines
+
+
+def daily_message(equity, return_pct, cash, trades, failed, news=None, news_blocked=None, warnings=None):
     if return_pct > 0:
         mood = f"시작 금액 대비 {return_pct}% 높은 수준입니다."
     elif return_pct < 0:
@@ -37,6 +61,8 @@ def daily_message(equity, return_pct, cash, trades, failed):
                 lines.append(f"• {t['name']} {t['qty']}주를 {t['price']:,}원에 매도했습니다. {plain_reason(t['reason'])} 이번 거래는 {result}입니다.")
     else:
         lines.append("오늘은 매매 없이 시장을 계속 지켜봤습니다. 특이사항은 없습니다.")
+
+    lines += _news_lines(news, news_blocked or [], warnings or [])
 
     if failed:
         lines.append("")
@@ -80,3 +106,35 @@ def midday_message(now_text, equity, return_pct, cash, holdings, failed, closed=
     lines.append("")
     lines.append("매매는 오후 4시 마감 후 최종 판단하여 보고드리겠습니다.")
     return "\n".join(lines)
+
+
+def _trade_line(t):
+    if t["side"] == "BUY":
+        return f"• {t['name']} {t['qty']}주를 {t['price']:,}원에 매수했습니다. {plain_reason(t['reason'])}"
+    result = f"{abs(t['pnl']):,.0f}원 {'수익' if t['pnl'] >= 0 else '손실'}"
+    return f"• {t['name']} {t['qty']}주를 {t['price']:,}원에 매도했습니다. {plain_reason(t['reason'])} 이번 거래는 {result}입니다."
+
+
+def trade_alert(trades):
+    return "\n".join([f"{BOSS}, 장중 매매가 발생해 바로 보고드립니다."] + [_trade_line(t) for t in trades])
+
+
+def open_message(now_text, equity, return_pct, cash, holdings):
+    lines = [
+        f"{BOSS}, 장이 열렸습니다. ({now_text} 기준)",
+        f"총 자산은 {equity:,.0f}원이며, {_mood(return_pct)} (현금 {cash:,.0f}원)",
+        "",
+    ]
+    if holdings:
+        lines.append("보유 종목 현황입니다.")
+        for h in holdings:
+            chg = (h["price"] / h["prev"] - 1) * 100
+            lines.append(f"• {h['name']} {h['qty']}주: 현재가 {h['price']:,.0f}원 (전일 대비 {chg:+.2f}%)")
+    else:
+        lines.append("현재 보유 중인 종목은 없습니다.")
+    lines += ["", "장중에는 5분마다 시세를 확인하겠습니다. 손절 기준에 닿거나 매매가 일어나면 바로 보고드리고, 그 외에는 조용히 지켜보겠습니다."]
+    return "\n".join(lines)
+
+
+def no_data_message():
+    return f"{BOSS}, 오늘은 휴장이거나 시세가 아직 반영되지 않아 장중 감시를 쉬겠습니다. 오후 4시 정기 점검은 그대로 진행합니다."

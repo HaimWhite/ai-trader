@@ -35,14 +35,14 @@ class PaperBroker:
         if code in self.account["positions"]:
             return None
         price = round(market_price * (1 + config.SLIPPAGE_RATE))
-        unit_cost = price * (1 + config.FEE_RATE)
+        unit_cost = price * (1 + config.fee_rate(code))
         affordable = min(budget, self.account["cash"])
         qty = int(affordable // unit_cost)
         if qty <= 0:
             return None
 
         amount = price * qty
-        fee = int(amount * config.FEE_RATE)
+        fee = int(amount * config.fee_rate(code))
         self.account["cash"] -= amount + fee
         self.account["positions"][code] = {
             "name": name,
@@ -59,8 +59,8 @@ class PaperBroker:
         price = round(market_price * (1 - config.SLIPPAGE_RATE))
         qty = pos["qty"]
         amount = price * qty
-        fee = int(amount * config.FEE_RATE)
-        tax = int(amount * config.SELL_TAX_RATE)
+        fee = int(amount * config.fee_rate(code))
+        tax = int(amount * config.sell_tax_rate(code))
         proceeds = amount - fee - tax
         pnl = proceeds - pos["cost_basis"]
 
