@@ -96,10 +96,21 @@ def tick(state, t):
         state["opened"] = True
 
     blocked = broker.account.setdefault("blocked", [])
-    sold = []
+    sold, peak_changed = [], False
     for code, p in held.items():
-        if code in quotes and quotes[code] / p["avg_price"] - 1 <= config.STOP_LOSS_PCT:
-            tr = broker.sell(code, quotes[code], "손절")
+        if code not in quotes:
+            continue
+        price = quotes[code]
+        p.setdefault("peak", p["avg_price"])
+        if price > p["peak"]:
+            p["peak"], peak_changed = price, True
+        reason = None
+        if price / p["avg_price"] - 1 <= config.STOP_LOSS_PCT:
+            reason = "손절"
+        elif config.TRAIL_STOP_PCT and price <= p["peak"] * (1 - config.TRAIL_STOP_PCT):
+            reason = "추적손절"
+        if reason:
+            tr = broker.sell(code, price, reason)
             if tr:
                 sold.append(tr)
                 if code not in blocked:
@@ -108,6 +119,8 @@ def tick(state, t):
         broker.save()
         notify.send(messages.trade_alert(sold), mention=True)
         git_push("intraday stop loss")
+    elif peak_changed:
+        broker.save()   # 최고가 기록 보존
     publish_live(broker, quotes, t)
     print(f"[{t:%H:%M}] 확인 완료 (감시 {len(held)}종목, 손절 {len(sold)}건)")
     return None

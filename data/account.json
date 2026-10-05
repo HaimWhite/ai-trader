@@ -5,19 +5,22 @@
       "name": "KB금융",
       "qty": 11,
       "avg_price": 168568,
-      "cost_basis": 1854526
+      "cost_basis": 1854526,
+      "peak": 168568
     },
     "AAPL": {
       "name": "애플",
       "qty": 4,
       "avg_price": 454469,
-      "cost_basis": 1822420
+      "cost_basis": 1822420,
+      "peak": 454469
     },
     "MSFT": {
       "name": "마이크로소프트",
       "qty": 2,
       "avg_price": 704850,
-      "cost_basis": 1413224
+      "cost_basis": 1413224,
+      "peak": 704850
     }
   },
   "blocked": []

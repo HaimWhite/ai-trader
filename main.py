@@ -60,11 +60,23 @@ def main():
         if info["signal"] == "SELL" and code in blocked:
             blocked.remove(code)
 
+        # 매수 후 최고가 갱신 (추적 손절용)
+        if held:
+            held["peak"] = max(held.get("peak", held["avg_price"]), price)
+        trail_hit = bool(held and config.TRAIL_STOP_PCT and price <= held["peak"] * (1 - config.TRAIL_STOP_PCT))
+
         # 1) 손절 우선
         if held and price / held["avg_price"] - 1 <= config.STOP_LOSS_PCT:
             t = broker.sell(code, price, "손절")
             if t:
                 action = f"손절 매도 {t['qty']}주"
+                if code not in blocked:
+                    blocked.append(code)
+        # 1.5) 추적 손절: 번 돈을 다시 토해내기 전에 최고가 대비 크게 내려오면 매도
+        elif trail_hit:
+            t = broker.sell(code, price, "추적손절")
+            if t:
+                action = f"추적손절 매도 {t['qty']}주"
                 if code not in blocked:
                     blocked.append(code)
         # 2) 전략 신호

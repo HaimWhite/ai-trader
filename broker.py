@@ -49,6 +49,7 @@ class PaperBroker:
             "qty": qty,
             "avg_price": price,
             "cost_basis": amount + fee,
+            "peak": price,
         }
         return self._record("BUY", code, name, price, qty, fee, 0, 0, reason)
 

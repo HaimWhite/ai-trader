@@ -29,6 +29,8 @@ def _report_note(now=None):
 def plain_reason(reason):
     if reason == "손절":
         return f"매입가 대비 {abs(config.STOP_LOSS_PCT) * 100:.0f}% 이상 하락해 손절 기준에 도달했습니다."
+    if reason == "추적손절":
+        return f"최고가 대비 {(config.TRAIL_STOP_PCT or 0) * 100:.0f}% 이상 하락해 추적 손절 기준에 도달했습니다."
     if "상승 추세" in reason:
         return "단기 평균이 장기 평균 위로 올라와 상승 흐름으로 판단했습니다."
     if "하락 추세" in reason:

@@ -49,6 +49,7 @@ def sell_tax_rate(code):
 SHORT_MA = 20           # 단기 이동평균 (일)
 LONG_MA = 120           # 장기 이동평균 (일)
 STOP_LOSS_PCT = -0.07   # 매입가 대비 -7% 이하이면 손절
+TRAIL_STOP_PCT = 0.20   # 추적 손절: 매수 후 최고가 대비 이 비율만큼 내려오면 매도 (끄려면 None)
 
 # 백테스트 설정
 BACKTEST_START = "2021-01-01"   # 백테스트 시작일
