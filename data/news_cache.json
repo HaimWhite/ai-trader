@@ -1,78 +1,6 @@
 {
-  "005930": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 1,
-      "summary": "호재 키워드 발견: 자사주 매입",
-      "ok": true
-    }
-  },
-  "000660": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 0,
-      "summary": "특이한 키워드 없음",
-      "ok": true
-    }
-  },
-  "035420": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 1,
-      "summary": "호재 키워드 발견: 자사주 매입",
-      "ok": true
-    }
-  },
-  "005380": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 0,
-      "summary": "특이한 키워드 없음",
-      "ok": true
-    }
-  },
-  "105560": {
-    "date": "2026-10-05",
-    "result": {
-      "score": -1,
-      "summary": "악재 키워드 발견: 폭락",
-      "ok": true
-    }
-  },
-  "247540": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 0,
-      "summary": "특이한 키워드 없음",
-      "ok": true
-    }
-  },
-  "196170": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 0,
-      "summary": "특이한 키워드 없음",
-      "ok": true
-    }
-  },
-  "263750": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 0,
-      "summary": "특이한 키워드 없음",
-      "ok": true
-    }
-  },
-  "NVDA": {
-    "date": "2026-10-05",
-    "result": {
-      "score": 1,
-      "summary": "호재 키워드 발견: 신고가",
-      "ok": true
-    }
-  },
-  "AAPL": {
-    "date": "2026-10-05",
+  "055550": {
+    "date": "2026-10-06",
     "result": {
       "score": 0,
       "summary": "특이한 키워드 없음",
@@ -80,10 +8,234 @@
     }
   },
   "MSFT": {
-    "date": "2026-10-05",
+    "date": "2026-10-06",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 투자의견 상향",
+      "ok": true
+    }
+  },
+  "105560": {
+    "date": "2026-10-06",
     "result": {
       "score": 0,
       "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "META": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "006400": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 신고가",
+      "ok": true
+    }
+  },
+  "AAPL": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "068270": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "NVDA": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "033780": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "005930": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 자사주 매입",
+      "ok": true
+    }
+  },
+  "000660": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "207940": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 수주",
+      "ok": true
+    }
+  },
+  "196170": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "086280": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "035420": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "AMZN": {
+    "date": "2026-10-06",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 화재",
+      "ok": true
+    }
+  },
+  "032830": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "TSLA": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "GOOGL": {
+    "date": "2026-10-06",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 소송",
+      "ok": true
+    }
+  },
+  "NFLX": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "015760": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "AVGO": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "263750": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "000270": {
+    "date": "2026-10-06",
+    "result": {
+      "score": -2,
+      "summary": "큰 악재 키워드 발견: 배임",
+      "ok": true
+    }
+  },
+  "058470": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "012330": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "086520": {
+    "date": "2026-10-06",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 급락",
+      "ok": true
+    }
+  },
+  "028300": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "005380": {
+    "date": "2026-10-06",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "247540": {
+    "date": "2026-10-06",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 급락",
       "ok": true
     }
   }

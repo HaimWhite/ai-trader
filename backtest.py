@@ -45,6 +45,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
     pending = {}     # code -> ("BUY"/"SELL", 사유)
     blocked = set()  # 손절 후 재진입 대기
     streak = {}      # 종목별 상승 신호 연속 일수
+    rank = {}        # 종목별 추세 강도 (단기선/장기선)
     below = {}       # 종가가 단기선 아래인 연속 일수
     curve, trades = [], []
 
@@ -67,6 +68,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                 del pending[code]
 
             buys = [c for c, (s, _) in pending.items() if s == "BUY" and c not in pos]
+            buys.sort(key=lambda c: -rank.get(c, 0))
             if buys:
                 eq_open = cash + sum(p["qty"] * data[c]["open"][i] for c, p in pos.items())
                 budget = eq_open / min(n, config.MAX_POSITIONS)
@@ -97,6 +99,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             if np.isnan(ml) or np.isnan(c):
                 continue
             bullish = ms > ml
+            rank[code] = ms / ml
             streak[code] = streak.get(code, 0) + 1 if bullish else 0
             below[code] = below.get(code, 0) + 1 if c < ms else 0
             entry_ok = True

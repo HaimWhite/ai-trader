@@ -46,7 +46,7 @@ def publish_live(broker, quotes, t):
     for code, p in broker.account["positions"].items():
         price = quotes.get(code) or latest.get(code, {}).get("price") or p["avg_price"]
         prices[code] = price
-        holdings.append({"code": code, "name": p["name"], "qty": p["qty"], "avg_price": p["avg_price"], "price": price})
+        holdings.append({"code": code, "name": p["name"], "qty": p["qty"], "avg_price": p["avg_price"], "peak": p.get("peak", p["avg_price"]), "price": price})
     payload = {
         "updated_at": t.strftime("%Y-%m-%d %H:%M:%S"),
         "equity": round(broker.equity(prices)),

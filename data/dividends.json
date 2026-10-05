@@ -1,0 +1,207 @@
+{
+ "005930": {
+  "ok": true,
+  "yield_pct": 0.48,
+  "annual": 1312.0,
+  "last_date": "2026-06-29",
+  "currency": "KRW"
+ },
+ "000660": {
+  "ok": true,
+  "yield_pct": 0.16,
+  "annual": 3000.0,
+  "last_date": "2026-08-28",
+  "currency": "KRW"
+ },
+ "035420": {
+  "ok": true,
+  "yield_pct": 1.37,
+  "annual": 2630.0,
+  "last_date": "2026-02-26",
+  "currency": "KRW"
+ },
+ "005380": {
+  "ok": true,
+  "yield_pct": 2.89,
+  "annual": 10000.0,
+  "last_date": "2026-08-28",
+  "currency": "KRW"
+ },
+ "105560": {
+  "ok": true,
+  "yield_pct": 2.89,
+  "annual": 4833.0,
+  "last_date": "2026-08-06",
+  "currency": "KRW"
+ },
+ "207940": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0,
+  "last_date": null
+ },
+ "000270": {
+  "ok": true,
+  "yield_pct": 6.02,
+  "annual": 6800.0,
+  "last_date": "2026-03-24",
+  "currency": "KRW"
+ },
+ "068270": {
+  "ok": true,
+  "yield_pct": 0.39,
+  "annual": 714.29,
+  "last_date": "2025-12-29",
+  "currency": "KRW"
+ },
+ "006400": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0.0,
+  "last_date": "2024-12-27",
+  "currency": "KRW"
+ },
+ "055550": {
+  "ok": true,
+  "yield_pct": 2.8,
+  "annual": 2930.0,
+  "last_date": "2026-07-29",
+  "currency": "KRW"
+ },
+ "012330": {
+  "ok": true,
+  "yield_pct": 1.69,
+  "annual": 6500.0,
+  "last_date": "2026-08-07",
+  "currency": "KRW"
+ },
+ "033780": {
+  "ok": true,
+  "yield_pct": 3.73,
+  "annual": 6600.0,
+  "last_date": "2026-08-20",
+  "currency": "KRW"
+ },
+ "032830": {
+  "ok": true,
+  "yield_pct": 1.83,
+  "annual": 5300.0,
+  "last_date": "2025-12-29",
+  "currency": "KRW"
+ },
+ "086280": {
+  "ok": true,
+  "yield_pct": 2.88,
+  "annual": 5800.0,
+  "last_date": "2026-03-30",
+  "currency": "KRW"
+ },
+ "015760": {
+  "ok": true,
+  "yield_pct": 5.13,
+  "annual": 1542.0,
+  "last_date": "2025-12-29",
+  "currency": "KRW"
+ },
+ "247540": {
+  "ok": true,
+  "yield_pct": 0.09,
+  "annual": 98.57,
+  "last_date": "2026-03-30",
+  "currency": "KRW"
+ },
+ "196170": {
+  "ok": true,
+  "yield_pct": 0.11,
+  "annual": 285.38,
+  "last_date": "2025-12-29",
+  "currency": "KRW"
+ },
+ "263750": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0,
+  "last_date": null
+ },
+ "086520": {
+  "ok": true,
+  "yield_pct": 0.17,
+  "annual": 150.0,
+  "last_date": "2026-03-30",
+  "currency": "KRW"
+ },
+ "028300": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0,
+  "last_date": null
+ },
+ "058470": {
+  "ok": true,
+  "yield_pct": 0.95,
+  "annual": 800.0,
+  "last_date": "2025-12-29",
+  "currency": "KRW"
+ },
+ "NVDA": {
+  "ok": true,
+  "yield_pct": 0.22,
+  "annual": 0.52,
+  "last_date": "2026-09-10",
+  "currency": "USD"
+ },
+ "AAPL": {
+  "ok": true,
+  "yield_pct": 0.32,
+  "annual": 1.06,
+  "last_date": "2026-08-10",
+  "currency": "USD"
+ },
+ "MSFT": {
+  "ok": true,
+  "yield_pct": 0.69,
+  "annual": 3.64,
+  "last_date": "2026-08-20",
+  "currency": "USD"
+ },
+ "AMZN": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0,
+  "last_date": null
+ },
+ "GOOGL": {
+  "ok": true,
+  "yield_pct": 0.25,
+  "annual": 0.86,
+  "last_date": "2026-09-04",
+  "currency": "USD"
+ },
+ "META": {
+  "ok": true,
+  "yield_pct": 0.28,
+  "annual": 2.1,
+  "last_date": "2026-09-21",
+  "currency": "USD"
+ },
+ "TSLA": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0,
+  "last_date": null
+ },
+ "AVGO": {
+  "ok": true,
+  "yield_pct": 0.72,
+  "annual": 2.6,
+  "last_date": "2026-09-21",
+  "currency": "USD"
+ },
+ "NFLX": {
+  "ok": true,
+  "yield_pct": 0.0,
+  "annual": 0,
+  "last_date": null
+ },
+ "_updated": "2026-10-06"
+}

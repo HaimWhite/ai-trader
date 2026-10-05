@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import FinanceDataReader as fdr
 
 import config
+import dividends
 import market
 import messages
 import news
@@ -41,10 +42,18 @@ def main():
     budget = broker.equity(prices) / min(n, config.MAX_POSITIONS)
     blocked = broker.account.setdefault("blocked", [])
 
-    for code, df in frames.items():
+    # 상승 추세가 강한 종목부터 판단 (자리가 한정되어 있어서 강한 종목이 먼저 채우도록)
+    infos = {code: strategy.analyze(df) for code, df in frames.items()}
+
+    def strength(code):
+        i = infos[code]
+        return i["short_ma"] / i["long_ma"] if i["short_ma"] and i["long_ma"] else 0
+
+    for code in sorted(frames, key=strength, reverse=True):
+        df = frames[code]
         name = config.SYMBOLS[code]
         price = prices[code]
-        info = strategy.analyze(df)
+        info = infos[code]
         held = broker.account["positions"].get(code)
         action = "관망"
 
@@ -124,9 +133,16 @@ def main():
     with open(pfile, "w", encoding="utf-8") as f:
         json.dump(pdata, f, ensure_ascii=False, separators=(",", ":"))
 
+    try:
+        dividends.update()
+    except Exception as e:
+        print("배당 정보 갱신 실패:", e)
+
     latest_out = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "initial_cash": config.INITIAL_CASH,
+        "rules": {"stop_loss_pct": config.STOP_LOSS_PCT, "trail_pct": config.TRAIL_STOP_PCT,
+                  "short_ma": config.SHORT_MA, "long_ma": config.LONG_MA, "max_positions": config.MAX_POSITIONS},
         "cash": broker.account["cash"],
         "equity": round(equity),
         "return_pct": round((equity / config.INITIAL_CASH - 1) * 100, 2),

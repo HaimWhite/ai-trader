@@ -1,26 +1,40 @@
 {
-  "cash": 4887831,
+  "cash": 957384,
   "positions": {
-    "105560": {
-      "name": "KB금융",
-      "qty": 11,
-      "avg_price": 168568,
-      "cost_basis": 1854526,
-      "peak": 168568
-    },
-    "AAPL": {
-      "name": "애플",
-      "qty": 4,
-      "avg_price": 454469,
-      "cost_basis": 1822420,
-      "peak": 454469
+    "055550": {
+      "name": "신한지주",
+      "qty": 37,
+      "avg_price": 106006,
+      "cost_basis": 3922810,
+      "peak": 106006
     },
     "MSFT": {
       "name": "마이크로소프트",
-      "qty": 2,
-      "avg_price": 704850,
-      "cost_basis": 1413224,
-      "peak": 704850
+      "qty": 5,
+      "avg_price": 705696,
+      "cost_basis": 3537301,
+      "peak": 705696
+    },
+    "105560": {
+      "name": "KB금융",
+      "qty": 23,
+      "avg_price": 168568,
+      "cost_basis": 3877645,
+      "peak": 168568
+    },
+    "META": {
+      "name": "메타",
+      "qty": 4,
+      "avg_price": 996908,
+      "cost_basis": 3997601,
+      "peak": 996908
+    },
+    "006400": {
+      "name": "삼성SDI",
+      "qty": 7,
+      "avg_price": 529529,
+      "cost_basis": 3707259,
+      "peak": 529529
     }
   },
   "blocked": []
