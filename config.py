@@ -62,3 +62,10 @@ NEWS_MODEL = "claude-haiku-4-5-20251001" # 뉴스 분석에 쓰는 Claude 모델
 NEWS_MAX_ITEMS = 8                       # 종목당 읽을 뉴스 제목 수
 NEWS_BLOCK_BUY_SCORE = -1                # 뉴스 점수가 이 값 이하이면 신규 매수 보류 (-2 큰 악재 ~ +2 큰 호재)
 NEWS_WARN_HELD_SCORE = -2                # 보유 종목이 이 점수 이하이면 경고 알림 (자동 매도는 하지 않음)
+
+# 변동성이 큰 종목(코스닥·나스닥): 손절선을 넓게 쓰는 전략 비교용
+WIDE_STOP_CODES = {"247540", "196170", "263750", "NVDA", "AAPL", "MSFT"}
+WIDE_STOP_PCT = -0.12
+
+# 뉴스 분석 방식: "keyword"(무료, 단어 검색) / "claude"(API 사용, 유료) / "auto"(키가 있으면 Claude, 없으면 keyword)
+NEWS_MODE = "keyword"

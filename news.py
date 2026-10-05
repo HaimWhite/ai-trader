@@ -62,6 +62,33 @@ def _call_claude(name, headlines):
     return "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text")
 
 
+STRONG_BAD = ["횡령", "배임", "거래정지", "상장폐지", "압수수색", "분식회계", "어닝쇼크", "실적 쇼크", "부도", "회생절차"]
+BAD = ["적자 전환", "적자전환", "유상증자", "감자", "리콜", "과징금", "제재", "불성실공시", "소송", "파업", "화재",
+       "폭락", "급락", "목표가 하향", "목표주가 하향", "투자의견 하향", "실적 부진", "대규모 손실"]
+GOOD = ["흑자 전환", "흑자전환", "어닝서프라이즈", "사상 최대", "최대 실적", "수주", "공급 계약", "계약 체결",
+        "목표가 상향", "목표주가 상향", "투자의견 상향", "자사주 매입", "배당 확대", "신고가"]
+
+
+def keyword_score(headlines):
+    """단어 검색 방식(무료). 문맥을 읽지 못해서 Claude 분석보다 정확도가 낮습니다."""
+    text = " ".join(headlines)
+    strong = [w for w in STRONG_BAD if w in text]
+    bad = [w for w in BAD if w in text]
+    good = [w for w in GOOD if w in text]
+    if strong:
+        return {"score": -2, "summary": "큰 악재 키워드 발견: " + ", ".join(strong[:3])}
+    if len(bad) > len(good):
+        return {"score": -1, "summary": "악재 키워드 발견: " + ", ".join(bad[:3])}
+    if len(good) > len(bad):
+        return {"score": 1, "summary": "호재 키워드 발견: " + ", ".join(good[:3])}
+    return {"score": 0, "summary": "특이한 키워드 없음"}
+
+
+def _use_claude():
+    mode = config.NEWS_MODE
+    return mode == "claude" or (mode == "auto" and bool(_env("ANTHROPIC_API_KEY")))
+
+
 def _parse(text):
     obj = json.loads(text[text.find("{"): text.rfind("}") + 1])
     return {"score": max(-2, min(2, int(obj["score"]))), "summary": str(obj.get("summary", ""))[:100]}
@@ -78,7 +105,7 @@ def get_news(code, name):
     try:
         heads = fetch_headlines(name)
         if heads:
-            result = _parse(_call_claude(name, heads))
+            result = _parse(_call_claude(name, heads)) if _use_claude() else keyword_score(heads)
         else:
             result = {"score": 0, "summary": "최근 3일간 관련 뉴스가 없습니다."}
         result["ok"] = True

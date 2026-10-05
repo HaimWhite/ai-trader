@@ -34,13 +34,17 @@ def prepare(frames, ma_list):
     return idx, data
 
 
-def simulate(n_days, data, short, long_, stop, filter_n=None):
-    """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수"""
+def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None):
+    """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
+    confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
+    trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
+    pullback: 단기선보다 이 비율 이상 눌렸을 때만 매수"""
     n = len(data)
     cash = float(config.INITIAL_CASH)
     pos = {}         # code -> {qty, avg, cost}
     pending = {}     # code -> ("BUY"/"SELL", 사유)
     blocked = set()  # 손절 후 재진입 대기
+    streak = {}      # 종목별 상승 신호 연속 일수
     curve, trades = [], []
 
     for i in range(n_days):
@@ -56,7 +60,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None):
                 amount = price * pos[code]["qty"]
                 proceeds = amount - amount * config.fee_rate(code) - amount * config.sell_tax_rate(code)
                 pnl = proceeds - pos[code]["cost"]
-                trades.append({"code": code, "pnl": pnl, "pnl_pct": pnl / pos[code]["cost"] * 100, "why": why})
+                trades.append({"code": code, "pnl": pnl, "pnl_pct": pnl / pos[code]["cost"] * 100, "why": why, "i": i})
                 cash += proceeds
                 del pos[code]
                 del pending[code]
@@ -92,15 +96,27 @@ def simulate(n_days, data, short, long_, stop, filter_n=None):
             if np.isnan(ml) or np.isnan(c):
                 continue
             bullish = ms > ml
+            streak[code] = streak.get(code, 0) + 1 if bullish else 0
             entry_ok = True
+            if confirm > 1 and streak[code] < confirm:
+                entry_ok = False
+            if gap and not ms > ml * (1 + gap):
+                entry_ok = False
+            if pullback and not c <= ms * (1 - pullback):
+                entry_ok = False
             if filter_n:
                 mf = dd["ma"][filter_n][i]
-                entry_ok = (not np.isnan(mf)) and c > mf
+                entry_ok = entry_ok and (not np.isnan(mf)) and c > mf
             if not bullish:
                 blocked.discard(code)
             if code in pos:
-                if stop is not None and c / pos[code]["avg"] - 1 <= stop:
+                pos[code]["peak"] = max(pos[code].get("peak", pos[code]["avg"]), c)
+                code_stop = wide_stop if (wide_stop is not None and code in config.WIDE_STOP_CODES) else stop
+                if code_stop is not None and c / pos[code]["avg"] - 1 <= code_stop:
                     pending[code] = ("SELL", "손절")
+                    blocked.add(code)
+                elif trail is not None and c <= pos[code]["peak"] * (1 - trail):
+                    pending[code] = ("SELL", "추적손절")
                     blocked.add(code)
                 elif not bullish:
                     pending[code] = ("SELL", "하락 추세")
