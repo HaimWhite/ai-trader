@@ -1,0 +1,90 @@
+{
+  "005930": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 자사주 매입",
+      "ok": true
+    }
+  },
+  "000660": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "035420": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 자사주 매입",
+      "ok": true
+    }
+  },
+  "005380": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "105560": {
+    "date": "2026-10-05",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 폭락",
+      "ok": true
+    }
+  },
+  "247540": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "196170": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "263750": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "NVDA": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 신고가",
+      "ok": true
+    }
+  },
+  "AAPL": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "MSFT": {
+    "date": "2026-10-05",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  }
+}
