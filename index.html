@@ -77,7 +77,13 @@ const man = v => Math.abs(v) >= 1e8 ? (v/1e8).toFixed(2) + "억" : num(v/1e4) + 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const cls = n => n > 0 ? "up" : n < 0 ? "down" : "";
 const sign = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+const LIVE_URL = "https://raw.githubusercontent.com/HaimWhite/ai-trader/live/live.json";
 let RANGE = 365, SEL = null, D = {};
+async function loadLive(){
+  const r = await fetch(LIVE_URL + "?t=" + Date.now());
+  if(!r.ok) throw new Error("live");
+  return r.json();
+}
 
 async function load(name){
   const r = await fetch("data/" + name + ".json?t=" + Date.now());
@@ -139,11 +145,13 @@ function chart(el, series, o){
 }
 
 function render(){
-  const {latest, account, trades, history, prices, bt} = D;
-  const P = latest.initial_cash || 10000000, eq = latest.equity, pl = eq - P, plp = pl / P * 100;
+  const {latest, account, trades, history, prices, bt, live} = D;
+  const useLive = !!(live && live.updated_at > latest.updated_at);   // 장중 실시간 데이터가 더 최신일 때
+  const cash = useLive ? live.cash : latest.cash;
+  const P = latest.initial_cash || 10000000, eq = useLive ? live.equity : latest.equity, pl = eq - P, plp = pl / P * 100;
   const prev = history.length >= 2 ? history[history.length-2].equity : null;
-  const stockVal = eq - latest.cash;
-  $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)";
+  const stockVal = eq - cash;
+  $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)" + (useLive ? " · 장중 실시간 " + live.updated_at.slice(11, 16) + " 기준 (5분 간격)" : "");
   const card = (l, v, s, c) => '<div class="card"><div class="l">' + l + '</div><div class="v ' + (c || "") + '">' + v + "</div>" + (s ? '<div class="s ' + (c || "") + '">' + s + "</div>" : "") + "</div>";
   $("cards").innerHTML =
     card("원금 (시작 자금)", won(P)) +
@@ -151,7 +159,7 @@ function render(){
     card("총 손익", signWon(pl), sign(plp), cls(pl)) +
     card("전일 대비", prev == null ? "-" : signWon(eq - prev), prev == null ? "" : sign((eq / prev - 1) * 100), prev == null ? "" : cls(eq - prev)) +
     card("보유 주식 합계", won(stockVal), eq ? (stockVal / eq * 100).toFixed(1) + "% 비중" : "") +
-    card("현금", won(latest.cash));
+    card("현금", won(cash));
 
   // 자산 추이
   const hd = history.map(h => h.date), i0 = rangeStart(hd);
@@ -161,8 +169,9 @@ function render(){
 
   // 보유 종목
   let tc = 0, tv = 0;
-  const hrows = Object.entries(account.positions).map(([code, p]) => {
-    const price = latest.symbols[code] ? latest.symbols[code].price : p.avg_price;
+  const pos = useLive ? Object.fromEntries(live.holdings.map(h => [h.code, h])) : account.positions;
+  const hrows = Object.entries(pos).map(([code, p]) => {
+    const price = useLive ? p.price : (latest.symbols[code] ? latest.symbols[code].price : p.avg_price);
     const val = price * p.qty, cost = p.avg_price * p.qty, pl2 = val - cost;
     tc += cost; tv += val;
     return "<tr><td>" + esc(p.name) + "</td><td>" + p.qty + "</td><td>" + won(p.avg_price) + "</td><td>" + won(price) +
@@ -222,7 +231,8 @@ async function main(){
     const [latest, account, trades, history] = await Promise.all([load("latest"), load("account"), load("trades"), load("history")]);
     const prices = await load("prices").catch(() => null);
     const bt = await load("backtest").catch(() => null);
-    D = {latest, account, trades, history, prices, bt};
+    const live = await loadLive().catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live};
     render();
   }catch(e){
     $("updated").textContent = "";
@@ -235,6 +245,7 @@ document.querySelectorAll("#rng button").forEach(b => b.addEventListener("click"
   if(D.latest) render();
 }));
 $("sel").addEventListener("change", e => { SEL = e.target.value; if(D.latest) render(); });
+setInterval(async () => { try{ D.live = await loadLive(); if(D.latest) render(); }catch(e){} }, 120000);
 window.addEventListener("resize", () => { if(D.latest) render(); });
 main();
 </script>

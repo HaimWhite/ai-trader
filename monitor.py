@@ -2,7 +2,9 @@
 - 개장 알림 1회
 - 손절 기준에 닿으면 즉시 매도하고 바로 보고 (그 외에는 조용히 감시)
 - 이동평균 기준 매수·매도 판단은 하루 한 번(16:00 main.py)만 합니다."""
+import json
 import subprocess
+import sys
 import time
 import traceback
 from datetime import datetime, time as dtime, timedelta
@@ -26,6 +28,40 @@ def git_push(msg):
             return
 
 
+def run_git(args, data=None):
+    r = subprocess.run(["git"] + args, cwd=config.BASE_DIR, input=data, capture_output=True, timeout=120)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout).decode("utf-8", "ignore").strip()[:200])
+    return r.stdout.decode("utf-8").strip()
+
+
+def publish_live(broker, quotes, t):
+    """현재 평가금액을 live 브랜치에 올립니다 (대시보드 웹페이지는 이 파일을 읽어 장중에 갱신).
+    live 브랜치는 매번 커밋 1개로 덮어써서 기록이 쌓이지 않고, 웹페이지 빌드도 일으키지 않습니다."""
+    latest = {}
+    lf = config.DATA_DIR / "latest.json"
+    if lf.exists():
+        latest = json.load(open(lf, encoding="utf-8")).get("symbols", {})
+    prices, holdings = {}, []
+    for code, p in broker.account["positions"].items():
+        price = quotes.get(code) or latest.get(code, {}).get("price") or p["avg_price"]
+        prices[code] = price
+        holdings.append({"code": code, "name": p["name"], "qty": p["qty"], "avg_price": p["avg_price"], "price": price})
+    payload = {
+        "updated_at": t.strftime("%Y-%m-%d %H:%M:%S"),
+        "equity": round(broker.equity(prices)),
+        "cash": round(broker.account["cash"]),
+        "holdings": holdings,
+    }
+    try:
+        blob = run_git(["hash-object", "-w", "--stdin"], json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+        tree = run_git(["mktree"], f"100644 blob {blob}\tlive.json\n".encode("utf-8"))
+        commit = run_git(["commit-tree", tree, "-m", "live update"])
+        run_git(["push", "--force", "origin", f"{commit}:refs/heads/live"])
+    except Exception as e:
+        print("실시간 데이터 업로드 실패:", e)
+
+
 def tick(state, t):
     """한 번 확인. 'exit' 를 돌려주면 오늘 감시를 끝냅니다."""
     broker = PaperBroker()
@@ -43,7 +79,8 @@ def tick(state, t):
     if not state["opened"]:
         if ref_code not in quotes:
             if t.time() >= dtime(9, 30):
-                notify.send(messages.no_data_message())
+                if not state.get("quiet"):
+                    notify.send(messages.no_data_message())
                 return "exit"
             return None
         prices, holdings = {}, []
@@ -71,11 +108,15 @@ def tick(state, t):
         broker.save()
         notify.send(messages.trade_alert(sold), mention=True)
         git_push("intraday stop loss")
+    publish_live(broker, quotes, t)
     print(f"[{t:%H:%M}] 확인 완료 (감시 {len(held)}종목, 손절 {len(sold)}건)")
     return None
 
 
 def main():
+    if "--once" in sys.argv:   # 점검용: 개장 알림 없이 한 번만 확인하고 live 데이터를 올려봅니다
+        tick({"opened": True, "err": False, "quiet": True}, datetime.now())
+        return
     state = {"opened": False, "err": False}
     while datetime.now().time() < OPEN:
         time.sleep(20)
