@@ -1,5 +1,6 @@
-"""과거 데이터로 전략을 검증합니다. 실행: python backtest.py"""
+"""과거 데이터로 전략을 검증합니다. 실행: python backtest.py   (이전 설정과 비교: python backtest.py --vs-old)"""
 import json
+import sys
 from datetime import datetime
 
 import market
@@ -244,7 +245,9 @@ def main():
     idx, data = prepare(frames, [config.SHORT_MA, config.LONG_MA])
     start = config.LONG_MA          # 이동평균이 계산되기 시작하는 시점부터 비교
     curve, trades = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT, **live_options())
-    prev_curve, _ = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT)   # 이전 설정(손절만) 참고용
+    # --vs-old: 추적 손절·갭 필터 없이 손절 -7%만 쓴 경우와 나란히 비교 (시간이 더 걸려서 옵션으로만 제공)
+    vs_old = "--vs-old" in sys.argv
+    prev_curve = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT)[0] if vs_old else None
 
     dates = idx[start:]
     strat = curve[start:]
@@ -269,18 +272,24 @@ def main():
             "pnl": round(sum(t["pnl"] for t in ts)),
         }
 
-    keep = list(range(0, len(dates), 5))
-    if keep[-1] != len(dates) - 1:
-        keep.append(len(dates) - 1)
+    series = {"strategy": strat, "benchmark": bench, **idx_curves}
+    if vs_old:
+        series["previous"] = prev_curve[start:]
+    curve_rows = []
+    for i in range(len(dates)):
+        row = {"date": dates[i].strftime("%Y-%m-%d"), "strategy": round(strat[i]), "benchmark": round(bench[i])}
+        if vs_old:
+            row["previous"] = round(prev_curve[start + i])
+        row.update({k: round(v[i]) for k, v in idx_curves.items()})
+        curve_rows.append(row)
 
     out = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "period": [dates[0].strftime("%Y-%m-%d"), dates[-1].strftime("%Y-%m-%d")],
         "strategy": metrics(strat, dates),
         "benchmark": metrics(bench, dates),
-        "previous": metrics(prev_curve[start:], dates),
         "settings": settings_text(),
-        "yearly": yearly_returns(dates, {"strategy": strat, "benchmark": bench, "previous": prev_curve[start:], **idx_curves}),
+        "yearly": yearly_returns(dates, series),
         "trades": [
             {"date": idx[t["i"]].strftime("%Y-%m-%d"), "name": config.SYMBOLS.get(t["code"], t["code"]),
              "pnl": round(t["pnl"]), "pct": round(t["pnl_pct"], 2), "why": t["why"]}
@@ -290,11 +299,10 @@ def main():
         "win_rate": round(len(wins) / len(trades) * 100, 1) if trades else 0,
         "avg_trade_pct": round(sum(t["pnl_pct"] for t in trades) / len(trades), 2) if trades else 0,
         "by_symbol": by_symbol,
-        "curve": [
-            {"date": dates[i].strftime("%Y-%m-%d"), "strategy": round(strat[i]), "benchmark": round(bench[i]), "previous": round(prev_curve[start + i]), **{k: round(v[i]) for k, v in idx_curves.items()}}
-            for i in range(len(dates))
-        ],
+        "curve": curve_rows,
     }
+    if vs_old:
+        out["previous"] = metrics(prev_curve[start:], dates)
     config.DATA_DIR.mkdir(exist_ok=True)
     with open(config.DATA_DIR / "backtest.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
@@ -302,20 +310,22 @@ def main():
     print()
     print(f"기간: {out['period'][0]} ~ {out['period'][1]}")
     print(f"적용 설정: {out['settings']}")
-    for name, m_ in (("현재 설정  ", out["strategy"]), ("이전 설정  ", out["previous"]), ("단순 보유  ", out["benchmark"])):
+    rows = [("현재 설정  ", out["strategy"])] + ([("이전 설정  ", out["previous"])] if vs_old else []) + [("단순 보유  ", out["benchmark"])]
+    for name, m_ in rows:
         print(f"{name}: 총 {m_['total_return']}% | 연 {m_['cagr']}% | 최대낙폭 {m_['mdd']}%")
-    print("(이전 설정 = 추적 손절·갭 필터 없이 손절 -7%만 쓴 경우)")
+    if vs_old:
+        print("(이전 설정 = 추적 손절·갭 필터 없이 손절 -7%만 쓴 경우)")
     print(f"현재 설정 거래 {out['trade_count']}회 | 승률 {out['win_rate']}% | 평균 손익 {out['avg_trade_pct']}%")
 
-    # 기간별 연환산 수익률 차이 (현재 설정 - 이전 설정)
-    split_i = int(idx.searchsorted(pd.Timestamp("2025-01-01")))
-    print()
-    print("[연환산 수익률 차이]  (현재 설정 - 이전 설정, %p)")
-    print(f"{'기간':<14}{'현재 연%':>10}{'이전 연%':>10}{'차이':>8}{'현재 낙폭':>10}{'이전 낙폭':>10}")
-    for label, (a, b) in (("전체", (start, len(idx))), ("2025년 이전", (start, split_i)), ("2025년 이후", (split_i - 1, len(idx)))):
-        cur, prv = metrics(curve[a:b], idx[a:b]), metrics(prev_curve[a:b], idx[a:b])
-        pad = 14 - sum(1 for ch in label if ord(ch) > 127)
-        print(f"{label:<{pad}}{cur['cagr']:>10}{prv['cagr']:>10}{cur['cagr'] - prv['cagr']:>+8.1f}{cur['mdd']:>10}{prv['mdd']:>10}")
+    if vs_old:   # 기간별 연환산 수익률 차이 (현재 설정 - 이전 설정)
+        split_i = int(idx.searchsorted(pd.Timestamp("2025-01-01")))
+        print()
+        print("[연환산 수익률 차이]  (현재 설정 - 이전 설정, %p)")
+        print(f"{'기간':<14}{'현재 연%':>10}{'이전 연%':>10}{'차이':>8}{'현재 낙폭':>10}{'이전 낙폭':>10}")
+        for label, (a_, b_) in (("전체", (start, len(idx))), ("2025년 이전", (start, split_i)), ("2025년 이후", (split_i - 1, len(idx)))):
+            cur, prv = metrics(curve[a_:b_], idx[a_:b_]), metrics(prev_curve[a_:b_], idx[a_:b_])
+            pad = 14 - sum(1 for ch in label if ord(ch) > 127)
+            print(f"{label:<{pad}}{cur['cagr']:>10}{prv['cagr']:>10}{cur['cagr'] - prv['cagr']:>+8.1f}{cur['mdd']:>10}{prv['mdd']:>10}")
     print("\n[연도별 수익률 %]  (첫 해는 시작일부터, 마지막 해는 오늘까지)")
     print(f"{'연도':<6}{'전략':>8}{'단순보유':>9}{'코스피':>8}{'나스닥':>8}")
     for y in out["yearly"]:

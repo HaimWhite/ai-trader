@@ -365,7 +365,6 @@ function render(){
   // 백테스트 (선택한 기간에 맞춰 지표를 다시 계산)
   if(bt){
     const c = bt.curve, k = rangeStart(c.map(r => r.date)), cc = c.slice(k);
-    const hasPrev = cc[0].previous != null;
     const calc = key => {
       const v = cc.map(r => r[key]);
       let peak = v[0], mdd = 0;
@@ -375,7 +374,6 @@ function render(){
       return {total: (last - 1) * 100, cagr: days >= 180 ? (Math.pow(last, 365.25 / days) - 1) * 100 : null, mdd};
     };
     const cols = [["전략", "strategy"], ["단순 보유", "benchmark"]];
-    if(cc[0].previous != null) cols.push(["이전 설정", "previous"]);
     if(cc[0].kospi != null) cols.push(["코스피", "kospi"]);
     if(cc[0].nasdaq != null) cols.push(["나스닥(달러)", "nasdaq"]);
     const M = Object.fromEntries(cols.map(([n, k]) => [k, calc(k)]));
