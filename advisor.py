@@ -5,7 +5,8 @@
       python advisor.py --apply    대기 중인 제안 적용
       python advisor.py --reject   대기 중인 제안 거절
       python advisor.py --reset    기본값으로 되돌리기
-      python advisor.py --status   현재 설정 확인"""
+      python advisor.py --status   현재 설정 확인
+      python advisor.py --weekly   최근 6일 안에 점검했으면 건너뛰고, 아니면 점검"""
 import json
 import sys
 import urllib.request
@@ -141,7 +142,12 @@ def engine_name():
     return "claude" if mode == "claude" or (mode == "auto" and _env("ANTHROPIC_API_KEY")) else "rules"
 
 
-def propose():
+def propose(weekly=False):
+    if weekly:   # --weekly: 최근 6일 안에 점검했으면 건너뜀 (update_all.bat 을 여러 번 실행해도 알림이 반복되지 않도록)
+        done = [e for e in _read(LOG, []) if e["engine"] != "manual"]
+        if done and (datetime.now() - datetime.strptime(done[-1]["time"], "%Y-%m-%d %H:%M")).days < 6:
+            print("최근 6일 안에 설정 점검을 해서 이번에는 건너뜁니다.")
+            return
     ctx = build_context()
     engine = engine_name()
     try:
@@ -218,4 +224,5 @@ def status():
 
 if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
-    {"--apply": apply_pending, "--reject": reject_pending, "--reset": reset, "--status": status}.get(arg, propose)()
+    {"--apply": apply_pending, "--reject": reject_pending, "--reset": reset, "--status": status,
+     "--weekly": lambda: propose(weekly=True)}.get(arg, propose)()
