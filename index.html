@@ -60,6 +60,12 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
     <button data-d="1095">3년</button><button data-d="1825">5년</button><button data-d="0">전체</button>
   </div>
 
+  <div class="box sub">
+    <b>그래프 보는 법</b><br>
+    가로축은 날짜, 세로축은 금액(원)이에요. 위 버튼으로 기간을 바꾸고, 그래프를 짚거나 마우스를 올리면 그날의 날짜와 금액이 나와요.<br>
+    선이 올라가는 구간은 빨강, 내려가는 구간은 파랑이에요. 점선은 시작 원금이고, 점은 선택한 기간의 최고가(빨강)와 최저가(파랑)예요.<br>
+    주가 그래프의 ▲는 가상 매수, ▼는 가상 매도 시점이에요. 자산은 하루 한 번(장 마감 후) 기록돼요.
+  </div>
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll tall" id="signals"></div></div>
   <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="scroll" id="holdings"></div><div id="folders"></div></div>
@@ -68,14 +74,9 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
     <div class="sub" id="pi"></div><div class="sub" id="pext"></div><div id="pc"></div>
     <div class="sub" id="pmark"></div><div class="sub" id="pdiv" style="margin-top:6px"></div>
   </div>
+  <div class="box" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
-  <div class="box sub">
-    <b>그래프 보는 법</b><br>
-    가로축은 날짜, 세로축은 금액(원)이에요. 위 버튼으로 기간을 바꾸고, 그래프를 짚거나 마우스를 올리면 그날의 날짜와 금액이 나와요.<br>
-    선이 올라가는 구간은 빨강, 내려가는 구간은 파랑이에요. 점선은 시작 원금이고, 점은 선택한 기간의 최고가(빨강)와 최저가(파랑)예요.<br>
-    주가 그래프의 ▲는 가상 매수, ▼는 가상 매도 시점이에요. 자산은 하루 한 번(장 마감 후) 기록돼요.
-  </div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
@@ -88,6 +89,7 @@ const cls = n => n > 0 ? "up" : n < 0 ? "down" : "";
 const sign = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
 const LIVE_URL = "https://raw.githubusercontent.com/HaimWhite/ai-trader/live/live.json";
 let RANGE = 365, SEL = null, D = {};
+let BT_SORT = {key: "pnl", dir: -1}, DIV_SORT = {key: "y", dir: -1};
 
 /* ---------- 테마 (자동 / 라이트 / 다크) ---------- */
 let THEME = "auto";
@@ -126,6 +128,24 @@ const legend = items => items.map(([n, c, d]) => '<span class="lg"><i style="bor
 function table(headers, rows){
   if(!rows.length) return '<div class="empty">내역이 없습니다.</div>';
   return "<table><tr>" + headers.map(h => "<th>" + h + "</th>").join("") + "</tr>" + rows.join("") + "</table>";
+}
+/* 제목을 누르면 오름/내림차순으로 정렬되는 표. cols: [[정렬키(없으면 null), 제목, 셀 만드는 함수]] */
+function sortTable(id, state, cols, rows){
+  const arrow = k => state.key === k ? (state.dir > 0 ? " ▲" : " ▼") : "";
+  const sorted = rows.slice().sort((a, b) => {
+    const x = a[state.key], y = b[state.key];
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * state.dir;
+  });
+  return `<table id="${id}"><tr>` + cols.map(c => c[0] ? `<th data-sort="${c[0]}" style="cursor:pointer">${c[1]}${arrow(c[0])}</th>` : `<th>${c[1]}</th>`).join("") + "</tr>" +
+    sorted.map(r => "<tr>" + cols.map(c => c[2](r)).join("") + "</tr>").join("") + "</table>";
+}
+function bindSort(id, state){
+  document.querySelectorAll("#" + id + " th").forEach(h => h.addEventListener("click", () => {
+    const k = h.dataset.sort;
+    if(!k) return;
+    if(state.key === k) state.dir *= -1; else { state.key = k; state.dir = k === "name" ? 1 : -1; }
+    if(D.latest) render();
+  }));
 }
 function ext(dates, vals){
   let hi = 0, lo = 0;
@@ -243,6 +263,7 @@ function render(){
   // 오늘의 판단 (매수·매도 기준점 포함)
   const trailTxt = rules.trail_pct ? " · 최고가 대비 " + Math.round(rules.trail_pct * 100) + "% 하락(추적 손절)" : "";
   $("rules").innerHTML = `<b>매수 기준</b>: ${rules.short_ma}일선이 ${rules.long_ma}일선 위에 있고, 보유 자리(최대 ${rules.max_positions}종목)가 남아 있으면 추세가 강한 종목부터 매수<br>` +
+    (latest.breadth_pct != null ? `<b>시장 분위기</b>: 상승 추세 종목 ${latest.breadth_pct}%<br>` : "") +
     `<b>매도 기준</b>: ${rules.short_ma}일선이 ${rules.long_ma}일선 아래로 내려감 · 매입가 대비 ${Math.round(rules.stop_loss_pct * 100)}% 하락(손절)${trailTxt}`;
   const syms = Object.entries(latest.symbols).map(([code, s]) => Object.assign({code}, s));
   const order = s => pos[s.code] ? 0 : (s.action && s.action.indexOf("관망") !== 0) ? 1 : s.signal === "BUY" ? 2 : 3;
@@ -308,12 +329,25 @@ function render(){
     else $("pdiv").innerHTML = `배당률 <b>연 ${dv.yield_pct}%</b> (최근 1년 주당 ${dv.currency === "USD" ? "$" + dv.annual : num(dv.annual) + "원"}, 마지막 배당 ${esc(dv.last_date)})`;
   }
 
+  // 종목별 배당률 표
+  $("divbox").style.display = div ? "" : "none";
+  if(div){
+    const drows = Object.entries(latest.symbols).map(([code, sy]) => { const d = div[code] || {}; return {name: sy.name, ok: !!d.ok, y: d.ok ? d.yield_pct : -1, annual: d.annual || 0, cur: d.currency, last: d.last_date || ""}; });
+    $("divtable").innerHTML = '<div class="sub" style="margin-bottom:4px">최근 1년 배당금 기준이에요. 제목을 누르면 정렬돼요.</div>' + sortTable("divtbl", DIV_SORT, [
+      ["name", "종목", r => `<td>${esc(r.name)}</td>`],
+      ["y", "배당률(연)", r => `<td>${!r.ok ? "확인 불가" : r.annual ? "<b>" + r.y + "%</b>" : "배당 없음"}</td>`],
+      [null, "주당 배당금", r => `<td>${r.ok && r.annual ? (r.cur === "USD" ? "$" + r.annual : num(r.annual) + "원") : "-"}</td>`],
+      ["last", "마지막 배당", r => `<td>${esc(r.last || "-")}</td>`],
+    ], drows);
+    bindSort("divtbl", DIV_SORT);
+  }
+
   // 백테스트
   if(bt){
     const c = bt.curve, k = rangeStart(c.map(r => r.date)), cc = c.slice(k), s0 = cc[0].strategy, b0 = cc[0].benchmark;
     const m = (key, f) => "<td>" + f(bt.strategy[key]) + "</td><td>" + f(bt.benchmark[key]) + "</td>";
     const pct = v => '<span class="' + cls(v) + '">' + sign(v) + "</span>";
-    const sym = Object.entries(bt.by_symbol).map(([n, v]) => "<tr><td>" + esc(n) + "</td><td>" + v.trades + "</td><td>" + v.win_rate + '%</td><td class="' + cls(v.pnl) + '">' + won(v.pnl) + "</td></tr>");
+    const symRows = Object.entries(bt.by_symbol).map(([n, v]) => ({name: n, trades: v.trades, win_rate: v.win_rate, pnl: v.pnl}));
     $("bt").innerHTML =
       '<div class="sub" style="margin-bottom:8px">전체 기간: ' + esc(bt.period[0]) + " ~ " + esc(bt.period[1]) + " (수수료·세금·슬리피지 반영, 다음날 시가 체결 가정)</div>" +
       '<div id="btc"></div>' + legend([["이동평균 전략 (빨간 실선)", "var(--up)", false], ["단순 보유 (회색 점선)", "var(--sub)", true]]) +
@@ -321,7 +355,13 @@ function render(){
       '<div class="scroll"><table><tr><th>지표 (전체 기간)</th><th>전략</th><th>단순 보유</th></tr>' +
       "<tr><td>총 수익률</td>" + m("total_return", pct) + "</tr><tr><td>연환산 수익률</td>" + m("cagr", pct) + "</tr><tr><td>최대 낙폭</td>" + m("mdd", pct) + "</tr></table></div>" +
       '<div class="sub" style="margin:10px 0 6px">전략 거래 ' + bt.trade_count + "회 | 승률 " + bt.win_rate + "% | 평균 손익 " + bt.avg_trade_pct + "%</div>" +
-      '<div class="scroll tall"><table><tr><th>종목</th><th>거래수</th><th>승률</th><th>누적 손익</th></tr>' + sym.join("") + "</table></div>";
+      '<div class="sub" style="margin-bottom:4px">제목(거래수·승률·누적 손익)을 누르면 오름차순/내림차순으로 정렬돼요.</div><div class="scroll tall">' + sortTable("btsym", BT_SORT, [
+        ["name", "종목", r => `<td>${esc(r.name)}</td>`],
+        ["trades", "거래수", r => `<td>${r.trades}</td>`],
+        ["win_rate", "승률", r => `<td>${r.win_rate}%</td>`],
+        ["pnl", "누적 손익", r => `<td class="${cls(r.pnl)}">${won(r.pnl)}</td>`],
+      ], symRows) + "</div>";
+    bindSort("btsym", BT_SORT);
     const d = cc.map(r => r.date);
     chart($("btc"), [
       {x: d, y: cc.map(r => r.benchmark / b0 * 100 - 100), color: "var(--sub)", dash: true},

@@ -14,6 +14,16 @@ import strategy
 from broker import PaperBroker
 
 
+def size_budget(df, budget, equity):
+    """변동성이 큰 종목은 적게 사도록 투자 금액을 줄입니다 (config.VOL_SIZE_RISK 가 켜져 있을 때만)."""
+    if not config.VOL_SIZE_RISK:
+        return budget
+    m = df["Close"].pct_change().abs().rolling(20).mean().iloc[-1]
+    if m != m:
+        return budget
+    return min(budget, equity * config.VOL_SIZE_RISK / min(0.20, max(0.05, 3 * m)))
+
+
 def main():
     broker = PaperBroker()
     n_before = len(broker.trades)
@@ -46,11 +56,16 @@ def main():
             print(f"[{name}] 시세 조회 실패: {e}")
             failed.append(name)
 
-    budget = broker.equity(prices) / min(n, config.MAX_POSITIONS)
+    equity0 = broker.equity(prices)
+    budget = equity0 / min(n, config.MAX_POSITIONS)
     blocked = broker.account.setdefault("blocked", [])
 
     # 상승 추세가 강한 종목부터 판단 (자리가 한정되어 있어서 강한 종목이 먼저 채우도록)
     infos = {code: strategy.analyze(df) for code, df in frames.items()}
+
+    valid = [i for i in infos.values() if i["signal"] != "HOLD"]
+    breadth = sum(i["signal"] == "BUY" for i in valid) / len(valid) if valid else 1.0   # 상승 추세 종목 비율
+    weak_market = bool(config.BREADTH_MIN and breadth < config.BREADTH_MIN)
 
     def strength(code):
         i = infos[code]
@@ -104,10 +119,12 @@ def main():
             elif news_info["ok"] and news_info["score"] <= config.NEWS_BLOCK_BUY_SCORE:
                 action = "관망(악재 뉴스로 매수 보류)"
                 news_blocked.append(name)
+            elif weak_market:
+                action = "관망(시장 약세로 신규 매수 보류)"
             elif len(broker.account["positions"]) >= config.MAX_POSITIONS:
                 action = "관망(동시 보유 한도)"
             else:
-                t = broker.buy(code, name, price, budget, info["reason"])
+                t = broker.buy(code, name, price, size_budget(df, budget, equity0), info["reason"])
                 action = f"매수 {t['qty']}주" if t else "매수 불가(자금 부족)"
         elif info["signal"] == "SELL" and held:
             t = broker.sell(code, price, info["reason"])
@@ -150,6 +167,7 @@ def main():
     latest_out = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "initial_cash": config.INITIAL_CASH,
+        "breadth_pct": round(breadth * 100),
         "rules": {"stop_loss_pct": config.STOP_LOSS_PCT, "trail_pct": config.TRAIL_STOP_PCT,
                   "short_ma": config.SHORT_MA, "long_ma": config.LONG_MA, "max_positions": config.MAX_POSITIONS},
         "cash": broker.account["cash"],

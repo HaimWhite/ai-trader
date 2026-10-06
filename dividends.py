@@ -24,6 +24,7 @@ def update():
     except ImportError:
         print("yfinance 가 설치되어 있지 않아 배당 정보를 건너뜁니다. (pip install yfinance)")
         return
+    got = 0
     for code in config.SYMBOLS:
         try:
             t = yf.Ticker(yf_symbol(code))
@@ -44,7 +45,22 @@ def update():
         except Exception as e:
             print(f"[{config.SYMBOLS[code]}] 배당 조회 실패: {str(e)[:80]}")
             data.setdefault(code, {"ok": False})
-    data["_updated"] = today
+            continue
+        got += 1
+    if got:   # 하나도 못 가져왔으면 날짜를 기록하지 않아서 다음 실행 때 다시 시도합니다
+        data["_updated"] = today
     config.DATA_DIR.mkdir(exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
+
+
+if __name__ == "__main__":   # 점검용: python dividends.py
+    p = config.DATA_DIR / "dividends.json"
+    if p.exists():
+        d = json.load(open(p, encoding="utf-8"))
+        d.pop("_updated", None)
+        json.dump(d, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    update()
+    d = json.load(open(p, encoding="utf-8")) if p.exists() else {}
+    ok = sum(1 for k, v in d.items() if k != "_updated" and v.get("ok"))
+    print(f"배당 정보 {ok}/{len(config.SYMBOLS)}종목 수집 완료")

@@ -29,12 +29,13 @@ def prepare(frames, ma_list):
         data[code] = {
             "open": op.to_numpy(dtype=float),
             "close": close.to_numpy(dtype=float),
+            "mad": close.pct_change().abs().rolling(20).mean().to_numpy(dtype=float),
             "ma": {n: close.rolling(n).mean().to_numpy(dtype=float) for n in ma_list},
         }
     return idx, data
 
 
-def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None):
+def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None):
     """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
@@ -46,6 +47,13 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
     blocked = set()  # 손절 후 재진입 대기
     streak = {}      # 종목별 상승 신호 연속 일수
     rank = {}        # 종목별 추세 강도 (단기선/장기선)
+
+    def _bud(code, i, budget, eq_open):   # 변동성이 큰 종목은 투자 금액을 줄임
+        if vol_size and i > 0:
+            m = data[code]["mad"][i - 1]
+            if not np.isnan(m):
+                return min(budget, eq_open * vol_size / min(0.20, max(0.05, 3 * m)))
+        return budget
     below = {}       # 종가가 단기선 아래인 연속 일수
     curve, trades = [], []
 
@@ -80,7 +88,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                     if np.isnan(op):
                         continue
                     price = op * (1 + config.SLIPPAGE_RATE)
-                    qty = int(min(budget, cash) // (price * (1 + config.fee_rate(code))))
+                    qty = int(min(_bud(code, i, budget, eq_open), cash) // (price * (1 + config.fee_rate(code))))
                     if qty > 0:
                         amount = price * qty
                         cost = amount + amount * config.fee_rate(code)
@@ -92,6 +100,15 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
         curve.append(cash + sum(p["qty"] * data[c]["close"][i] for c, p in pos.items()))
 
         # 3) 종가 기준으로 내일 주문할 신호 판단
+        breadth = 1.0
+        if breadth_min:   # 상승 추세 종목 비율 (시장 전체 분위기)
+            valid = bull = 0
+            for dd in data.values():
+                ml_ = dd["ma"][long_][i]
+                if not np.isnan(ml_):
+                    valid += 1
+                    bull += dd["ma"][short][i] > ml_
+            breadth = bull / valid if valid else 1.0
         for code, dd in data.items():
             c = dd["close"][i]
             ms = dd["ma"][short][i]
@@ -110,6 +127,8 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             if pullback and not c <= ms * (1 - pullback):
                 entry_ok = False
             if fast_exit and not c > ms:   # 빠른 청산을 쓰면, 가격이 단기선 위로 돌아온 뒤에만 재진입
+                entry_ok = False
+            if breadth_min and breadth < breadth_min:
                 entry_ok = False
             if filter_n:
                 mf = dd["ma"][filter_n][i]

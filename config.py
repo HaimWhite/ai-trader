@@ -1,3 +1,11 @@
+import sys
+
+for _stream in (sys.stdout, sys.stderr):   # 윈도우 콘솔(cp949)이 표시하지 못하는 문자(•, 이모지 등) 때문에 프로그램이 멈추지 않도록
+    try:
+        _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
@@ -66,3 +74,7 @@ WIDE_STOP_PCT = -0.12
 
 # 뉴스 분석 방식: "keyword"(무료, 단어 검색) / "claude"(API 사용, 유료) / "auto"(키가 있으면 Claude, 없으면 keyword)
 NEWS_MODE = "keyword"
+
+# 하락장 대응 옵션 (compare_down.py 로 비교한 뒤 켜세요. 기본은 꺼짐)
+VOL_SIZE_RISK = None   # 예: 0.01 -> 종목당 예상 손실이 총자산의 1% 안팎이 되도록, 변동성이 큰 종목은 적게 매수
+BREADTH_MIN = None     # 예: 0.3 -> 상승 추세 종목이 전체의 30% 미만이면 신규 매수 보류 (약세장 대응)
