@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, time as dtime, timedelta
 
 import FinanceDataReader as fdr
 
@@ -17,6 +17,13 @@ from broker import PaperBroker
 def main():
     broker = PaperBroker()
     n_before = len(broker.trades)
+
+    # 장중(평일 09:00~15:30)에 직접 실행하면 장중 가격으로 판단하게 되므로 매매 없이 점검만 합니다
+    now = datetime.now()
+    market_open = now.weekday() < 5 and dtime(9, 0) <= now.time() < dtime(15, 30)
+    trading_allowed = (not market_open) or ("--force" in sys.argv)
+    if not trading_allowed:
+        print("장중이라 이번 실행은 매매 없이 점검만 합니다. (장 마감 후 실행하거나, 꼭 필요하면 --force 를 붙이세요)")
     start = config.PRICE_HISTORY_START
     prices = {}
     failed = []
@@ -75,7 +82,9 @@ def main():
         trail_hit = bool(held and config.TRAIL_STOP_PCT and price <= held["peak"] * (1 - config.TRAIL_STOP_PCT))
 
         # 1) 손절 우선
-        if held and price / held["avg_price"] - 1 <= config.STOP_LOSS_PCT:
+        if not trading_allowed:
+            action = "관망(장중이라 매매 보류, 장 마감 후 판단)"
+        elif held and price / held["avg_price"] - 1 <= config.STOP_LOSS_PCT:
             t = broker.sell(code, price, "손절")
             if t:
                 action = f"손절 매도 {t['qty']}주"
