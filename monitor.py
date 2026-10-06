@@ -13,6 +13,7 @@ import config
 import market
 import messages
 import notify
+import status
 from broker import PaperBroker
 
 OPEN, CLOSE = dtime(9, 0), dtime(15, 30)
@@ -122,6 +123,7 @@ def tick(state, t):
     elif peak_changed:
         broker.save()   # 최고가 기록 보존
     publish_live(broker, quotes, t)
+    status.beat("monitor", True, f"감시 {len(held)}종목")
     print(f"[{t:%H:%M}] 확인 완료 (감시 {len(held)}종목, 손절 {len(sold)}건)")
     return None
 

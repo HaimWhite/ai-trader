@@ -117,3 +117,7 @@ def get_news(code, name):
     with open(cache_file, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
     return result
+
+
+def mode_name():
+    return "claude" if _use_claude() else "keyword"

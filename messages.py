@@ -62,7 +62,7 @@ def _news_lines(news, blocked, warnings):
     return lines
 
 
-def daily_message(equity, return_pct, cash, trades, failed, news=None, news_blocked=None, warnings=None):
+def daily_message(equity, return_pct, cash, trades, failed, news=None, news_blocked=None, warnings=None, pending=None):
     if return_pct > 0:
         mood = f"시작 금액 대비 {return_pct}% 높은 수준입니다."
     elif return_pct < 0:
@@ -85,6 +85,16 @@ def daily_message(equity, return_pct, cash, trades, failed, news=None, news_bloc
                 lines.append(f"• {t['name']} {t['qty']}주를 {t['price']:,}원에 매도했습니다. {plain_reason(t['reason'])} 이번 거래는 {result}입니다.")
     else:
         lines.append("오늘은 매매 없이 시장을 계속 지켜봤습니다. 특이사항은 없습니다.")
+
+    if pending:
+        buys = [p["name"] for p in pending if p["side"] == "BUY"]
+        sells = [p["name"] for p in pending if p["side"] == "SELL"]
+        lines.append("")
+        lines.append("내일 장 시작(시가)에 체결할 주문을 예약해 두었습니다. 보유 자리와 업종 한도에 따라 일부는 체결되지 않을 수 있습니다.")
+        if buys:
+            lines.append("• 매수 예정: " + ", ".join(buys[:8]) + (f" 외 {len(buys) - 8}종목" if len(buys) > 8 else ""))
+        if sells:
+            lines.append("• 매도 예정: " + ", ".join(sells[:8]))
 
     lines += _news_lines(news, news_blocked or [], warnings or [])
 
@@ -185,4 +195,29 @@ def advisor_message(entry, applied=False):
         lines.append(f"이유: {entry['reason']}")
     if entry["changes"] and not applied:
         lines.append("적용하려면 PC에서 python advisor.py --apply 를 실행해 주세요. (거절은 --reject)")
+    return "\n".join(lines)
+
+
+def weekly_message(d):
+    lines = [f"{BOSS}, 이번 주 보고드립니다. ({d['start']} ~ {d['end']})"]
+    sign = "+" if d["change"] >= 0 else "-"
+    lines.append(f"총 자산은 {d['equity']:,.0f}원으로, 지난주 대비 {sign}{abs(d['change']):,.0f}원 ({d['change_pct']:+.2f}%)입니다.")
+    if d["index"]:
+        lines.append("같은 기간 " + ", ".join(f"{k} {v:+.2f}%" for k, v in d["index"].items()) + "였습니다.")
+    lines.append("")
+    if d["buys"] or d["sells"]:
+        lines.append(f"거래는 매수 {d['buys']}건, 매도 {d['sells']}건이었습니다.")
+        if d["sells"]:
+            pnl = f"{abs(d['pnl']):,.0f}원 {'수익' if d['pnl'] >= 0 else '손실'}"
+            lines.append(f"매도한 거래 중 이익 {d['wins']}건, 손실 {d['sells'] - d['wins']}건이고, 합계는 {pnl}입니다.")
+    else:
+        lines.append("이번 주에는 거래가 없었습니다.")
+    if d["holdings"]:
+        lines.append("")
+        lines.append("보유 종목 현황입니다.")
+        for h in d["holdings"]:
+            lines.append(f"• {h['name']} {h['qty']}주: 매입가 대비 {h['ret']:+.2f}%")
+    for t in d["tuning"]:
+        lines.append("")
+        lines.append(f"설정 점검: {t}")
     return "\n".join(lines)

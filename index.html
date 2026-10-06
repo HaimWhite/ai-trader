@@ -61,7 +61,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll tall" id="signals"></div></div>
-  <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div></div>
+  <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="scroll" id="holdings"></div><div id="folders"></div></div>
   <div class="box sub">
     <b>그래프 보는 법</b><br>
@@ -76,6 +76,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
   <div class="box" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
+  <div class="box" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
@@ -236,7 +237,7 @@ function chart(el, series, o){
 
 /* ---------- 화면 그리기 ---------- */
 function render(){
-  const {latest, account, trades, history, prices, bt, live, div, tune} = D;
+  const {latest, account, trades, history, prices, bt, live, div, tune, stat, indices} = D;
   const rules = Object.assign({stop_loss_pct: -0.07, trail_pct: 0.2, short_ma: 20, long_ma: 120, max_positions: 5}, latest.rules || {});
   const useLive = !!(live && live.updated_at > latest.updated_at);   // 장중 실시간 데이터가 더 최신일 때
   const cash = useLive ? live.cash : latest.cash;
@@ -272,16 +273,18 @@ function render(){
   const trailTxt = rules.trail_pct ? " · 최고가 대비 " + Math.round(rules.trail_pct * 100) + "% 하락(추적 손절)" : "";
   $("rules").innerHTML = `<b>매수 기준</b>: ${rules.short_ma}일선이 ${rules.long_ma}일선 위에 있고, 보유 자리(최대 ${rules.max_positions}종목)가 남아 있으면 추세가 강한 종목부터 매수<br>` +
     (latest.breadth_pct != null ? `<b>시장 분위기</b>: 상승 추세 종목 ${latest.breadth_pct}%<br>` : "") +
+    `<b>예약 주문</b>: ${(() => { const p = latest.pending || [], f = side => p.filter(o => o.side === side).map(o => esc(o.name)).join(", "); return (f("BUY") ? "매수 " + f("BUY") : "") + (f("BUY") && f("SELL") ? " · " : "") + (f("SELL") ? "매도 " + f("SELL") : "") || "없음"; })()} (다음 거래일 시가에 체결, 보유 자리·업종 한도에 따라 일부는 체결되지 않을 수 있어요)<br>` +
+    (latest.news_mode ? `<b>뉴스 분석</b>: ${latest.news_mode === "claude" ? "Claude(AI)" : latest.news_mode === "keyword" ? "키워드(무료)" : "사용 안 함"}<br>` : "") +
     `<b>매도 기준</b>: ${rules.short_ma}일선이 ${rules.long_ma}일선 아래로 내려감 · 매입가 대비 ${Math.round(rules.stop_loss_pct * 100)}% 하락(손절)${trailTxt}`;
   const syms = Object.entries(latest.symbols).map(([code, s]) => Object.assign({code}, s));
   const order = s => pos[s.code] ? 0 : (s.action && s.action.indexOf("관망") !== 0) ? 1 : s.signal === "BUY" ? 2 : 3;
   syms.sort((a, b) => order(a) - order(b));
   const L_ = {"2": "큰 호재", "1": "호재", "0": "중립", "-1": "악재", "-2": "큰 악재"};
-  $("signals").innerHTML = table(["종목", "현재가", "신호", "행동", `기준점 (${rules.short_ma}일선 / ${rules.long_ma}일선)`, "뉴스"], syms.map(s => {
+  $("signals").innerHTML = table(["종목", "업종", "현재가", "신호", "행동", `기준점 (${rules.short_ma}일선 / ${rules.long_ma}일선)`, "뉴스"], syms.map(s => {
     const gap = s.short_ma && s.long_ma ? (s.short_ma / s.long_ma - 1) * 100 : null;
     const base = gap == null ? "-" : `${num(s.short_ma)} / ${num(s.long_ma)} <span class="${cls(gap)}">(${sign(gap)})</span>`;
     const n = s.news ? '<span class="' + cls(s.news.score) + '">' + (L_[s.news.score] || "") + "</span> " + esc(s.news.summary) : "-";
-    return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${won(s.price)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td></tr>`;
+    return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td></tr>`;
   }));
 
   // 자산 추이
@@ -289,6 +292,15 @@ function render(){
   chart($("chart"), [{x: hd.slice(i0), y: hv, seg: true}], {fmt: man, tip: won, base: P, ext: true});
   $("eq-ext").innerHTML = hv.length ? extText(ext(hd.slice(i0), hv), won) : "";
   $("chart-lg").innerHTML = legend([["오르는 구간", "var(--up)", false], ["내리는 구간", "var(--down)", false], ["원금", "var(--sub)", true]]);
+
+  // 실운영 지수 비교 (시작일 이후)
+  if(indices && history.length){
+    const d0 = history[0].date;
+    const ret = k => { const x = indices[k]; if(!x) return null; const i = x.dates.findIndex(d => d >= d0); return i < 0 ? null : (x.close[x.close.length - 1] / x.close[i] - 1) * 100; };
+    const kr = ret("KS11"), nq = ret("IXIC");
+    $("idxcmp").innerHTML = `실운영 시작(${esc(d0)}) 이후 · 내 전략 <b class="${cls(plp)}">${sign(plp)}</b>` +
+      (kr != null ? ` · 코스피 ${sign(kr)} (격차 ${(plp - kr).toFixed(1)}%p)` : "") + (nq != null ? ` · 나스닥 ${sign(nq)} (격차 ${(plp - nq).toFixed(1)}%p)` : "");
+  } else $("idxcmp").innerHTML = "";
 
   // 보유 종목 (표 + 종목별 폴더)
   let tc = 0, tv = 0;
@@ -362,9 +374,16 @@ function render(){
       const last = v[v.length - 1] / v[0];
       return {total: (last - 1) * 100, cagr: days >= 180 ? (Math.pow(last, 365.25 / days) - 1) * 100 : null, mdd};
     };
-    const S = calc("strategy"), B = calc("benchmark"), Pv = hasPrev ? calc("previous") : null;
+    const cols = [["전략", "strategy"], ["단순 보유", "benchmark"]];
+    if(cc[0].previous != null) cols.push(["이전 설정", "previous"]);
+    if(cc[0].kospi != null) cols.push(["코스피", "kospi"]);
+    if(cc[0].nasdaq != null) cols.push(["나스닥(달러)", "nasdaq"]);
+    const M = Object.fromEntries(cols.map(([n, k]) => [k, calc(k)]));
     const pct = v => v == null ? "-" : '<span class="' + cls(v) + '">' + sign(v) + "</span>";
-    const row = (label, key) => "<tr><td>" + label + "</td><td>" + pct(S[key]) + "</td><td>" + pct(B[key]) + "</td>" + (hasPrev ? "<td>" + pct(Pv[key]) + "</td>" : "") + "</tr>";
+    const row = (label, key) => "<tr><td>" + label + "</td>" + cols.map(([n, k]) => "<td>" + pct(M[k][key]) + "</td>").join("") + "</tr>";
+    const yearHtml = bt.yearly ? '<div class="sub" style="margin:10px 0 4px">연도별 수익률 (전체 기간 기준, 첫 해는 시작일부터)</div><div class="scroll"><table><tr><th>연도</th>' +
+      cols.map(c => "<th>" + c[0] + "</th>").join("") + "</tr>" +
+      bt.yearly.map(y => "<tr><td>" + y.year + "</td>" + cols.map(c => "<td>" + (y[c[1]] == null ? "-" : pct(y[c[1]])) + "</td>").join("") + "</tr>").join("") + "</table></div>" : "";
     const d0 = cc[0].date, d1 = cc[cc.length - 1].date;
     let tradeInfo, symRows;
     if(bt.trades){
@@ -384,8 +403,8 @@ function render(){
       '<div id="btc"></div>' + legend([["이동평균 전략 (빨간 실선)", "var(--up)", false], ["단순 보유 (회색 점선)", "var(--sub)", true]]) +
       '<div class="sub" style="margin:4px 0 10px">그래프는 선택한 기간의 시작을 0%로 맞춘 수익률이에요. 아래 지표도 위 기간 버튼에 맞춰 바뀌어요.</div>' +
       '<div class="sub" style="margin-bottom:4px"><b>선택 기간: ' + esc(d0) + " ~ " + esc(d1) + "</b></div>" +
-      '<div class="scroll"><table><tr><th>지표</th><th>전략</th><th>단순 보유</th>' + (hasPrev ? "<th>이전 설정</th>" : "") + "</tr>" +
-      row("기간 수익률", "total") + row("연환산 수익률 (6개월 이상일 때)", "cagr") + row("최대 낙폭", "mdd") + "</table></div>" +
+      '<div class="scroll"><table><tr><th>지표</th>' + cols.map(c => "<th>" + c[0] + "</th>").join("") + "</tr>" +
+      row("기간 수익률", "total") + row("연환산 수익률 (6개월 이상일 때)", "cagr") + row("최대 낙폭", "mdd") + "</table></div>" + yearHtml +
       '<div class="sub" style="margin:10px 0 6px">' + tradeInfo + "</div>" +
       '<div class="sub" style="margin-bottom:4px">제목(거래수·승률·누적 손익)을 누르면 오름차순/내림차순으로 정렬돼요.</div><div class="scroll tall">' + sortTable("btsym", BT_SORT, [
         ["name", "종목", r => `<td>${esc(r.name)}</td>`],
@@ -400,6 +419,28 @@ function render(){
       {x: d, y: cc.map(r => r.strategy / s0 * 100 - 100), color: "var(--up)"}
     ], {fmt: v => v.toFixed(0) + "%", tip: v => v.toFixed(1) + "%", base: 0, baseLabel: "시작"});
   }
+
+  // 작동 상태: 각 작업이 마지막으로 성공한 시각
+  const kst = new Date(Date.now() + 9 * 36e5), kmin = kst.getUTCHours() * 60 + kst.getUTCMinutes(), kwd = kst.getUTCDay();
+  const marketNow = kwd >= 1 && kwd <= 5 && kmin >= 540 && kmin < 930;
+  const ageMin = ts => ts ? (Date.now() - Date.parse(ts.replace(" ", "T") + "+09:00")) / 6e4 : null;
+  const fmtAgo = m => m == null ? "-" : m < 90 ? Math.round(m) + "분 전" : m < 2880 ? Math.round(m / 60) + "시간 전" : Math.round(m / 1440) + "일 전";
+  const srows = [];
+  const addStat = (name, ts, ok, maxDays, note) => {
+    const m = ageMin(ts);
+    const icon = ts == null ? "–" : ok === false ? "❌" : m > maxDays * 1440 ? "⚠️" : "✅";
+    srows.push(`<tr><td>${name}</td><td>${ts ? esc(ts.slice(0, 16)) : "-"}</td><td>${fmtAgo(m)}</td><td>${icon}</td><td class="r">${esc(note || "")}</td></tr>`);
+  };
+  const lv = live ? live.updated_at : null, lvAge = ageMin(lv);
+  srows.push(`<tr><td>장중 감시(5분)</td><td>${lv ? esc(lv.slice(0, 16)) : "-"}</td><td>${fmtAgo(lvAge)}</td><td>${lv == null ? "–" : (marketNow && lvAge > 15) ? "⚠️" : "✅"}</td><td class="r">${marketNow && lv && lvAge > 15 ? "장중인데 갱신이 멈춘 것 같아요" : "장 시간에만 갱신돼요"}</td></tr>`);
+  const sx = stat || {};
+  addStat("16:00 정기 점검", (sx.main || {}).time, (sx.main || {}).ok, 4, (sx.main || {}).note);
+  addStat("12:30 중간 보고", (sx.report || {}).time, (sx.report || {}).ok, 4, (sx.report || {}).note);
+  addStat("백테스트", bt ? bt.generated_at : null, true, 10, "");
+  addStat("설정 점검(주 1회)", (sx.advisor || {}).time, (sx.advisor || {}).ok, 9, (sx.advisor || {}).note);
+  addStat("주간 리포트", (sx.weekly || {}).time, (sx.weekly || {}).ok, 9, "");
+  addStat("배당 수집", div && div._updated ? div._updated + " 00:00:00" : null, true, 4, "");
+  $("stattable").innerHTML = table(["작업", "마지막 실행", "경과", "상태", "메모"], srows) + '<div class="sub" style="margin-top:6px">✅ 정상 · ⚠️ 오래됨/멈춤 · ❌ 마지막 실행이 오류 · – 기록 없음. 12:30 보고·장중 감시는 PC에만 먼저 기록되고, 16:00 점검 때 함께 올라와요.</div>';
 
   // AI(또는 규칙) 설정 조정 기록
   const TN = {STOP_LOSS_PCT: ["손절선", v => Math.round(v * 100) + "%"], TRAIL_STOP_PCT: ["추적 손절", v => Math.round(v * 100) + "%"],
@@ -426,7 +467,9 @@ async function main(){
     const div = await load("dividends").catch(() => null);
     const live = await loadLive().catch(() => null);
     const tune = await load("tuning_log").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune};
+    const stat = await load("status").catch(() => null);
+    const indices = await load("indices").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices};
     render();
   }catch(e){
     $("updated").textContent = "";

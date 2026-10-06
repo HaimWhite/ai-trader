@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 
 import market
+import status
 import numpy as np
 import pandas as pd
 
@@ -35,7 +36,7 @@ def prepare(frames, ma_list):
     return idx, data
 
 
-def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2):
+def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2, sector_limit=None):
     """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
@@ -58,6 +59,10 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             cnt = cs.copy()
             cnt[120:] = cs[120:] - cs[:-120]
             gapcnt[code] = cnt
+
+    def _sector_full(code):   # 같은 업종을 이미 sector_limit 종목만큼 들고 있는지
+        sec = config.SECTORS.get(code)
+        return bool(sector_limit and sec and sum(1 for c in pos if config.SECTORS.get(c) == sec) >= sector_limit)
 
     def _bud(code, i, budget, eq_open):   # 변동성이 크거나 갭이 잦은 종목은 투자 금액을 줄임
         if vol_size and i > 0:
@@ -96,7 +101,7 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                 eq_open = cash + sum(p["qty"] * data[c]["open"][i] for c, p in pos.items())
                 budget = eq_open / min(n, config.MAX_POSITIONS)
                 for code in buys:
-                    if len(pos) >= config.MAX_POSITIONS:
+                    if len(pos) >= config.MAX_POSITIONS or _sector_full(code):
                         del pending[code]
                         continue
                     op = data[code]["open"][i]
@@ -202,7 +207,7 @@ def live_options():
     """지금 실제 매매에 쓰는 설정을 백테스트에도 그대로 적용"""
     return dict(trail=config.TRAIL_STOP_PCT, vol_size=config.VOL_SIZE_RISK, vol_floor=config.VOL_FLOOR,
                 class_scale=config.HIGHVOL_SCALE, gap_mode=config.GAP_MODE, gap_thr=config.GAP_THR,
-                gap_days=config.GAP_DAYS, breadth_min=config.BREADTH_MIN)
+                gap_days=config.GAP_DAYS, breadth_min=config.BREADTH_MIN, sector_limit=config.MAX_PER_SECTOR)
 
 
 def settings_text():
@@ -217,8 +222,21 @@ def settings_text():
         parts.append(f"코스닥·나스닥 {config.HIGHVOL_SCALE * 100:.0f}%만 투자")
     if config.BREADTH_MIN:
         parts.append(f"약세장 필터({config.BREADTH_MIN * 100:.0f}%)")
+    if config.MAX_PER_SECTOR:
+        parts.append(f"같은 업종 최대 {config.MAX_PER_SECTOR}종목")
     parts.append(f"동시 보유 {config.MAX_POSITIONS}종목")
     return " · ".join(parts)
+
+
+def yearly_returns(dates, series):
+    """연도별 수익률(%). 첫 해는 백테스트 시작일부터, 마지막 해는 오늘까지의 수익률입니다."""
+    df = pd.DataFrame(series, index=dates)
+    last = df.groupby(df.index.year).last()
+    prev, out = df.iloc[0], []
+    for year, row in last.iterrows():
+        out.append({"year": int(year), **{k: round((row[k] / prev[k] - 1) * 100, 1) for k in df.columns}})
+        prev = row
+    return out
 
 
 def main():
@@ -231,6 +249,15 @@ def main():
     dates = idx[start:]
     strat = curve[start:]
     bench = benchmark_curve(data, start)
+
+    # 코스피·나스닥 지수와 비교 (나스닥은 달러 기준 지수 그대로)
+    idx_curves = {}
+    for key, sym, yf_sym in (("kospi", "KS11", "^KS11"), ("nasdaq", "IXIC", "^IXIC")):
+        try:
+            ser = market._fetch(sym, yf_sym, config.BACKTEST_START)["Close"].dropna().reindex(idx, method="ffill").bfill().to_numpy(dtype=float)
+            idx_curves[key] = [config.INITIAL_CASH * ser[i] / ser[start] for i in range(start, len(idx))]
+        except Exception as e:
+            print(f"[지수 비교] {sym} 조회 실패(건너뜀): {str(e)[:60]}")
 
     wins = [t for t in trades if t["pnl"] > 0]
     by_symbol = {}
@@ -253,6 +280,7 @@ def main():
         "benchmark": metrics(bench, dates),
         "previous": metrics(prev_curve[start:], dates),
         "settings": settings_text(),
+        "yearly": yearly_returns(dates, {"strategy": strat, "benchmark": bench, "previous": prev_curve[start:], **idx_curves}),
         "trades": [
             {"date": idx[t["i"]].strftime("%Y-%m-%d"), "name": config.SYMBOLS.get(t["code"], t["code"]),
              "pnl": round(t["pnl"]), "pct": round(t["pnl_pct"], 2), "why": t["why"]}
@@ -263,7 +291,7 @@ def main():
         "avg_trade_pct": round(sum(t["pnl_pct"] for t in trades) / len(trades), 2) if trades else 0,
         "by_symbol": by_symbol,
         "curve": [
-            {"date": dates[i].strftime("%Y-%m-%d"), "strategy": round(strat[i]), "benchmark": round(bench[i]), "previous": round(prev_curve[start + i])}
+            {"date": dates[i].strftime("%Y-%m-%d"), "strategy": round(strat[i]), "benchmark": round(bench[i]), "previous": round(prev_curve[start + i]), **{k: round(v[i]) for k, v in idx_curves.items()}}
             for i in range(len(dates))
         ],
     }
@@ -288,6 +316,11 @@ def main():
         cur, prv = metrics(curve[a:b], idx[a:b]), metrics(prev_curve[a:b], idx[a:b])
         pad = 14 - sum(1 for ch in label if ord(ch) > 127)
         print(f"{label:<{pad}}{cur['cagr']:>10}{prv['cagr']:>10}{cur['cagr'] - prv['cagr']:>+8.1f}{cur['mdd']:>10}{prv['mdd']:>10}")
+    print("\n[연도별 수익률 %]  (첫 해는 시작일부터, 마지막 해는 오늘까지)")
+    print(f"{'연도':<6}{'전략':>8}{'단순보유':>9}{'코스피':>8}{'나스닥':>8}")
+    for y in out["yearly"]:
+        print(f"{y['year']:<6}{y['strategy']:>8}{y['benchmark']:>9}{y.get('kospi', '-'):>8}{y.get('nasdaq', '-'):>8}")
+    status.beat("backtest", True, out["settings"][:80])
 
 if __name__ == "__main__":
     main()

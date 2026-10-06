@@ -2,14 +2,16 @@ import json
 import sys
 from datetime import datetime, time as dtime, timedelta
 
-import FinanceDataReader as fdr
+import pandas as pd
 
 import config
 import dividends
+import earnings
 import market
 import messages
 import news
 import notify
+import status
 import strategy
 from broker import PaperBroker
 
@@ -34,6 +36,61 @@ def size_budget(code, df, budget, equity):
     return budget
 
 
+def sector_full(positions, code):
+    """같은 업종을 이미 MAX_PER_SECTOR 종목만큼 들고 있는지"""
+    lim = config.MAX_PER_SECTOR
+    sec = config.SECTORS.get(code)
+    return bool(lim and sec and sum(1 for c in positions if config.SECTORS.get(c) == sec) >= lim)
+
+
+def save_indices(start):
+    """코스피·나스닥 지수 기록 (대시보드의 지수 비교용)"""
+    path = config.DATA_DIR / "indices.json"
+    data = json.load(open(path, encoding="utf-8")) if path.exists() else {}
+    for sym, yf_sym, name in (("KS11", "^KS11", "코스피"), ("IXIC", "^IXIC", "나스닥")):
+        try:
+            df = market._fetch(sym, yf_sym, start).dropna(subset=["Close"])
+            data[sym] = {"name": name, "dates": [d.strftime("%Y-%m-%d") for d in df.index],
+                         "close": [round(float(x), 2) for x in df["Close"]]}
+        except Exception as e:
+            print(f"[{name}] 지수 조회 실패: {str(e)[:80]}")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def execute_pending(broker, frames, prices, pending, fills):
+    """전 영업일 종가 후에 낸 주문을 '신호 다음 거래일의 시가'에 체결합니다 (백테스트와 같은 방식)."""
+    now = datetime.now()
+    todo = []
+    for code, o in pending.items():
+        if code not in frames:
+            continue
+        if (now - datetime.strptime(o["created"][:10], "%Y-%m-%d")).days > 7:
+            continue   # 너무 오래된 주문은 버림
+        rows = frames[code][frames[code].index > pd.Timestamp(o["date"])]
+        if rows.empty:   # 아직 다음 거래일 시세가 없음
+            continue
+        r = rows.iloc[0]
+        todo.append((code, o, float(r["Open"]) if r["Open"] > 0 else float(r["Close"])))
+
+    positions = broker.account["positions"]
+    for code, o, op in todo:
+        if o["side"] == "SELL" and code in positions:
+            t = broker.sell(code, op, o["reason"])
+            if t:
+                fills[code] = f"체결 매도 {t['qty']}주(시가)"
+    buys = sorted([x for x in todo if x[1]["side"] == "BUY" and x[0] not in positions], key=lambda x: -x[1].get("rank", 0))
+    if buys:
+        eq_open = broker.equity(prices)
+        budget = eq_open / min(len(config.SYMBOLS), config.MAX_POSITIONS)
+        for code, o, op in buys:
+            if len(positions) >= config.MAX_POSITIONS or sector_full(positions, code):
+                continue
+            t = broker.buy(code, config.SYMBOLS[code], op, size_budget(code, frames[code], budget, eq_open), o["reason"])
+            if t:
+                fills[code] = f"체결 매수 {t['qty']}주(시가)"
+
+
 def main():
     broker = PaperBroker()
     n_before = len(broker.trades)
@@ -49,10 +106,7 @@ def main():
     failed = []
     news_list, news_blocked, warnings = [], [], []
     latest = {}
-    n = len(config.SYMBOLS)
 
-    # 종목당 투자 한도 = 현재 총자산을 종목 수로 나눈 금액
-    # (매수 전에 시세를 먼저 모두 읽어 총자산을 계산)
     frames = {}
     for code, name in config.SYMBOLS.items():
         try:
@@ -66,13 +120,17 @@ def main():
             print(f"[{name}] 시세 조회 실패: {e}")
             failed.append(name)
 
-    equity0 = broker.equity(prices)
-    budget = equity0 / min(n, config.MAX_POSITIONS)
+    try:
+        save_indices(start)
+    except Exception as e:
+        print("지수 기록 실패:", e)
+    try:
+        earnings.update()
+    except Exception as e:
+        print("실적 발표일 확인 실패:", e)
+
     blocked = broker.account.setdefault("blocked", [])
-
-    # 상승 추세가 강한 종목부터 판단 (자리가 한정되어 있어서 강한 종목이 먼저 채우도록)
     infos = {code: strategy.analyze(df) for code, df in frames.items()}
-
     valid = [i for i in infos.values() if i["signal"] != "HOLD"]
     breadth = sum(i["signal"] == "BUY" for i in valid) / len(valid) if valid else 1.0   # 상승 추세 종목 비율
     weak_market = bool(config.BREADTH_MIN and breadth < config.BREADTH_MIN)
@@ -81,13 +139,20 @@ def main():
         i = infos[code]
         return i["short_ma"] / i["long_ma"] if i["short_ma"] and i["long_ma"] else 0
 
+    # A) 전 영업일에 낸 주문을 오늘(다음 거래일) 시가에 체결
+    fills = {}
+    if trading_allowed and broker.account.get("pending"):
+        execute_pending(broker, frames, prices, broker.account["pending"], fills)
+
+    # B) 오늘 종가 기준으로 판단하고, 다음 거래일 시가에 낼 주문을 예약
+    new_pending = {}
     for code in sorted(frames, key=strength, reverse=True):
         df = frames[code]
         name = config.SYMBOLS[code]
         price = prices[code]
         info = infos[code]
         held = broker.account["positions"].get(code)
-        action = "관망"
+        decision = "관망"
 
         # 뉴스 확인 (악재일 때 매수 보류용 참고 정보)
         news_info = {"score": 0, "summary": "", "ok": True}
@@ -106,44 +171,42 @@ def main():
             held["peak"] = max(held.get("peak", held["avg_price"]), price)
         trail_hit = bool(held and config.TRAIL_STOP_PCT and price <= held["peak"] * (1 - config.TRAIL_STOP_PCT))
 
-        # 1) 손절 우선
+        pend = None
         if not trading_allowed:
-            action = "관망(장중이라 매매 보류, 장 마감 후 판단)"
+            decision = "관망(장중이라 매매 보류, 장 마감 후 판단)"
         elif held and price / held["avg_price"] - 1 <= config.STOP_LOSS_PCT:
-            t = broker.sell(code, price, "손절")
-            if t:
-                action = f"손절 매도 {t['qty']}주"
-                if code not in blocked:
-                    blocked.append(code)
-        # 1.5) 추적 손절: 번 돈을 다시 토해내기 전에 최고가 대비 크게 내려오면 매도
+            pend, decision = ("SELL", "손절"), "매도 예약(손절)"
+            if code not in blocked:
+                blocked.append(code)
         elif trail_hit:
-            t = broker.sell(code, price, "추적손절")
-            if t:
-                action = f"추적손절 매도 {t['qty']}주"
-                if code not in blocked:
-                    blocked.append(code)
-        # 2) 전략 신호
+            pend, decision = ("SELL", "추적손절"), "매도 예약(추적손절)"
+            if code not in blocked:
+                blocked.append(code)
         elif info["signal"] == "BUY" and not held:
+            days_left = earnings.days_until(code) if config.EARNINGS_AVOID_DAYS else None
             if code in blocked:
-                action = "관망(손절 후 재진입 대기)"
+                decision = "관망(손절 후 재진입 대기)"
             elif news_info["ok"] and news_info["score"] <= config.NEWS_BLOCK_BUY_SCORE:
-                action = "관망(악재 뉴스로 매수 보류)"
+                decision = "관망(악재 뉴스로 매수 보류)"
                 news_blocked.append(name)
             elif config.GAP_MODE == "skip" and gap_count(df) >= config.GAP_DAYS:
-                action = "관망(갭 하락이 잦은 종목이라 매수 보류)"
+                decision = "관망(갭 하락이 잦은 종목이라 매수 보류)"
             elif weak_market:
-                action = "관망(시장 약세로 신규 매수 보류)"
-            elif len(broker.account["positions"]) >= config.MAX_POSITIONS:
-                action = "관망(동시 보유 한도)"
+                decision = "관망(시장 약세로 신규 매수 보류)"
+            elif days_left is not None and 0 <= days_left <= config.EARNINGS_AVOID_DAYS:
+                decision = f"관망(실적 발표 {days_left}일 전이라 매수 보류)"
             else:
-                t = broker.buy(code, name, price, size_budget(code, df, budget, equity0), info["reason"])
-                action = f"매수 {t['qty']}주" if t else "매수 불가(자금 부족)"
+                pend, decision = ("BUY", info["reason"]), "매수 예약"
         elif info["signal"] == "SELL" and held:
-            t = broker.sell(code, price, info["reason"])
-            action = f"매도 {t['qty']}주" if t else action
+            pend, decision = ("SELL", info["reason"]), "매도 예약(추세 하락)"
+        if pend:
+            new_pending[code] = {"side": pend[0], "reason": pend[1], "name": name, "rank": strength(code),
+                                 "date": df.index[-1].strftime("%Y-%m-%d"), "created": now.strftime("%Y-%m-%d %H:%M:%S")}
 
+        action = (fills[code] + (" · " + decision if decision != "관망" else "")) if code in fills else decision
         latest[code] = {
             "name": name,
+            "sector": config.SECTORS.get(code, ""),
             "price": price,
             "short_ma": info["short_ma"],
             "long_ma": info["long_ma"],
@@ -154,6 +217,15 @@ def main():
         }
         print(f"[{name}] 종가 {price:,.0f}원 | {info['reason']} | {action}")
 
+    # 보유 자리보다 많은 매수 예약은 '대기'로 표시 (매도 예약이 체결되어 자리가 나야 살 수 있음)
+    free = config.MAX_POSITIONS - len(broker.account["positions"]) + sum(1 for o in new_pending.values() if o["side"] == "SELL")
+    buy_codes = sorted([c for c, o in new_pending.items() if o["side"] == "BUY"], key=lambda c: -new_pending[c]["rank"])
+    waiting = set(buy_codes[max(free, 0):])
+    for c in waiting:
+        latest[c]["action"] = latest[c]["action"].replace("매수 예약", "매수 대기(보유 자리가 나면)")
+
+    if trading_allowed:
+        broker.account["pending"] = new_pending
     equity = broker.equity(prices)
     broker.record_history(equity)
     broker.save()
@@ -176,12 +248,16 @@ def main():
     except Exception as e:
         print("배당 정보 갱신 실패:", e)
 
+    pending_list = [{"code": c, "name": o["name"], "side": o["side"], "reason": o["reason"]}
+                    for c, o in broker.account.get("pending", {}).items() if c not in waiting]
     latest_out = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "initial_cash": config.INITIAL_CASH,
         "breadth_pct": round(breadth * 100),
+        "news_mode": news.mode_name() if config.USE_NEWS else "off",
         "rules": {"stop_loss_pct": config.STOP_LOSS_PCT, "trail_pct": config.TRAIL_STOP_PCT,
                   "short_ma": config.SHORT_MA, "long_ma": config.LONG_MA, "max_positions": config.MAX_POSITIONS},
+        "pending": pending_list,
         "cash": broker.account["cash"],
         "equity": round(equity),
         "return_pct": round((equity / config.INITIAL_CASH - 1) * 100, 2),
@@ -197,9 +273,11 @@ def main():
     # 디스코드 알림 (문구는 messages.py 에서 수정)
     new_trades = broker.trades[n_before:]
     text = messages.daily_message(equity, latest_out["return_pct"], broker.account["cash"], new_trades, failed,
-                                  news_list if config.USE_NEWS else None, news_blocked, warnings)
+                                  news_list if config.USE_NEWS else None, news_blocked, warnings,
+                                  pending_list if trading_allowed else None)
     # 거래가 있었거나 시세 조회에 실패했을 때만 푸시 알림이 울리게 보냄
     notify.send(text, mention=bool(new_trades) or bool(failed) or bool(warnings))
+    status.beat("main", True, f"거래 {len(new_trades)}건, 예약 {len(pending_list)}건")
 
 
 def report():
@@ -207,7 +285,7 @@ def report():
     broker = PaperBroker()
     now = datetime.now()
     start = (now - timedelta(days=10)).strftime("%Y-%m-%d")
-    ref = fdr.DataReader(next(c for c in config.SYMBOLS if not config.is_us(c)), start).dropna()
+    ref = market.load_prices(next(c for c in config.SYMBOLS if not config.is_us(c)), start)
     if ref.index[-1].date() != now.date():
         notify.send(messages.midday_message("", 0, 0, 0, [], [], closed=True))
         print("오늘 시세가 반영되지 않았습니다 (휴장 또는 지연). 보고를 생략합니다.")
@@ -229,6 +307,7 @@ def report():
     text = messages.midday_message(now.strftime("%H:%M"), equity, ret, broker.account["cash"], holdings, failed)
     print(text)
     notify.send(text, mention=bool(failed))
+    status.beat("report", True, "중간 보고")
 
 
 if __name__ == "__main__":
@@ -236,5 +315,7 @@ if __name__ == "__main__":
         report() if "--report" in sys.argv else main()
     except Exception:
         import traceback
-        notify.send(messages.error_message(traceback.format_exc()), mention=True)
+        tb = traceback.format_exc()
+        status.beat("report" if "--report" in sys.argv else "main", False, tb.strip().splitlines()[-1])
+        notify.send(messages.error_message(tb), mention=True)
         raise

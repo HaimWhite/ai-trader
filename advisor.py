@@ -15,6 +15,7 @@ from datetime import datetime
 import config
 import messages
 import notify
+import status
 from notify import _env
 
 LOG = config.DATA_DIR / "tuning_log.json"
@@ -176,6 +177,7 @@ def propose(weekly=False):
     text = messages.advisor_message(entry, applied)
     print(text)
     notify.send(text, mention=bool(changes))
+    status.beat("advisor", True, "제안 있음" if changes else "유지")
 
 
 def apply_pending(quiet=False):

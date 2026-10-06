@@ -23,6 +23,49 @@ SYMBOLS = {
     "NVDA": "엔비디아", "AAPL": "애플", "MSFT": "마이크로소프트", "AMZN": "아마존", "GOOGL": "알파벳",
     "META": "메타", "TSLA": "테슬라", "AVGO": "브로드컴", "NFLX": "넷플릭스",
 }
+KOSDAQ_CODES = {"247540", "196170", "263750", "086520", "028300", "058470"}   # 코스닥 종목 (배당 조회·손절선 구분용)
+SECTORS = {   # 업종 (같은 업종에 몰리는 것을 막는 옵션용)
+    "005930": "반도체", "000660": "반도체", "058470": "반도체", "NVDA": "반도체", "AVGO": "반도체",
+    "035420": "인터넷", "263750": "인터넷", "AMZN": "인터넷", "GOOGL": "인터넷", "META": "인터넷",
+    "005380": "자동차", "000270": "자동차", "012330": "자동차", "TSLA": "자동차",
+    "105560": "금융", "055550": "금융", "032830": "금융",
+    "207940": "바이오", "068270": "바이오", "196170": "바이오", "028300": "바이오",
+    "006400": "배터리", "247540": "배터리", "086520": "배터리",
+    "AAPL": "IT", "MSFT": "IT", "033780": "소비재", "NFLX": "소비재", "086280": "산업", "015760": "에너지",
+}
+
+
+def _load_symbols_csv():
+    """symbols.csv 가 있으면 종목·시장·업종을 거기서 읽습니다 (코드를 열지 않고 종목을 바꿀 수 있게)."""
+    import csv
+    p = BASE_DIR / "symbols.csv"
+    if not p.exists():
+        return None
+    try:
+        try:
+            text = p.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            text = p.read_text(encoding="cp949")
+        syms, kq, sec = {}, set(), {}
+        for r in csv.DictReader(text.splitlines()):
+            code = r["code"].strip()
+            code = code.zfill(6) if code.isdigit() else code.upper()
+            if not code:
+                continue
+            syms[code] = r["name"].strip()
+            if r.get("market", "").strip().upper() == "KQ":
+                kq.add(code)
+            if r.get("sector", "").strip():
+                sec[code] = r["sector"].strip()
+        return (syms, kq, sec) if syms else None
+    except Exception as e:
+        print("symbols.csv 를 읽지 못해 기본 종목을 씁니다:", e)
+        return None
+
+
+_csv = _load_symbols_csv()
+if _csv:
+    SYMBOLS, KOSDAQ_CODES, SECTORS = _csv
 
 # 가상 시작 자금 (원)
 INITIAL_CASH = 20_000_000
@@ -32,6 +75,7 @@ FEE_RATE = 0.00015      # 수수료 (매수/매도 각각) 0.015%
 SELL_TAX_RATE = 0.002   # 매도 거래세 약 0.2% (세율은 바뀔 수 있으니 확인 후 조정)
 SLIPPAGE_RATE = 0.001   # 체결가를 불리하게 가정 0.1%
 US_FEE_RATE = 0.0025    # 미국 주식 수수료 0.25% (증권사마다 다름, 매수/매도 각각)
+US_FX_COST = 0.001      # 환전 비용(환율 스프레드) 0.1% (매수/매도 각각, 증권사·우대 조건마다 다름)
 # 미국 주식은 매도 거래세가 없지만, 연간 양도소득세(수익의 22%, 연 250만 원 공제)는 반영하지 않았습니다.
 
 MAX_POSITIONS = 5       # 동시에 보유할 최대 종목 수. 종목당 투자 한도 = 총자산 ÷ 이 값
@@ -42,7 +86,7 @@ def is_us(code):
 
 
 def fee_rate(code):
-    return US_FEE_RATE if is_us(code) else FEE_RATE
+    return (US_FEE_RATE + US_FX_COST) if is_us(code) else FEE_RATE
 
 
 def sell_tax_rate(code):
@@ -68,7 +112,6 @@ NEWS_BLOCK_BUY_SCORE = -1                # 뉴스 점수가 이 값 이하이면
 NEWS_WARN_HELD_SCORE = -2                # 보유 종목이 이 점수 이하이면 경고 알림 (자동 매도는 하지 않음)
 
 # 변동성이 큰 종목(코스닥·나스닥): 손절선을 넓게 쓰는 전략 비교용
-KOSDAQ_CODES = {"247540", "196170", "263750", "086520", "028300", "058470"}   # 코스닥 종목 (배당 조회·손절선 구분용)
 WIDE_STOP_CODES = KOSDAQ_CODES | {c for c in SYMBOLS if is_us(c)}
 WIDE_STOP_PCT = -0.12
 
@@ -82,6 +125,8 @@ HIGHVOL_SCALE = None   # 예: 0.5 -> 코스닥·나스닥 종목은 투자 금�
 GAP_MODE = "skip"        # "skip": 갭이 잦은 종목은 신규 매수 안 함 / "half": 투자 금액을 절반으로 / None: 끔
 GAP_THR = 0.07         # 전날 종가 대비 시가가 이 비율 이상 벌어진 날을 갭으로 셈
 GAP_DAYS = 3           # 최근 120일 안에 갭이 이 횟수 이상이면 갭이 잦은 종목으로 봄
+MAX_PER_SECTOR = None  # 예: 2 -> 같은 업종은 동시에 최대 2종목까지만 보유 (compare_sector.py 로 비교한 뒤 켜세요)
+EARNINGS_AVOID_DAYS = None   # 예: 3 -> 실적 발표 3일 전부터는 새로 사지 않음 (미국 종목 위주, 날짜를 못 구하면 영향 없음. 백테스트로 검증 불가)
 BREADTH_MIN = None     # 예: 0.3 -> 상승 추세 종목이 전체의 30% 미만이면 신규 매수 보류 (약세장 대응)
 
 
