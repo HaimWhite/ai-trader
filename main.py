@@ -14,14 +14,24 @@ import strategy
 from broker import PaperBroker
 
 
-def size_budget(df, budget, equity):
-    """변동성이 큰 종목은 적게 사도록 투자 금액을 줄입니다 (config.VOL_SIZE_RISK 가 켜져 있을 때만)."""
-    if not config.VOL_SIZE_RISK:
-        return budget
-    m = df["Close"].pct_change().abs().rolling(20).mean().iloc[-1]
-    if m != m:
-        return budget
-    return min(budget, equity * config.VOL_SIZE_RISK / min(0.20, max(0.05, 3 * m)))
+def gap_count(df):
+    """최근 120일 중 갭(전날 종가 대비 시가 차이가 GAP_THR 이상)이 난 날의 수"""
+    c = df["Close"]
+    o = df["Open"].where(df["Open"] > 0, c)
+    return int(((o / c.shift(1) - 1).abs() >= config.GAP_THR).tail(120).sum())
+
+
+def size_budget(code, df, budget, equity):
+    """변동성이 크거나 갭이 잦은 종목은 적게 사도록 투자 금액을 줄입니다 (config 옵션이 켜져 있을 때만)."""
+    if config.VOL_SIZE_RISK:
+        m = df["Close"].pct_change().abs().rolling(20).mean().iloc[-1]
+        if m == m:
+            budget = min(budget, equity * config.VOL_SIZE_RISK / min(0.20, max(config.VOL_FLOOR, 3 * m)))
+    if config.HIGHVOL_SCALE and code in config.WIDE_STOP_CODES:
+        budget *= config.HIGHVOL_SCALE
+    if config.GAP_MODE == "half" and gap_count(df) >= config.GAP_DAYS:
+        budget *= 0.5
+    return budget
 
 
 def main():
@@ -119,12 +129,14 @@ def main():
             elif news_info["ok"] and news_info["score"] <= config.NEWS_BLOCK_BUY_SCORE:
                 action = "관망(악재 뉴스로 매수 보류)"
                 news_blocked.append(name)
+            elif config.GAP_MODE == "skip" and gap_count(df) >= config.GAP_DAYS:
+                action = "관망(갭 하락이 잦은 종목이라 매수 보류)"
             elif weak_market:
                 action = "관망(시장 약세로 신규 매수 보류)"
             elif len(broker.account["positions"]) >= config.MAX_POSITIONS:
                 action = "관망(동시 보유 한도)"
             else:
-                t = broker.buy(code, name, price, size_budget(df, budget, equity0), info["reason"])
+                t = broker.buy(code, name, price, size_budget(code, df, budget, equity0), info["reason"])
                 action = f"매수 {t['qty']}주" if t else "매수 불가(자금 부족)"
         elif info["signal"] == "SELL" and held:
             t = broker.sell(code, price, info["reason"])

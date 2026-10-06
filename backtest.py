@@ -35,7 +35,7 @@ def prepare(frames, ma_list):
     return idx, data
 
 
-def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None):
+def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2):
     """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
@@ -48,11 +48,26 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
     streak = {}      # 종목별 상승 신호 연속 일수
     rank = {}        # 종목별 추세 강도 (단기선/장기선)
 
-    def _bud(code, i, budget, eq_open):   # 변동성이 큰 종목은 투자 금액을 줄임
+    gapcnt = {}   # 최근 120일 중 갭(전날 종가 대비 시가가 gap_thr 이상 벌어진 날) 횟수
+    if gap_mode:
+        for code, dd in data.items():
+            o, c = dd["open"], dd["close"]
+            hit = np.zeros(n_days)
+            hit[1:] = (np.abs(o[1:] / c[:-1] - 1) >= gap_thr).astype(float)
+            cs = np.cumsum(hit)
+            cnt = cs.copy()
+            cnt[120:] = cs[120:] - cs[:-120]
+            gapcnt[code] = cnt
+
+    def _bud(code, i, budget, eq_open):   # 변동성이 크거나 갭이 잦은 종목은 투자 금액을 줄임
         if vol_size and i > 0:
             m = data[code]["mad"][i - 1]
             if not np.isnan(m):
-                return min(budget, eq_open * vol_size / min(0.20, max(0.05, 3 * m)))
+                budget = min(budget, eq_open * vol_size / min(0.20, max(vol_floor, 3 * m)))
+        if class_scale and code in config.WIDE_STOP_CODES:
+            budget *= class_scale
+        if gap_mode == "half" and i > 0 and gapcnt[code][i - 1] >= gap_days:
+            budget *= 0.5
         return budget
     below = {}       # 종가가 단기선 아래인 연속 일수
     curve, trades = [], []
@@ -129,6 +144,8 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             if fast_exit and not c > ms:   # 빠른 청산을 쓰면, 가격이 단기선 위로 돌아온 뒤에만 재진입
                 entry_ok = False
             if breadth_min and breadth < breadth_min:
+                entry_ok = False
+            if gap_mode == "skip" and gapcnt[code][i] >= gap_days:
                 entry_ok = False
             if filter_n:
                 mf = dd["ma"][filter_n][i]
