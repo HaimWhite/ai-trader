@@ -253,13 +253,18 @@ def main():
         "benchmark": metrics(bench, dates),
         "previous": metrics(prev_curve[start:], dates),
         "settings": settings_text(),
+        "trades": [
+            {"date": idx[t["i"]].strftime("%Y-%m-%d"), "name": config.SYMBOLS.get(t["code"], t["code"]),
+             "pnl": round(t["pnl"]), "pct": round(t["pnl_pct"], 2), "why": t["why"]}
+            for t in trades
+        ],
         "trade_count": len(trades),
         "win_rate": round(len(wins) / len(trades) * 100, 1) if trades else 0,
         "avg_trade_pct": round(sum(t["pnl_pct"] for t in trades) / len(trades), 2) if trades else 0,
         "by_symbol": by_symbol,
         "curve": [
-            {"date": dates[i].strftime("%Y-%m-%d"), "strategy": round(strat[i]), "benchmark": round(bench[i])}
-            for i in keep
+            {"date": dates[i].strftime("%Y-%m-%d"), "strategy": round(strat[i]), "benchmark": round(bench[i]), "previous": round(prev_curve[start + i])}
+            for i in range(len(dates))
         ],
     }
     config.DATA_DIR.mkdir(exist_ok=True)
@@ -273,6 +278,16 @@ def main():
         print(f"{name}: 총 {m_['total_return']}% | 연 {m_['cagr']}% | 최대낙폭 {m_['mdd']}%")
     print("(이전 설정 = 추적 손절·갭 필터 없이 손절 -7%만 쓴 경우)")
     print(f"현재 설정 거래 {out['trade_count']}회 | 승률 {out['win_rate']}% | 평균 손익 {out['avg_trade_pct']}%")
+
+    # 기간별 연환산 수익률 차이 (현재 설정 - 이전 설정)
+    split_i = int(idx.searchsorted(pd.Timestamp("2025-01-01")))
+    print()
+    print("[연환산 수익률 차이]  (현재 설정 - 이전 설정, %p)")
+    print(f"{'기간':<14}{'현재 연%':>10}{'이전 연%':>10}{'차이':>8}{'현재 낙폭':>10}{'이전 낙폭':>10}")
+    for label, (a, b) in (("전체", (start, len(idx))), ("2025년 이전", (start, split_i)), ("2025년 이후", (split_i - 1, len(idx)))):
+        cur, prv = metrics(curve[a:b], idx[a:b]), metrics(prev_curve[a:b], idx[a:b])
+        pad = 14 - sum(1 for ch in label if ord(ch) > 127)
+        print(f"{label:<{pad}}{cur['cagr']:>10}{prv['cagr']:>10}{cur['cagr'] - prv['cagr']:>+8.1f}{cur['mdd']:>10}{prv['mdd']:>10}")
 
 if __name__ == "__main__":
     main()

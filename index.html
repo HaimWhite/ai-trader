@@ -342,19 +342,43 @@ function render(){
     bindSort("divtbl", DIV_SORT);
   }
 
-  // 백테스트
+  // 백테스트 (선택한 기간에 맞춰 지표를 다시 계산)
   if(bt){
-    const c = bt.curve, k = rangeStart(c.map(r => r.date)), cc = c.slice(k), s0 = cc[0].strategy, b0 = cc[0].benchmark;
-    const m = (key, f) => "<td>" + f(bt.strategy[key]) + "</td><td>" + f(bt.benchmark[key]) + "</td>" + (bt.previous ? "<td>" + f(bt.previous[key]) + "</td>" : "");
-    const pct = v => '<span class="' + cls(v) + '">' + sign(v) + "</span>";
-    const symRows = Object.entries(bt.by_symbol).map(([n, v]) => ({name: n, trades: v.trades, win_rate: v.win_rate, pnl: v.pnl}));
+    const c = bt.curve, k = rangeStart(c.map(r => r.date)), cc = c.slice(k);
+    const hasPrev = cc[0].previous != null;
+    const calc = key => {
+      const v = cc.map(r => r[key]);
+      let peak = v[0], mdd = 0;
+      v.forEach(x => { if(x > peak) peak = x; mdd = Math.min(mdd, (x / peak - 1) * 100); });
+      const days = (Date.parse(cc[cc.length - 1].date) - Date.parse(cc[0].date)) / 864e5;
+      const last = v[v.length - 1] / v[0];
+      return {total: (last - 1) * 100, cagr: days >= 180 ? (Math.pow(last, 365.25 / days) - 1) * 100 : null, mdd};
+    };
+    const S = calc("strategy"), B = calc("benchmark"), Pv = hasPrev ? calc("previous") : null;
+    const pct = v => v == null ? "-" : '<span class="' + cls(v) + '">' + sign(v) + "</span>";
+    const row = (label, key) => "<tr><td>" + label + "</td><td>" + pct(S[key]) + "</td><td>" + pct(B[key]) + "</td>" + (hasPrev ? "<td>" + pct(Pv[key]) + "</td>" : "") + "</tr>";
+    const d0 = cc[0].date, d1 = cc[cc.length - 1].date;
+    let tradeInfo, symRows;
+    if(bt.trades){
+      const ts = bt.trades.filter(t => t.date >= d0);
+      const wins = ts.filter(t => t.pnl > 0).length;
+      const avg = ts.length ? ts.reduce((a, t) => a + t.pct, 0) / ts.length : 0;
+      tradeInfo = `선택 기간 거래 ${ts.length}회 | 승률 ${ts.length ? (wins / ts.length * 100).toFixed(1) : 0}% | 평균 손익 ${avg.toFixed(2)}%`;
+      const by = {};
+      ts.forEach(t => { const o = by[t.name] = by[t.name] || {name: t.name, trades: 0, wins: 0, pnl: 0}; o.trades++; if(t.pnl > 0) o.wins++; o.pnl += t.pnl; });
+      symRows = Object.values(by).map(o => ({name: o.name, trades: o.trades, win_rate: Math.round(o.wins / o.trades * 1000) / 10, pnl: Math.round(o.pnl)}));
+    } else {
+      tradeInfo = `전체 기간 거래 ${bt.trade_count}회 | 승률 ${bt.win_rate}% | 평균 손익 ${bt.avg_trade_pct}% (백테스트를 다시 실행하면 선택한 기간에 맞춰 바뀌어요)`;
+      symRows = Object.entries(bt.by_symbol).map(([n, v]) => ({name: n, trades: v.trades, win_rate: v.win_rate, pnl: v.pnl}));
+    }
     $("bt").innerHTML =
-      '<div class="sub" style="margin-bottom:8px">전체 기간: ' + esc(bt.period[0]) + " ~ " + esc(bt.period[1]) + " (수수료·세금·슬리피지 반영, 다음날 시가 체결 가정)" + (bt.settings ? "<br>적용 설정: " + esc(bt.settings) : "") + "</div>" +
+      '<div class="sub" style="margin-bottom:8px">백테스트 가능 기간: ' + esc(bt.period[0]) + " ~ " + esc(bt.period[1]) + " (수수료·세금·슬리피지 반영, 다음날 시가 체결 가정)" + (bt.settings ? "<br>적용 설정: " + esc(bt.settings) : "") + "</div>" +
       '<div id="btc"></div>' + legend([["이동평균 전략 (빨간 실선)", "var(--up)", false], ["단순 보유 (회색 점선)", "var(--sub)", true]]) +
-      '<div class="sub" style="margin:4px 0 10px">그래프는 선택한 기간의 시작을 0%로 맞춘 수익률이에요. 아래 표는 전체 기간 기준이에요.</div>' +
-      '<div class="scroll"><table><tr><th>지표 (전체 기간)</th><th>전략</th><th>단순 보유</th>' + (bt.previous ? "<th>이전 설정</th>" : "") + '</tr>' +
-      "<tr><td>총 수익률</td>" + m("total_return", pct) + "</tr><tr><td>연환산 수익률</td>" + m("cagr", pct) + "</tr><tr><td>최대 낙폭</td>" + m("mdd", pct) + "</tr></table></div>" +
-      '<div class="sub" style="margin:10px 0 6px">전략 거래 ' + bt.trade_count + "회 | 승률 " + bt.win_rate + "% | 평균 손익 " + bt.avg_trade_pct + "%</div>" +
+      '<div class="sub" style="margin:4px 0 10px">그래프는 선택한 기간의 시작을 0%로 맞춘 수익률이에요. 아래 지표도 위 기간 버튼에 맞춰 바뀌어요.</div>' +
+      '<div class="sub" style="margin-bottom:4px"><b>선택 기간: ' + esc(d0) + " ~ " + esc(d1) + "</b></div>" +
+      '<div class="scroll"><table><tr><th>지표</th><th>전략</th><th>단순 보유</th>' + (hasPrev ? "<th>이전 설정</th>" : "") + "</tr>" +
+      row("기간 수익률", "total") + row("연환산 수익률 (6개월 이상일 때)", "cagr") + row("최대 낙폭", "mdd") + "</table></div>" +
+      '<div class="sub" style="margin:10px 0 6px">' + tradeInfo + "</div>" +
       '<div class="sub" style="margin-bottom:4px">제목(거래수·승률·누적 손익)을 누르면 오름차순/내림차순으로 정렬돼요.</div><div class="scroll tall">' + sortTable("btsym", BT_SORT, [
         ["name", "종목", r => `<td>${esc(r.name)}</td>`],
         ["trades", "거래수", r => `<td>${r.trades}</td>`],
@@ -362,7 +386,7 @@ function render(){
         ["pnl", "누적 손익", r => `<td class="${cls(r.pnl)}">${won(r.pnl)}</td>`],
       ], symRows) + "</div>";
     bindSort("btsym", BT_SORT);
-    const d = cc.map(r => r.date);
+    const d = cc.map(r => r.date), s0 = cc[0].strategy, b0 = cc[0].benchmark;
     chart($("btc"), [
       {x: d, y: cc.map(r => r.benchmark / b0 * 100 - 100), color: "var(--sub)", dash: true},
       {x: d, y: cc.map(r => r.strategy / s0 * 100 - 100), color: "var(--up)"}
