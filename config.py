@@ -83,3 +83,34 @@ GAP_MODE = "skip"        # "skip": 갭이 잦은 종목은 신규 매수 안 함
 GAP_THR = 0.07         # 전날 종가 대비 시가가 이 비율 이상 벌어진 날을 갭으로 셈
 GAP_DAYS = 3           # 최근 120일 안에 갭이 이 횟수 이상이면 갭이 잦은 종목으로 봄
 BREADTH_MIN = None     # 예: 0.3 -> 상승 추세 종목이 전체의 30% 미만이면 신규 매수 보류 (약세장 대응)
+
+
+# --- 설정 자동 조정 (advisor.py) ---
+TUNABLE = {   # 항목: (최소, 최대, 한 번에 바꿀 수 있는 최대 폭). 이 범위 밖의 값은 적용되지 않습니다.
+    "STOP_LOSS_PCT": (-0.10, -0.04, 0.01),
+    "TRAIL_STOP_PCT": (0.12, 0.30, 0.03),
+    "MAX_POSITIONS": (3, 7, 1),
+    "GAP_DAYS": (2, 5, 1),
+}
+ADVISOR_ENGINE = "auto"            # "claude"(API 사용, 유료) / "rules"(무료, 정해진 규칙) / "auto"(키가 있으면 claude, 없으면 rules)
+ADVISOR_MODEL = "claude-sonnet-5-5"
+ADVISOR_AUTO_APPLY = False         # True 로 바꾸면 제안을 승인 없이 바로 적용합니다 (권장하지 않음)
+TUNABLE_DEFAULTS = {k: globals()[k] for k in TUNABLE}   # 조정하기 전의 기본값
+
+
+def _apply_tuning():
+    """data/tuning.json 에 승인된 조정값이 있으면 범위 안에서만 적용"""
+    import json
+    p = DATA_DIR / "tuning.json"
+    if not p.exists():
+        return
+    try:
+        data = json.load(open(p, encoding="utf-8"))
+    except Exception:
+        return
+    for k, v in data.items():
+        if k in TUNABLE and isinstance(v, (int, float)) and TUNABLE[k][0] <= v <= TUNABLE[k][1]:
+            globals()[k] = int(v) if k in ("MAX_POSITIONS", "GAP_DAYS") else float(v)
+
+
+_apply_tuning()

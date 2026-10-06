@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 run_log.txt
 monitor_log.txt
+advisor_log.txt

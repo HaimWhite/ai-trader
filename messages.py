@@ -162,3 +162,27 @@ def open_message(now_text, equity, return_pct, cash, holdings):
 
 def no_data_message():
     return f"{BOSS}, 오늘은 휴장이거나 시세가 아직 반영되지 않아 장중 감시를 쉬겠습니다. 오후 4시 정기 점검은 그대로 진행합니다."
+
+
+_TUNE_NAMES = {
+    "STOP_LOSS_PCT": ("손절선", lambda v: f"{v * 100:.0f}%"),
+    "TRAIL_STOP_PCT": ("추적 손절", lambda v: f"{v * 100:.0f}%"),
+    "MAX_POSITIONS": ("동시 보유 종목 수", lambda v: f"{v:.0f}종목"),
+    "GAP_DAYS": ("갭 건너뜀 기준", lambda v: f"{v:.0f}회"),
+}
+
+
+def advisor_message(entry, applied=False):
+    lines = [f"{BOSS}, 설정 점검 결과를 보고드립니다."]
+    if not entry["changes"]:
+        lines.append("지금 설정을 그대로 유지하는 것이 좋다고 판단했습니다.")
+    else:
+        lines.append("다음과 같이 조정해 적용했습니다." if applied else "다음과 같이 조정하는 것을 제안드립니다.")
+        for k, c in entry["changes"].items():
+            name, fmt = _TUNE_NAMES[k]
+            lines.append(f"• {name}: {fmt(c['from'])} → {fmt(c['to'])}")
+    if entry.get("reason"):
+        lines.append(f"이유: {entry['reason']}")
+    if entry["changes"] and not applied:
+        lines.append("적용하려면 PC에서 python advisor.py --apply 를 실행해 주세요. (거절은 --reject)")
+    return "\n".join(lines)

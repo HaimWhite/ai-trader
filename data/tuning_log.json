@@ -1,0 +1,26 @@
+[
+ {
+  "id": 1,
+  "time": "2026-10-06 21:56",
+  "engine": "rules",
+  "changes": {},
+  "reason": "기록이 아직 적어서 판단하기 이릅니다.",
+  "status": "keep"
+ },
+ {
+  "id": 2,
+  "time": "2026-10-06 21:56",
+  "engine": "manual",
+  "changes": {},
+  "reason": "기본값으로 되돌림",
+  "status": "reset"
+ },
+ {
+  "id": 3,
+  "time": "2026-10-06 21:57",
+  "engine": "rules",
+  "changes": {},
+  "reason": "기록이 아직 적어서 판단하기 이릅니다.",
+  "status": "keep"
+ }
+]
