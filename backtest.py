@@ -198,11 +198,35 @@ def benchmark_curve(data, start):
     ]
 
 
+def live_options():
+    """지금 실제 매매에 쓰는 설정을 백테스트에도 그대로 적용"""
+    return dict(trail=config.TRAIL_STOP_PCT, vol_size=config.VOL_SIZE_RISK, vol_floor=config.VOL_FLOOR,
+                class_scale=config.HIGHVOL_SCALE, gap_mode=config.GAP_MODE, gap_thr=config.GAP_THR,
+                gap_days=config.GAP_DAYS, breadth_min=config.BREADTH_MIN)
+
+
+def settings_text():
+    parts = [f"{config.SHORT_MA}일/{config.LONG_MA}일 이동평균", f"손절 {config.STOP_LOSS_PCT * 100:.0f}%"]
+    if config.TRAIL_STOP_PCT:
+        parts.append(f"추적 손절 {config.TRAIL_STOP_PCT * 100:.0f}%")
+    if config.GAP_MODE:
+        parts.append(f"갭 잦은 종목 {'건너뜀' if config.GAP_MODE == 'skip' else '절반'}({config.GAP_THR * 100:.0f}%x{config.GAP_DAYS}회)")
+    if config.VOL_SIZE_RISK:
+        parts.append(f"변동성 크기 조절 {config.VOL_SIZE_RISK * 100:.1f}%")
+    if config.HIGHVOL_SCALE:
+        parts.append(f"코스닥·나스닥 {config.HIGHVOL_SCALE * 100:.0f}%만 투자")
+    if config.BREADTH_MIN:
+        parts.append(f"약세장 필터({config.BREADTH_MIN * 100:.0f}%)")
+    parts.append(f"동시 보유 {config.MAX_POSITIONS}종목")
+    return " · ".join(parts)
+
+
 def main():
     frames = load_data()
     idx, data = prepare(frames, [config.SHORT_MA, config.LONG_MA])
     start = config.LONG_MA          # 이동평균이 계산되기 시작하는 시점부터 비교
-    curve, trades = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT)
+    curve, trades = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT, **live_options())
+    prev_curve, _ = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT)   # 이전 설정(손절만) 참고용
 
     dates = idx[start:]
     strat = curve[start:]
@@ -227,6 +251,8 @@ def main():
         "period": [dates[0].strftime("%Y-%m-%d"), dates[-1].strftime("%Y-%m-%d")],
         "strategy": metrics(strat, dates),
         "benchmark": metrics(bench, dates),
+        "previous": metrics(prev_curve[start:], dates),
+        "settings": settings_text(),
         "trade_count": len(trades),
         "win_rate": round(len(wins) / len(trades) * 100, 1) if trades else 0,
         "avg_trade_pct": round(sum(t["pnl_pct"] for t in trades) / len(trades), 2) if trades else 0,
@@ -242,10 +268,11 @@ def main():
 
     print()
     print(f"기간: {out['period'][0]} ~ {out['period'][1]}")
-    print(f"전략      : 총 {out['strategy']['total_return']}% | 연 {out['strategy']['cagr']}% | 최대낙폭 {out['strategy']['mdd']}%")
-    print(f"단순 보유 : 총 {out['benchmark']['total_return']}% | 연 {out['benchmark']['cagr']}% | 최대낙폭 {out['benchmark']['mdd']}%")
-    print(f"거래 {out['trade_count']}회 | 승률 {out['win_rate']}% | 평균 손익 {out['avg_trade_pct']}%")
-
+    print(f"적용 설정: {out['settings']}")
+    for name, m_ in (("현재 설정  ", out["strategy"]), ("이전 설정  ", out["previous"]), ("단순 보유  ", out["benchmark"])):
+        print(f"{name}: 총 {m_['total_return']}% | 연 {m_['cagr']}% | 최대낙폭 {m_['mdd']}%")
+    print("(이전 설정 = 추적 손절·갭 필터 없이 손절 -7%만 쓴 경우)")
+    print(f"현재 설정 거래 {out['trade_count']}회 | 승률 {out['win_rate']}% | 평균 손익 {out['avg_trade_pct']}%")
 
 if __name__ == "__main__":
     main()

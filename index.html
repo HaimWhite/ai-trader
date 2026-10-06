@@ -345,14 +345,14 @@ function render(){
   // 백테스트
   if(bt){
     const c = bt.curve, k = rangeStart(c.map(r => r.date)), cc = c.slice(k), s0 = cc[0].strategy, b0 = cc[0].benchmark;
-    const m = (key, f) => "<td>" + f(bt.strategy[key]) + "</td><td>" + f(bt.benchmark[key]) + "</td>";
+    const m = (key, f) => "<td>" + f(bt.strategy[key]) + "</td><td>" + f(bt.benchmark[key]) + "</td>" + (bt.previous ? "<td>" + f(bt.previous[key]) + "</td>" : "");
     const pct = v => '<span class="' + cls(v) + '">' + sign(v) + "</span>";
     const symRows = Object.entries(bt.by_symbol).map(([n, v]) => ({name: n, trades: v.trades, win_rate: v.win_rate, pnl: v.pnl}));
     $("bt").innerHTML =
-      '<div class="sub" style="margin-bottom:8px">전체 기간: ' + esc(bt.period[0]) + " ~ " + esc(bt.period[1]) + " (수수료·세금·슬리피지 반영, 다음날 시가 체결 가정)</div>" +
+      '<div class="sub" style="margin-bottom:8px">전체 기간: ' + esc(bt.period[0]) + " ~ " + esc(bt.period[1]) + " (수수료·세금·슬리피지 반영, 다음날 시가 체결 가정)" + (bt.settings ? "<br>적용 설정: " + esc(bt.settings) : "") + "</div>" +
       '<div id="btc"></div>' + legend([["이동평균 전략 (빨간 실선)", "var(--up)", false], ["단순 보유 (회색 점선)", "var(--sub)", true]]) +
       '<div class="sub" style="margin:4px 0 10px">그래프는 선택한 기간의 시작을 0%로 맞춘 수익률이에요. 아래 표는 전체 기간 기준이에요.</div>' +
-      '<div class="scroll"><table><tr><th>지표 (전체 기간)</th><th>전략</th><th>단순 보유</th></tr>' +
+      '<div class="scroll"><table><tr><th>지표 (전체 기간)</th><th>전략</th><th>단순 보유</th>' + (bt.previous ? "<th>이전 설정</th>" : "") + '</tr>' +
       "<tr><td>총 수익률</td>" + m("total_return", pct) + "</tr><tr><td>연환산 수익률</td>" + m("cagr", pct) + "</tr><tr><td>최대 낙폭</td>" + m("mdd", pct) + "</tr></table></div>" +
       '<div class="sub" style="margin:10px 0 6px">전략 거래 ' + bt.trade_count + "회 | 승률 " + bt.win_rate + "% | 평균 손익 " + bt.avg_trade_pct + "%</div>" +
       '<div class="sub" style="margin-bottom:4px">제목(거래수·승률·누적 손익)을 누르면 오름차순/내림차순으로 정렬돼요.</div><div class="scroll tall">' + sortTable("btsym", BT_SORT, [
