@@ -140,6 +140,14 @@ class PaperBroker:
         else:
             self.history.append(row)
 
+    def prev_equity(self, today=None):
+        """오늘 이전에 마지막으로 기록된 날(전 영업일 마감)의 (날짜, 총 평가금액). 없으면 None"""
+        today = today or datetime.now().strftime("%Y-%m-%d")
+        for h in reversed(self.history):
+            if h["date"] < today:
+                return h["date"], h["equity"]
+        return None
+
     # ---------- 저장 ----------
     def save(self):
         _write_json(self.account_file, self.account)

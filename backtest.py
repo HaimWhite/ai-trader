@@ -37,11 +37,13 @@ def prepare(frames, ma_list):
     return idx, data
 
 
-def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2, sector_limit=None):
+def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2, sector_limit=None,
+             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all"):
     """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
-    pullback: 단기선보다 이 비율 이상 눌렸을 때만 매수"""
+    pullback: 단기선보다 이 비율 이상 눌렸을 때만 매수
+    longs: 장기선을 여러 개 쓸 때의 기간 목록(예 (60, 90, 120)), long_ 은 그중 가장 긴 값 / long_rule: all(모두 위) · majority(과반) · any(하나라도)"""
     n = len(data)
     cash = float(config.INITIAL_CASH)
     pos = {}         # code -> {qty, avg, cost}
@@ -128,16 +130,32 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                 ml_ = dd["ma"][long_][i]
                 if not np.isnan(ml_):
                     valid += 1
-                    bull += dd["ma"][short][i] > ml_
+                    bull += dd["ma"][short][i] > ml_   # (장기선이 여러 개여도 시장 분위기는 가장 긴 장기선 기준)
             breadth = bull / valid if valid else 1.0
         for code, dd in data.items():
+            if i < trade_from:   # 시험 시작일 전에는 신호를 내지 않음 (모든 전략이 같은 날 현금으로 시작하도록)
+                break
             c = dd["close"][i]
             ms = dd["ma"][short][i]
             ml = dd["ma"][long_][i]
             if np.isnan(ml) or np.isnan(c):
                 continue
-            bullish = ms > ml
-            rank[code] = ms / ml
+            if longs:
+                ups = sum(1 for L in longs if ms > dd["ma"][L][i])
+                need = len(longs) if long_rule == "all" else (len(longs) // 2 + 1 if long_rule == "majority" else 1)
+                bullish = ups >= need
+                rank[code] = float(np.mean([ms / dd["ma"][L][i] for L in longs]))
+            else:
+                bullish = ms > ml
+                rank[code] = ms / ml
+            bull_entry = bull_exit = bullish
+            if score_mode:   # 머신러닝 점수 사용 실험 (ml_experiment.py): order=순서만, filter=추세+점수, only=점수만
+                sc = score[code][i]
+                if np.isnan(sc):
+                    continue
+                rank[code] = sc
+                if score_mode == "only":
+                    bull_entry, bull_exit = sc >= score_in, sc >= score_out
             streak[code] = streak.get(code, 0) + 1 if bullish else 0
             below[code] = below.get(code, 0) + 1 if c < ms else 0
             entry_ok = True
@@ -156,7 +174,9 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             if filter_n:
                 mf = dd["ma"][filter_n][i]
                 entry_ok = entry_ok and (not np.isnan(mf)) and c > mf
-            if not bullish:
+            if score_mode == "filter" and sc < score_in:
+                entry_ok = False
+            if not bull_exit:
                 blocked.discard(code)
             if code in pos:
                 pos[code]["peak"] = max(pos[code].get("peak", pos[code]["avg"]), c)
@@ -169,12 +189,12 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                     blocked.add(code)
                 elif fast_exit and below[code] >= fast_exit:
                     pending[code] = ("SELL", "단기 이탈")
-                elif not bullish:
+                elif not bull_exit:
                     pending[code] = ("SELL", "하락 추세")
                 else:
                     pending.pop(code, None)
             else:
-                if bullish and entry_ok and code not in blocked:
+                if bull_entry and entry_ok and code not in blocked:
                     pending[code] = ("BUY", "상승 추세")
                 else:
                     pending.pop(code, None)
@@ -198,8 +218,10 @@ def metrics(values, dates):
 def benchmark_curve(data, start):
     """3종목을 같은 비중으로 사서 계속 들고 있을 때의 자산 곡선"""
     n_days = len(next(iter(data.values()))["close"])
+    # 시작일에 아직 상장 전이라 시세가 없는 종목은 단순 보유 비교에서 뺍니다
+    use = [dd for dd in data.values() if not np.isnan(dd["close"][start])] or list(data.values())
     return [
-        config.INITIAL_CASH * sum(dd["close"][i] / dd["close"][start] for dd in data.values()) / len(data)
+        config.INITIAL_CASH * sum(dd["close"][i] / dd["close"][start] for dd in use) / len(use)
         for i in range(start, n_days)
     ]
 
@@ -208,11 +230,17 @@ def live_options():
     """지금 실제 매매에 쓰는 설정을 백테스트에도 그대로 적용"""
     return dict(trail=config.TRAIL_STOP_PCT, vol_size=config.VOL_SIZE_RISK, vol_floor=config.VOL_FLOOR,
                 class_scale=config.HIGHVOL_SCALE, gap_mode=config.GAP_MODE, gap_thr=config.GAP_THR,
-                gap_days=config.GAP_DAYS, breadth_min=config.BREADTH_MIN, sector_limit=config.MAX_PER_SECTOR)
+                gap_days=config.GAP_DAYS, breadth_min=config.BREADTH_MIN, sector_limit=config.MAX_PER_SECTOR,
+                longs=tuple(config.LONG_MAS) if config.LONG_MAS else None, long_rule=config.LONG_RULE)
 
 
 def settings_text():
-    parts = [f"{config.SHORT_MA}일/{config.LONG_MA}일 이동평균", f"손절 {config.STOP_LOSS_PCT * 100:.0f}%"]
+    if config.LONG_MAS:
+        rule = {"all": "모두", "majority": "과반", "any": "하나라도"}[config.LONG_RULE]
+        ma_txt = f"{config.SHORT_MA}일선 vs {'·'.join(str(n) for n in config.LONG_MAS)}일선({rule} 위)"
+    else:
+        ma_txt = f"{config.SHORT_MA}일/{config.LONG_MA}일 이동평균"
+    parts = [ma_txt, f"손절 {config.STOP_LOSS_PCT * 100:.0f}%"]
     if config.TRAIL_STOP_PCT:
         parts.append(f"추적 손절 {config.TRAIL_STOP_PCT * 100:.0f}%")
     if config.GAP_MODE:
@@ -242,7 +270,7 @@ def yearly_returns(dates, series):
 
 def main():
     frames = load_data()
-    idx, data = prepare(frames, [config.SHORT_MA, config.LONG_MA])
+    idx, data = prepare(frames, sorted({config.SHORT_MA, config.LONG_MA, *(config.LONG_MAS or ())}))
     start = config.LONG_MA          # 이동평균이 계산되기 시작하는 시점부터 비교
     curve, trades = simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT, **live_options())
     # --vs-old: 추적 손절·갭 필터 없이 손절 -7%만 쓴 경우와 나란히 비교 (시간이 더 걸려서 옵션으로만 제공)

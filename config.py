@@ -85,6 +85,13 @@ def is_us(code):
     return code.isalpha()
 
 
+def group_of(code):
+    """종목을 큰 분류로 묶습니다: 코스피 / 코스닥 / 나스닥(미국)"""
+    if is_us(code):
+        return "나스닥"
+    return "코스닥" if code in KOSDAQ_CODES else "코스피"
+
+
 def fee_rate(code):
     return (US_FEE_RATE + US_FX_COST) if is_us(code) else FEE_RATE
 
@@ -95,6 +102,10 @@ def sell_tax_rate(code):
 # 전략 설정
 SHORT_MA = 20           # 단기 이동평균 (일)
 LONG_MA = 120           # 장기 이동평균 (일)
+# 장기선을 여러 개 함께 쓰는 옵션 (compare_ma.py 로 비교한 뒤 켜세요). 기본은 꺼짐(LONG_MA 하나만 사용)
+LONG_MAS = None         # 예: (60, 90, 120) -> 단기선을 이 장기선들과 함께 비교 (가장 긴 값이 LONG_MA 와 같아야 함)
+LONG_RULE = "all"       # "all": 모든 장기선 위일 때만 상승 / "majority": 절반 넘게 위 / "any": 하나라도 위
+SHOW_MAS = (60, 90, 120)   # 대시보드·판단표에 참고용으로 보여줄 장기선 (매매에 쓰는지와는 별개)
 STOP_LOSS_PCT = -0.07   # 매입가 대비 -7% 이하이면 손절
 TRAIL_STOP_PCT = 0.20   # 추적 손절: 매수 후 최고가 대비 이 비율만큼 내려오면 매도 (끄려면 None)
 

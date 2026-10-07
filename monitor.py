@@ -10,6 +10,7 @@ import traceback
 from datetime import datetime, time as dtime, timedelta
 
 import config
+import forecast
 import market
 import messages
 import notify
@@ -36,7 +37,7 @@ def run_git(args, data=None):
     return r.stdout.decode("utf-8").strip()
 
 
-def publish_live(broker, quotes, t):
+def publish_live(broker, quotes, t, fc=None):
     """현재 평가금액을 live 브랜치에 올립니다 (대시보드 웹페이지는 이 파일을 읽어 장중에 갱신).
     live 브랜치는 매번 커밋 1개로 덮어써서 기록이 쌓이지 않고, 웹페이지 빌드도 일으키지 않습니다."""
     latest = {}
@@ -54,6 +55,8 @@ def publish_live(broker, quotes, t):
         "cash": round(broker.account["cash"]),
         "holdings": holdings,
     }
+    if fc:
+        payload["fc"] = fc
     try:
         blob = run_git(["hash-object", "-w", "--stdin"], json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         tree = run_git(["mktree"], f"100644 blob {blob}\tlive.json\n".encode("utf-8"))
@@ -93,7 +96,8 @@ def tick(state, t):
             holdings.append({"name": p["name"], "qty": p["qty"], "price": price, "prev": prev})
         equity = broker.equity(prices)
         ret = round((equity / config.INITIAL_CASH - 1) * 100, 2)
-        notify.send(messages.open_message(t.strftime("%H:%M"), equity, ret, broker.account["cash"], holdings), mention=True)
+        notify.send(messages.open_message(t.strftime("%H:%M"), equity, ret, broker.account["cash"], holdings,
+                                          prev=broker.prev_equity(t.strftime("%Y-%m-%d"))), mention=True)
         state["opened"] = True
 
     blocked = broker.account.setdefault("blocked", [])
@@ -122,7 +126,12 @@ def tick(state, t):
         git_push("intraday stop loss")
     elif peak_changed:
         broker.save()   # 최고가 기록 보존
-    publish_live(broker, quotes, t)
+    fc = None
+    try:   # 보유 종목의 5분·1시간 뒤 가격 예측과 채점
+        fc = forecast.tick({c: p for c, p in broker.account["positions"].items() if c in quotes}, quotes, t)
+    except Exception as e:
+        print("예측 갱신 실패:", e)
+    publish_live(broker, quotes, t, fc)
     status.beat("monitor", True, f"감시 {len(held)}종목")
     print(f"[{t:%H:%M}] 확인 완료 (감시 {len(held)}종목, 손절 {len(sold)}건)")
     return None

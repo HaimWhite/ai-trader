@@ -26,6 +26,29 @@ def _report_note(now=None):
     return ""
 
 
+def change_line(equity, prev):
+    """전 영업일 마감 대비 총 자산 변동 한 줄 (prev = (날짜, 총 평가금액))"""
+    if not prev or not prev[1]:
+        return None
+    d, e = prev
+    diff = equity - e
+    pct = diff / e * 100
+    if round(diff) == 0:
+        return f"전 영업일({d[5:].replace('-', '/')}) 마감과 같은 수준입니다."
+    word = "늘었습니다" if diff > 0 else "줄었습니다"
+    return f"전 영업일({d[5:].replace('-', '/')}) 마감 대비 {abs(diff):,.0f}원({pct:+.2f}%) {word}."
+
+
+def _day_lines(holdings):
+    """보유 종목별 전일 대비 변동 (holdings: name, qty, price, prev)"""
+    out = []
+    for h in holdings or []:
+        prev = h.get("prev")
+        chg = f"전일 대비 {(h['price'] / prev - 1) * 100:+.2f}%" if prev else "전일 대비 확인 불가"
+        out.append(f"• {h['name']} {h['qty']}주: {h['price']:,.0f}원 ({chg})")
+    return out
+
+
 def plain_reason(reason):
     if reason == "손절":
         return f"매입가 대비 {abs(config.STOP_LOSS_PCT) * 100:.0f}% 이상 하락해 손절 기준에 도달했습니다."
@@ -62,7 +85,7 @@ def _news_lines(news, blocked, warnings):
     return lines
 
 
-def daily_message(equity, return_pct, cash, trades, failed, news=None, news_blocked=None, warnings=None, pending=None):
+def daily_message(equity, return_pct, cash, trades, failed, news=None, news_blocked=None, warnings=None, pending=None, prev=None, holdings=None):
     if return_pct > 0:
         mood = f"시작 금액 대비 {return_pct}% 높은 수준입니다."
     elif return_pct < 0:
@@ -72,8 +95,15 @@ def daily_message(equity, return_pct, cash, trades, failed, news=None, news_bloc
     lines = [
         f"{BOSS}, {_report_title()} 보고드립니다." + _report_note(),
         f"총 자산은 {equity:,.0f}원이며, {mood} (현금 {cash:,.0f}원)",
-        "",
     ]
+    cl = change_line(equity, prev)
+    if cl:
+        lines.append(cl)
+    lines.append("")
+    if holdings:
+        lines.append("보유 종목의 전일 대비 변동입니다.")
+        lines += _day_lines(holdings)
+        lines.append("")
 
     if trades:
         lines.append(f"오늘 매매는 {len(trades)}건 진행했습니다.")
@@ -118,20 +148,24 @@ def _mood(return_pct):
     return "시작 금액과 동일한 수준입니다."
 
 
-def midday_message(now_text, equity, return_pct, cash, holdings, failed, closed=False):
+def midday_message(now_text, equity, return_pct, cash, holdings, failed, closed=False, prev=None):
     if closed:
         return (f"{BOSS}, 오늘은 휴장이거나 실시간 시세가 아직 반영되지 않아 중간 보고를 생략합니다.\n"
                 "오후 4시에 다시 보고드리겠습니다.")
     lines = [
         f"{BOSS}, 점심 중간 보고드립니다. ({now_text} 기준)",
         f"총 자산은 {equity:,.0f}원이며, {_mood(return_pct)} (현금 {cash:,.0f}원)",
-        "",
     ]
+    cl = change_line(equity, prev)
+    if cl:
+        lines.append(cl)
+    lines.append("")
     if holdings:
         lines.append("보유 종목 현황입니다.")
         for h in holdings:
             r = (h["price"] / h["avg"] - 1) * 100
-            lines.append(f"• {h['name']} {h['qty']}주: 현재가 {h['price']:,.0f}원 (매입가 대비 {r:+.2f}%)")
+            day = f", 전일 대비 {(h['price'] / h['prev'] - 1) * 100:+.2f}%" if h.get("prev") else ""
+            lines.append(f"• {h['name']} {h['qty']}주: 현재가 {h['price']:,.0f}원 (매입가 대비 {r:+.2f}%{day})")
     else:
         lines.append("현재 보유 중인 종목은 없습니다.")
     if failed:
@@ -153,12 +187,15 @@ def trade_alert(trades):
     return "\n".join([f"{BOSS}, 장중 매매가 발생해 바로 보고드립니다."] + [_trade_line(t) for t in trades])
 
 
-def open_message(now_text, equity, return_pct, cash, holdings):
+def open_message(now_text, equity, return_pct, cash, holdings, prev=None):
     lines = [
         f"{BOSS}, 장이 열렸습니다. ({now_text} 기준)",
         f"총 자산은 {equity:,.0f}원이며, {_mood(return_pct)} (현금 {cash:,.0f}원)",
-        "",
     ]
+    cl = change_line(equity, prev)
+    if cl:
+        lines.append(cl)
+    lines.append("")
     if holdings:
         lines.append("보유 종목 현황입니다.")
         for h in holdings:

@@ -7,6 +7,7 @@ import pandas as pd
 import config
 import dividends
 import earnings
+import forecast
 import market
 import messages
 import news
@@ -136,8 +137,7 @@ def main():
     weak_market = bool(config.BREADTH_MIN and breadth < config.BREADTH_MIN)
 
     def strength(code):
-        i = infos[code]
-        return i["short_ma"] / i["long_ma"] if i["short_ma"] and i["long_ma"] else 0
+        return infos[code].get("rank", 0)
 
     # A) 전 영업일에 낸 주문을 오늘(다음 거래일) 시가에 체결
     fills = {}
@@ -207,9 +207,13 @@ def main():
         latest[code] = {
             "name": name,
             "sector": config.SECTORS.get(code, ""),
+            "group": config.group_of(code),
             "price": price,
+            "prev_close": float(df["Close"].iloc[-2]) if len(df) > 1 else None,
             "short_ma": info["short_ma"],
             "long_ma": info["long_ma"],
+            "mas": info.get("mas", {}),
+            "trend_sell": (round(x, 1) if (x := strategy.trend_sell_price(df)) else None),
             "signal": info["signal"],
             "reason": info["reason"],
             "action": action,
@@ -227,8 +231,15 @@ def main():
     if trading_allowed:
         broker.account["pending"] = new_pending
     equity = broker.equity(prices)
+    prev = broker.prev_equity()   # 전 영업일 마감 기록 (오늘 기록을 쓰기 전에 가져옴)
     broker.record_history(equity)
     broker.save()
+    hold_rows = [{"name": p["name"], "qty": p["qty"], "price": prices.get(c, p["avg_price"]),
+                  "prev": latest.get(c, {}).get("prev_close")} for c, p in broker.account["positions"].items()]
+    try:   # 하루 단위 예측 (보유 종목의 다음 거래일 종가 예상과 지난 예측 채점)
+        forecast.daily_update(broker.account["positions"], frames, broker.trades)
+    except Exception as e:
+        print("예측 갱신 실패:", e)
 
     # 대시보드 주가 그래프용 시세 저장 (조회에 실패한 종목은 이전 기록 유지)
     pfile = config.DATA_DIR / "prices.json"
@@ -256,7 +267,9 @@ def main():
         "breadth_pct": round(breadth * 100),
         "news_mode": news.mode_name() if config.USE_NEWS else "off",
         "rules": {"stop_loss_pct": config.STOP_LOSS_PCT, "trail_pct": config.TRAIL_STOP_PCT,
-                  "short_ma": config.SHORT_MA, "long_ma": config.LONG_MA, "max_positions": config.MAX_POSITIONS},
+                  "short_ma": config.SHORT_MA, "long_ma": config.LONG_MA, "max_positions": config.MAX_POSITIONS,
+                  "long_mas": list(config.LONG_MAS) if config.LONG_MAS else None, "long_rule": config.LONG_RULE,
+                  "show_mas": list(config.SHOW_MAS)},
         "pending": pending_list,
         "cash": broker.account["cash"],
         "equity": round(equity),
@@ -274,7 +287,7 @@ def main():
     new_trades = broker.trades[n_before:]
     text = messages.daily_message(equity, latest_out["return_pct"], broker.account["cash"], new_trades, failed,
                                   news_list if config.USE_NEWS else None, news_blocked, warnings,
-                                  pending_list if trading_allowed else None)
+                                  pending_list if trading_allowed else None, prev=prev, holdings=hold_rows)
     # 거래가 있었거나 시세 조회에 실패했을 때만 푸시 알림이 울리게 보냄
     notify.send(text, mention=bool(new_trades) or bool(failed) or bool(warnings))
     status.beat("main", True, f"거래 {len(new_trades)}건, 예약 {len(pending_list)}건")
@@ -293,18 +306,22 @@ def report():
 
     prices, holdings, failed = {}, [], []
     for code, pos in broker.account["positions"].items():
+        dfp = None
         try:
-            price = float(market.load_prices(code, start)["Close"].iloc[-1])
+            dfp = market.load_prices(code, start)
+            price = float(dfp["Close"].iloc[-1])
         except Exception as e:
             print(f"[{pos['name']}] 시세 조회 실패: {e}")
             price = pos["avg_price"]
             failed.append(pos["name"])
         prices[code] = price
-        holdings.append({"name": pos["name"], "qty": pos["qty"], "price": price, "avg": pos["avg_price"]})
+        prev_close = float(dfp["Close"].iloc[-2]) if dfp is not None and len(dfp) > 1 else None
+        holdings.append({"name": pos["name"], "qty": pos["qty"], "price": price, "avg": pos["avg_price"], "prev": prev_close})
 
     equity = broker.equity(prices)
     ret = round((equity / config.INITIAL_CASH - 1) * 100, 2)
-    text = messages.midday_message(now.strftime("%H:%M"), equity, ret, broker.account["cash"], holdings, failed)
+    text = messages.midday_message(now.strftime("%H:%M"), equity, ret, broker.account["cash"], holdings, failed,
+                                   prev=broker.prev_equity(now.strftime("%Y-%m-%d")))
     print(text)
     notify.send(text, mention=bool(failed))
     status.beat("report", True, "중간 보고")

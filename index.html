@@ -31,7 +31,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
 th:first-child,td:first-child{text-align:left}
 th{color:var(--sub);font-weight:500;position:sticky;top:0;background:var(--card)}
-td.r{white-space:normal;text-align:left;color:var(--sub)}
+td.r{white-space:normal;text-align:left;color:var(--sub);min-width:150px}
 tr.tot td{font-weight:600}
 .up{color:var(--up)}.down{color:var(--down)}
 .empty{color:var(--sub);font-size:13px;padding:8px 0}
@@ -45,6 +45,9 @@ details{border-top:1px solid var(--line);padding:8px 0;font-size:13px}
 summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-top:8px}
 .kv div:nth-child(odd){color:var(--sub)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 8px}
+.chips button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:5px 12px;border-radius:16px;font-size:13px;cursor:pointer}
+.chips button.on{background:var(--text);color:var(--bg)}
 .err{background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;font-size:13px}
 </style>
 </head>
@@ -60,9 +63,10 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
     <button data-d="1095">3년</button><button data-d="1825">5년</button><button data-d="0">전체</button>
   </div>
 
-  <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll tall" id="signals"></div></div>
+  <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
   <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
-  <div class="box"><h2>보유 종목</h2><div class="scroll" id="holdings"></div><div id="folders"></div></div>
+  <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
+  <div class="box" id="fcbox"><h2>보유 종목 가격 예측 · 적중률</h2><div class="sub" id="fcnote"></div><div class="chips" id="fchips"></div><div class="scroll" id="fcopen"></div><div class="sub" id="fcsum" style="margin:10px 0 4px"></div><div class="scroll" id="fcstat"></div><div class="scroll tall" id="fcdone" style="margin-top:8px"></div></div>
   <div class="box sub">
     <b>그래프 보는 법</b><br>
     가로축은 날짜, 세로축은 금액(원)이에요. 위 버튼으로 기간을 바꾸고, 그래프를 짚거나 마우스를 올리면 그날의 날짜와 금액이 나와요.<br>
@@ -91,7 +95,8 @@ const cls = n => n > 0 ? "up" : n < 0 ? "down" : "";
 const sign = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
 const LIVE_URL = "https://raw.githubusercontent.com/HaimWhite/ai-trader/live/live.json";
 let RANGE = 365, SEL = null, D = {};
-let BT_SORT = {key: "pnl", dir: -1}, DIV_SORT = {key: "y", dir: -1};
+let BT_SORT = {key: "pnl", dir: -1}, DIV_SORT = {key: "y", dir: -1}, HOLD_SORT = {key: "val", dir: -1}, FC_SORT = {key: "n", dir: -1};
+let GSEL = "전체", FC_H = "1d";
 
 /* ---------- 테마 (자동 / 라이트 / 다크) ---------- */
 let THEME = "auto";
@@ -132,20 +137,20 @@ function table(headers, rows){
   return "<table><tr>" + headers.map(h => "<th>" + h + "</th>").join("") + "</tr>" + rows.join("") + "</table>";
 }
 /* 제목을 누르면 오름/내림차순으로 정렬되는 표. cols: [[정렬키(없으면 null), 제목, 셀 만드는 함수]] */
-function sortTable(id, state, cols, rows){
+function sortTable(id, state, cols, rows, foot){
   const arrow = k => state.key === k ? (state.dir > 0 ? " ▲" : " ▼") : "";
   const sorted = rows.slice().sort((a, b) => {
     const x = a[state.key], y = b[state.key];
     return (typeof x === "string" ? x.localeCompare(y) : x - y) * state.dir;
   });
   return `<table id="${id}"><tr>` + cols.map(c => c[0] ? `<th data-sort="${c[0]}" style="cursor:pointer">${c[1]}${arrow(c[0])}</th>` : `<th>${c[1]}</th>`).join("") + "</tr>" +
-    sorted.map(r => "<tr>" + cols.map(c => c[2](r)).join("") + "</tr>").join("") + "</table>";
+    sorted.map(r => "<tr>" + cols.map(c => c[2](r)).join("") + "</tr>").join("") + (foot || "") + "</table>";
 }
 function bindSort(id, state){
   document.querySelectorAll("#" + id + " th").forEach(h => h.addEventListener("click", () => {
     const k = h.dataset.sort;
     if(!k) return;
-    if(state.key === k) state.dir *= -1; else { state.key = k; state.dir = k === "name" ? 1 : -1; }
+    if(state.key === k) state.dir *= -1; else { state.key = k; state.dir = (k === "name" || k === "group") ? 1 : -1; }
     if(D.latest) render();
   }));
 }
@@ -238,7 +243,11 @@ function chart(el, series, o){
 /* ---------- 화면 그리기 ---------- */
 function render(){
   const {latest, account, trades, history, prices, bt, live, div, tune, stat, indices} = D;
-  const rules = Object.assign({stop_loss_pct: -0.07, trail_pct: 0.2, short_ma: 20, long_ma: 120, max_positions: 5}, latest.rules || {});
+  const rules = Object.assign({stop_loss_pct: -0.07, trail_pct: 0.2, short_ma: 20, long_ma: 120, max_positions: 5, long_mas: null, long_rule: "all", show_mas: [60, 90, 120]}, latest.rules || {});
+  const multi = !!(rules.long_mas && rules.long_mas.length > 1), RULE_KO = {all: "모두", majority: "과반", any: "하나라도"};
+  const longTxt = multi ? rules.long_mas.join("·") + "일선 " + RULE_KO[rules.long_rule] + " 위" : rules.long_ma + "일선 위";
+  const sellTxt = multi ? rules.long_mas.join("·") + "일선 기준 상승 조건(" + RULE_KO[rules.long_rule] + " 위)을 더 이상 채우지 못함" : rules.long_ma + "일선 아래로 내려감";
+  const grpOf = (code, s) => (s && s.group) || (/^[A-Za-z]/.test(code) ? "나스닥" : "코스피");
   const useLive = !!(live && live.updated_at > latest.updated_at);   // 장중 실시간 데이터가 더 최신일 때
   const cash = useLive ? live.cash : latest.cash;
   const P = latest.initial_cash || 20000000, eq = useLive ? live.equity : latest.equity, pl = eq - P, plp = pl / P * 100;
@@ -271,20 +280,42 @@ function render(){
 
   // 오늘의 판단 (매수·매도 기준점 포함)
   const trailTxt = rules.trail_pct ? " · 최고가 대비 " + Math.round(rules.trail_pct * 100) + "% 하락(추적 손절)" : "";
-  $("rules").innerHTML = `<b>매수 기준</b>: ${rules.short_ma}일선이 ${rules.long_ma}일선 위에 있고, 보유 자리(최대 ${rules.max_positions}종목)가 남아 있으면 추세가 강한 종목부터 매수<br>` +
+  $("rules").innerHTML = `<b>매수 기준</b>: ${rules.short_ma}일선이 ${longTxt}에 있고, 보유 자리(최대 ${rules.max_positions}종목)가 남아 있으면 추세가 강한 종목부터 매수<br>` +
     (latest.breadth_pct != null ? `<b>시장 분위기</b>: 상승 추세 종목 ${latest.breadth_pct}%<br>` : "") +
     `<b>예약 주문</b>: ${(() => { const p = latest.pending || [], f = side => p.filter(o => o.side === side).map(o => esc(o.name)).join(", "); return (f("BUY") ? "매수 " + f("BUY") : "") + (f("BUY") && f("SELL") ? " · " : "") + (f("SELL") ? "매도 " + f("SELL") : "") || "없음"; })()} (다음 거래일 시가에 체결, 보유 자리·업종 한도에 따라 일부는 체결되지 않을 수 있어요)<br>` +
     (latest.news_mode ? `<b>뉴스 분석</b>: ${latest.news_mode === "claude" ? "Claude(AI)" : latest.news_mode === "keyword" ? "키워드(무료)" : "사용 안 함"}<br>` : "") +
-    `<b>매도 기준</b>: ${rules.short_ma}일선이 ${rules.long_ma}일선 아래로 내려감 · 매입가 대비 ${Math.round(rules.stop_loss_pct * 100)}% 하락(손절)${trailTxt}`;
-  const syms = Object.entries(latest.symbols).map(([code, s]) => Object.assign({code}, s));
+    `<b>매도 기준</b>: ${rules.short_ma}일선이 ${sellTxt} · 매입가 대비 ${Math.round(rules.stop_loss_pct * 100)}% 하락(손절)${trailTxt}`;
+  const syms = Object.entries(latest.symbols).map(([code, s]) => Object.assign({code}, s, {group: grpOf(code, s)}));
   const order = s => pos[s.code] ? 0 : (s.action && s.action.indexOf("관망") !== 0) ? 1 : s.signal === "BUY" ? 2 : 3;
   syms.sort((a, b) => order(a) - order(b));
   const L_ = {"2": "큰 호재", "1": "호재", "0": "중립", "-1": "악재", "-2": "큰 악재"};
-  $("signals").innerHTML = table(["종목", "업종", "현재가", "신호", "행동", `기준점 (${rules.short_ma}일선 / ${rules.long_ma}일선)`, "뉴스"], syms.map(s => {
-    const gap = s.short_ma && s.long_ma ? (s.short_ma / s.long_ma - 1) * 100 : null;
-    const base = gap == null ? "-" : `${num(s.short_ma)} / ${num(s.long_ma)} <span class="${cls(gap)}">(${sign(gap)})</span>`;
+  // 시장(큰 분류)별 요약 + 선택 버튼
+  const GL = ["코스피", "코스닥", "나스닥"].filter(g => syms.some(s => s.group === g));
+  if(GSEL !== "전체" && !GL.includes(GSEL)) GSEL = "전체";
+  $("gchips").innerHTML = ["전체"].concat(GL).map(g => `<button data-g="${g}"${g === GSEL ? ' class="on"' : ""}>${g}${g === "전체" ? " " + syms.length : " " + syms.filter(s => s.group === g).length}</button>`).join("");
+  document.querySelectorAll("#gchips button").forEach(b => b.addEventListener("click", () => { GSEL = b.dataset.g; render(); }));
+  $("gsum").innerHTML = table(["시장", "종목 수", "상승 추세", "보유", "보유 평가금액", "자산 대비"], GL.map(g => {
+    const ss = syms.filter(s => s.group === g), up = ss.filter(s => s.signal === "BUY").length, hs = ss.filter(s => pos[s.code]);
+    const hv = hs.reduce((a, s) => a + priceOf(s.code, pos[s.code]) * pos[s.code].qty, 0);
+    return `<tr><td>${g}</td><td>${ss.length}</td><td>${up} (${Math.round(up / ss.length * 100)}%)</td><td>${hs.length}</td><td>${won(hv)}</td><td>${eq ? (hv / eq * 100).toFixed(1) : 0}%</td></tr>`;
+  }));
+  const view = GSEL === "전체" ? syms : syms.filter(s => s.group === GSEL);
+  const showMas = rules.show_mas || [60, 90, 120], tradeMas = new Set(multi ? rules.long_mas : [rules.long_ma]);
+  $("signals").innerHTML = table(["종목", "시장", "업종", "현재가", "전일 대비", "신호", "행동", `기준점 (${rules.short_ma}일선과 각 장기선, 굵은 글씨=매매에 쓰는 선)`, "뉴스"], view.map(s => {
+    let base = "-";
+    if(s.mas && s.mas[rules.short_ma]){
+      const sm = s.mas[rules.short_ma];
+      base = `${rules.short_ma}일 ${num(sm)}` + showMas.concat(tradeMas.has(rules.long_ma) && !showMas.includes(rules.long_ma) ? [rules.long_ma] : []).filter(n => s.mas[n]).map(n => {
+        const g = (sm / s.mas[n] - 1) * 100;
+        return ` · <span${tradeMas.has(n) ? ' style="font-weight:600"' : ""}>${n}일 ${num(s.mas[n])} <span class="${cls(g)}">(${sign(g)})</span></span>`;
+      }).join("");
+    } else if(s.short_ma && s.long_ma){
+      const g = (s.short_ma / s.long_ma - 1) * 100;
+      base = `${num(s.short_ma)} / ${num(s.long_ma)} <span class="${cls(g)}">(${sign(g)})</span>`;
+    }
+    const day = s.prev_close ? (s.price / s.prev_close - 1) * 100 : null;
     const n = s.news ? '<span class="' + cls(s.news.score) + '">' + (L_[s.news.score] || "") + "</span> " + esc(s.news.summary) : "-";
-    return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td></tr>`;
+    return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${esc(s.group)}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td></tr>`;
   }));
 
   // 자산 추이
@@ -302,16 +333,36 @@ function render(){
       (kr != null ? ` · 코스피 ${sign(kr)} (격차 ${(plp - kr).toFixed(1)}%p)` : "") + (nq != null ? ` · 나스닥 ${sign(nq)} (격차 ${(plp - nq).toFixed(1)}%p)` : "");
   } else $("idxcmp").innerHTML = "";
 
-  // 보유 종목 (표 + 종목별 폴더)
+  // 보유 종목 (표 + 종목별 폴더). 제목을 누르면 정렬
   let tc = 0, tv = 0;
   const entries = Object.entries(pos);
-  const hrows = entries.map(([code, p]) => {
-    const price = priceOf(code, p), val = price * p.qty, cost = p.avg_price * p.qty, pl2 = val - cost;
+  const hobj = entries.map(([code, p]) => {
+    const sy = latest.symbols[code] || {}, avg = p.avg_price, price = priceOf(code, p), val = price * p.qty, cost = avg * p.qty, peak = Math.max(p.peak || avg, price);
+    const cands = [["손절", avg * (1 + rules.stop_loss_pct)]];
+    if(rules.trail_pct) cands.push(["추적 손절", peak * (1 - rules.trail_pct)]);
+    if(sy.trend_sell > 0) cands.push(["추세 이탈", sy.trend_sell]);
+    const best = cands.reduce((a, b) => b[1] > a[1] ? b : a);
     tc += cost; tv += val;
-    return `<tr><td>${esc(p.name)}</td><td>${p.qty}</td><td>${won(p.avg_price)}</td><td>${won(price)}</td><td>${won(val)}</td><td>${eq ? (val / eq * 100).toFixed(1) : 0}%</td><td class="${cls(pl2)}">${signWon(pl2)} (${sign((price / p.avg_price - 1) * 100)})</td></tr>`;
+    return {code, name: p.name, group: grpOf(code, sy), qty: p.qty, avg, price, val, w: eq ? val / eq * 100 : 0, pl: val - cost, plp: (price / avg - 1) * 100,
+            day: sy.prev_close ? (price / sy.prev_close - 1) * 100 : 0, hasDay: !!sy.prev_close, sell: best[1], why: best[0], dist: (best[1] / price - 1) * 100};
   });
-  if(hrows.length) hrows.push(`<tr class="tot"><td>합계</td><td></td><td></td><td></td><td>${won(tv)}</td><td>${eq ? (tv / eq * 100).toFixed(1) : 0}%</td><td class="${cls(tv - tc)}">${signWon(tv - tc)}</td></tr>`);
-  $("holdings").innerHTML = table(["종목", "수량", "매입가", "현재가", "평가금액", "비중", "평가손익"], hrows);
+  const totRow = hobj.length ? `<tr class="tot"><td>합계</td><td></td><td></td><td></td><td></td><td></td><td>${won(tv)}</td><td>${eq ? (tv / eq * 100).toFixed(1) : 0}%</td><td class="${cls(tv - tc)}">${signWon(tv - tc)}</td><td class="${cls(tv - tc)}">${tc ? sign((tv / tc - 1) * 100) : ""}</td><td></td><td></td></tr>` : "";
+  $("hnote").textContent = hobj.length ? "제목을 누르면 오름차순/내림차순으로 정렬돼요. 매도 예상가 = 손절가·추적 손절가·추세 이탈 가격 중 현재가에 가장 가까운 기준이에요." : "";
+  $("holdings").innerHTML = hobj.length ? sortTable("holdtbl", HOLD_SORT, [
+    ["name", "종목", r => `<td>${esc(r.name)}</td>`],
+    ["group", "시장", r => `<td>${esc(r.group)}</td>`],
+    ["qty", "수량", r => `<td>${r.qty}</td>`],
+    ["avg", "매입가", r => `<td>${won(r.avg)}</td>`],
+    ["price", "현재가", r => `<td>${won(r.price)}</td>`],
+    ["day", "전일 대비", r => `<td class="${r.hasDay ? cls(r.day) : ""}">${r.hasDay ? sign(r.day) : "-"}</td>`],
+    ["val", "평가금액", r => `<td>${won(r.val)}</td>`],
+    ["w", "비중", r => `<td>${r.w.toFixed(1)}%</td>`],
+    ["pl", "평가손익", r => `<td class="${cls(r.pl)}">${signWon(r.pl)}</td>`],
+    ["plp", "수익률", r => `<td class="${cls(r.plp)}">${sign(r.plp)}</td>`],
+    ["sell", "매도 예상가", r => `<td>${won(r.sell)} <span class="sub">(${r.why})</span></td>`],
+    ["dist", "매도까지", r => `<td class="${r.dist >= 0 ? "up" : "down"}">${r.dist >= 0 ? "기준 도달" : sign(r.dist)}</td>`],
+  ], hobj, totRow) : '<div class="empty">내역이 없습니다.</div>';
+  if(hobj.length) bindSort("holdtbl", HOLD_SORT);
   $("folders").innerHTML = entries.map(([code, p]) => {
     const price = priceOf(code, p), avg = p.avg_price, peak = Math.max(p.peak || avg, price);
     const stopP = avg * (1 + rules.stop_loss_pct), trailP = rules.trail_pct ? peak * (1 - rules.trail_pct) : null;
@@ -325,9 +376,11 @@ function render(){
       `<div>평균 매입가</div><div>${won(avg)}</div><div>매수 후 최고가</div><div>${won(peak)}</div>` +
       `<div>손절가 (매입가 ${Math.round(rules.stop_loss_pct * 100)}%)</div><div>${won(stopP)} · ${dist(stopP)}</div>` +
       (trailP ? `<div>추적 손절가 (최고가 ${Math.round(rules.trail_pct * 100)}% 아래)</div><div>${won(trailP)} · ${dist(trailP)}</div>` : "") +
-      `<div>추세 매도 기준</div><div>${rules.short_ma}일선이 ${rules.long_ma}일선 아래로 내려가면 매도${gap == null ? "" : " · 현재 격차 " + sign(gap)}</div>` +
+      `<div>추세 매도 기준</div><div>${rules.short_ma}일선이 ${sellTxt}하면 매도${gap == null ? "" : " · 현재 격차 " + sign(gap)}${sy.trend_sell > 0 ? "<br>종가가 " + won(sy.trend_sell) + " 이하로 마감하면 매도 신호 · " + dist(sy.trend_sell) : ""}` + "</div>" +
       `<div>최근 거래</div><div>${recent}</div></div></details>`;
   }).join("");
+
+  renderForecast(pos, priceOf);
 
   // 종목별 주가 (선택한 종목 하나)
   const codes = prices ? Object.keys(prices) : [];
@@ -457,6 +510,64 @@ function render(){
     `<tr><td>${esc(t.time)}</td><td>${esc(t.name)}</td><td class="${t.side === "BUY" ? "up" : "down"}">${t.side === "BUY" ? "매수" : "매도"}</td><td>${won(t.price)}</td><td>${t.qty}</td><td class="${cls(t.pnl)}">${t.side === "SELL" ? signWon(t.pnl) : "-"}</td><td class="r">${esc(t.reason)}</td></tr>`));
 }
 
+
+/* ---------- 보유 종목 가격 예측 · 적중률 ---------- */
+const FCH = {"5m": "5분 뒤", "1h": "1시간 뒤", "1d": "하루(다음 거래일 종가)"};
+function renderForecast(pos, priceOf){
+  let fc = D.fc;
+  const lv = D.live && D.live.fc;
+  if(lv && (!fc || lv.updated > (fc.updated || ""))) fc = Object.assign({}, fc || {}, lv);
+  fc = fc || {open: [], done: [], stats: {}};
+  $("fcnote").innerHTML = "보유 종목의 앞으로 가격을 단순한 방식(최근 흐름이 절반쯤 이어진다고 가정, 예상 범위는 최근 흔들림 폭)으로 예상하고, 시간이 지나면 실제 가격과 비교해 <b>얼마나 맞았는지 %</b>로 기록해요. " +
+    "5분·1시간 예측은 장중 감시가 만들고(한국 종목만, 감시 시작 약 30분 뒤부터), 하루 단위는 16:00 점검 때 만들어요. 맞히는 도구가 아니라 <b>얼마나 믿을 수 있는지 확인하는 기록</b>이에요.";
+  $("fchips").innerHTML = Object.keys(FCH).map(h => `<button data-h="${h}"${h === FC_H ? ' class="on"' : ""}>${FCH[h]}</button>`).join("");
+  document.querySelectorAll("#fchips button").forEach(b => b.addEventListener("click", () => { FC_H = b.dataset.h; renderForecast(pos, priceOf); }));
+
+  // 1) 진행 중인 예측 (예상 금액)
+  const rows = Object.entries(pos).map(([code, p]) => {
+    const r = (fc.open || []).find(o => o.code === code && o.h === FC_H);
+    const price = priceOf(code, p);
+    if(!r){
+      const why = FC_H !== "1d" && /^[A-Za-z]/.test(code) ? "미국 종목은 하루 단위만 예측해요" : "아직 예측 전이에요";
+      return `<tr><td>${esc(p.name)}</td><td>${won(price)}</td><td colspan="5" class="r">${why}</td></tr>`;
+    }
+    const q = p.qty, chg = (r.pred / r.base - 1) * 100;
+    return `<tr><td>${esc(p.name)}</td><td>${won(r.base)}</td><td>${won(r.pred)}</td><td><b>${won(r.pred * q)}</b></td>` +
+      `<td class="${cls(chg)}">${sign(chg)} (${signWon((r.pred - r.base) * q)})</td><td>${won(r.lo * q)} ~ ${won(r.hi * q)}</td><td>${FC_H === "1d" ? "다음 거래일 종가" : esc(r.due.slice(11, 16)) + " 채점"}</td></tr>`;
+  });
+  $("fcopen").innerHTML = rows.length
+    ? '<table><tr><th>종목</th><th>예측 시점 가격</th><th>예측가</th><th>예상 금액(수량 반영)</th><th>예상 변화</th><th>예상 범위(약 68%)</th><th>채점 시점</th></tr>' + rows.join("") + "</table>"
+    : '<div class="empty">보유 중인 종목이 없어서 예측할 대상이 없어요.</div>';
+
+  // 2) 누적 적중률
+  const S = (fc.stats || {})[FC_H] || {};
+  const list = Object.entries(S).map(([code, s]) => Object.assign({code}, s));
+  const agg = a => a.reduce((t, s) => ({n: t.n + s.n, dn: t.dn + s.dn, dh: t.dh + s.dh, bh: t.bh + s.bh, ae: t.ae + s.ae, be: t.be + s.be}), {n: 0, dn: 0, dh: 0, bh: 0, ae: 0, be: 0});
+  const pc = (a, b) => b ? (a / b * 100).toFixed(1) + "%" : "-";
+  const line = (t, label) => t && t.n ? `<b>${label}</b> ${t.n}건 · 방향 적중 <b>${pc(t.dh, t.dn)}</b> · 범위 적중 <b>${pc(t.bh, t.n)}</b> · 평균 오차 <b>${(t.ae / t.n).toFixed(2)}%</b> (변동 없음으로 찍었을 때 ${(t.be / t.n).toFixed(2)}% → ${t.ae < t.be ? "예측이 더 가까웠어요" : "예측이 더 멀었어요"})` : "";
+  const tot = agg(list);
+  let sum = tot.n ? line(tot, "실제 채점 누적") : `<b>실제 채점 누적</b> 아직 채점된 ${FCH[FC_H]} 예측이 없어요. 시간이 지나면 쌓여요.`;
+  if(tot.n && tot.n < 30) sum += `<br><span class="sub">표본이 ${tot.n}건뿐이라 아직 참고만 하세요. (방향은 우연히도 50% 정도 맞아요)</span>`;
+  if(FC_H === "1d" && fc.bt1d) sum += "<br>" + line(fc.bt1d, `과거 시뮬레이션(최근 약 ${fc.bt1d.days}거래일)`);
+  sum += '<br><span class="sub">방향 적중 = 오를지 내릴지 맞힌 비율 · 범위 적중 = 실제 가격이 예상 범위 안에 들어온 비율(이론상 약 68%) · 오차 = 예측가와 실제 가격의 차이</span>';
+  $("fcsum").innerHTML = sum;
+  $("fcstat").innerHTML = list.length ? sortTable("fcst", FC_SORT, [
+    ["name", "종목", r => `<td>${esc(r.name)}</td>`],
+    ["n", "채점 건수", r => `<td>${r.n}</td>`],
+    ["dirp", "방향 적중률", r => `<td>${pc(r.dh, r.dn)}</td>`],
+    ["bandp", "범위 적중률", r => `<td>${pc(r.bh, r.n)}</td>`],
+    ["mae", "평균 오차", r => `<td>${r.mae.toFixed(2)}%</td>`],
+    ["bmae", "변동 없음 가정 오차", r => `<td>${r.bmae.toFixed(2)}%</td>`],
+  ], list.map(s => Object.assign(s, {dirp: s.dn ? s.dh / s.dn : -1, bandp: s.n ? s.bh / s.n : -1, mae: s.n ? s.ae / s.n : 0, bmae: s.n ? s.be / s.n : 0}))) : "";
+  if(list.length) bindSort("fcst", FC_SORT);
+
+  // 3) 최근 채점 결과
+  const done = (fc.done || []).filter(d => d.h === FC_H).slice(-10).reverse();
+  const mk = v => v == null ? "-" : v ? "✅" : "❌";
+  $("fcdone").innerHTML = done.length ? "<table><tr><th>예측 시각</th><th>종목</th><th>예측 시점</th><th>예측가</th><th>실제가</th><th>오차</th><th>방향</th><th>범위</th></tr>" +
+    done.map(d => `<tr><td>${esc(d.made.slice(5, 16))}</td><td>${esc(d.name)}</td><td>${won(d.base)}</td><td>${won(d.pred)}</td><td>${won(d.actual)}</td><td>${d.err.toFixed(2)}%</td><td>${mk(d.dir_ok)}</td><td>${mk(d.in_band)}</td></tr>`).join("") + "</table>" : "";
+}
+
 async function main(){
   try{
     const [latest, account, trades, history] = await Promise.all([load("latest"), load("account"), load("trades"), load("history")]);
@@ -467,7 +578,8 @@ async function main(){
     const tune = await load("tuning_log").catch(() => null);
     const stat = await load("status").catch(() => null);
     const indices = await load("indices").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices};
+    const fc = await load("forecasts").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc};
     render();
   }catch(e){
     $("updated").textContent = "";

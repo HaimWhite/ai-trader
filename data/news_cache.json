@@ -238,5 +238,85 @@
       "summary": "특이한 키워드 없음",
       "ok": true
     }
+  },
+  "PLTR": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "AMD": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 목표가 상향",
+      "ok": true
+    }
+  },
+  "373220": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "034020": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 수주",
+      "ok": true
+    }
+  },
+  "012450": {
+    "date": "2026-10-07",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 급락",
+      "ok": true
+    }
+  },
+  "COST": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 1,
+      "summary": "호재 키워드 발견: 최대 실적",
+      "ok": true
+    }
+  },
+  "035720": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "145020": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
+  },
+  "329180": {
+    "date": "2026-10-07",
+    "result": {
+      "score": -1,
+      "summary": "악재 키워드 발견: 목표주가 하향, 실적 부진",
+      "ok": true
+    }
+  },
+  "277810": {
+    "date": "2026-10-07",
+    "result": {
+      "score": 0,
+      "summary": "특이한 키워드 없음",
+      "ok": true
+    }
   }
 }
