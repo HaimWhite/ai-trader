@@ -2,7 +2,10 @@
 - 단독: 20일선이 60일선(또는 90, 120일선) 위일 때 상승
 - 모두 위: 60·90·120일선 모두 위에 있을 때만 상승 (신중, 신호가 늦고 적음)
 - 과반: 3개 중 2개 이상 위 / 하나라도: 3개 중 하나라도 위 (빠르게 진입)
-지금 실제 설정(손절·추적 손절·갭 필터 등)은 모두 똑같이 적용하고 이동평균 규칙만 바꿔서 비교해요."""
+지금 실제 설정(손절·추적 손절·갭 필터 등)은 모두 똑같이 적용하고 이동평균 규칙만 바꿔서 비교해요.
+더 긴 기간으로 확인: python compare_ma.py --start=2014-01-01 --split=2020-01-01   (--start=데이터 시작일, --split=설정 비교 구간과 확인 구간을 나누는 날)"""
+import sys
+
 import pandas as pd
 
 import config
@@ -21,6 +24,12 @@ CASES = [   # (이름, 장기선 목록, 규칙)
 
 
 def main():
+    global SPLIT
+    for a in sys.argv[1:]:
+        if a.startswith("--start="):
+            config.BACKTEST_START = a.split("=", 1)[1]
+        elif a.startswith("--split="):
+            SPLIT = a.split("=", 1)[1]
     frames = load_data()
     idx, data = prepare(frames, sorted({SHORT, 60, 90, 120}))
     split_i = int(idx.searchsorted(pd.Timestamp(SPLIT)))
