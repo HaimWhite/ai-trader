@@ -38,7 +38,7 @@ def prepare(frames, ma_list):
 
 
 def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2, sector_limit=None,
-             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all"):
+             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all", rule_idx=None, rule_defs=None):
     """stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
@@ -140,11 +140,14 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             ml = dd["ma"][long_][i]
             if np.isnan(ml) or np.isnan(c):
                 continue
-            if longs:
-                ups = sum(1 for L in longs if ms > dd["ma"][L][i])
-                need = len(longs) if long_rule == "all" else (len(longs) // 2 + 1 if long_rule == "majority" else 1)
+            lg, lr = longs, long_rule
+            if rule_idx is not None:   # 종목·날짜별로 다른 이동평균 규칙 (ma_select_experiment.py)
+                lg, lr = rule_defs[int(rule_idx[code][i])]
+            if lg:
+                ups = sum(1 for L in lg if ms > dd["ma"][L][i])
+                need = len(lg) if lr == "all" else (len(lg) // 2 + 1 if lr == "majority" else 1)
                 bullish = ups >= need
-                rank[code] = float(np.mean([ms / dd["ma"][L][i] for L in longs]))
+                rank[code] = float(np.mean([ms / dd["ma"][L][i] for L in lg]))
             else:
                 bullish = ms > ml
                 rank[code] = ms / ml

@@ -130,6 +130,19 @@ def main():
     except Exception as e:
         print("실적 발표일 확인 실패:", e)
 
+    watch = {}   # 관찰 목록: 매매 없이 신호만 기록
+    for code, w in config.WATCH.items():
+        try:
+            df = market.load_prices(code, start)
+            if len(df) < config.LONG_MA + 1:
+                continue
+            info = strategy.analyze(df)
+            watch[code] = {"name": w["name"], "sector": w["sector"], "group": config.group_of(code), "price": float(df["Close"].iloc[-1]),
+                           "prev_close": float(df["Close"].iloc[-2]) if len(df) > 1 else None, "signal": info["signal"],
+                           "short_ma": info["short_ma"], "long_ma": info["long_ma"], "mas": info.get("mas", {})}
+        except Exception as e:
+            print(f"[관찰:{w['name']}] 시세 조회 실패(건너뜀): {str(e)[:60]}")
+
     blocked = broker.account.setdefault("blocked", [])
     infos = {code: strategy.analyze(df) for code, df in frames.items()}
     valid = [i for i in infos.values() if i["signal"] != "HOLD"]
@@ -275,6 +288,7 @@ def main():
         "equity": round(equity),
         "return_pct": round((equity / config.INITIAL_CASH - 1) * 100, 2),
         "symbols": latest,
+        "watch": watch,
     }
     with open(config.DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(latest_out, f, ensure_ascii=False, indent=2)

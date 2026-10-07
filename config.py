@@ -67,6 +67,27 @@ _csv = _load_symbols_csv()
 if _csv:
     SYMBOLS, KOSDAQ_CODES, SECTORS = _csv
 
+# 관찰 목록 (symbols_watch.csv): 매매는 하지 않고 신호만 대시보드에 보여주는 종목
+WATCH = {}
+
+
+def _load_watch():
+    import csv
+    p = BASE_DIR / "symbols_watch.csv"
+    if not p.exists():
+        return
+    try:
+        for r in csv.DictReader(p.read_text(encoding="utf-8-sig").splitlines()):
+            code = r["code"].strip()
+            code = code.zfill(6) if code.isdigit() else code.upper()
+            if code and code not in SYMBOLS:
+                WATCH[code] = {"name": r["name"].strip(), "sector": r.get("sector", "").strip()}
+                if r.get("market", "").strip().upper() == "KQ":
+                    KOSDAQ_CODES.add(code)   # 시세 조회·시장 분류용 (매매 종목에는 영향 없음)
+    except Exception as e:
+        print("symbols_watch.csv 를 읽지 못했어요:", e)
+
+
 # 가상 시작 자금 (원)
 INITIAL_CASH = 20_000_000
 
@@ -125,6 +146,7 @@ NEWS_WARN_HELD_SCORE = -2                # 보유 종목이 이 점수 이하이
 # 변동성이 큰 종목(코스닥·나스닥): 손절선을 넓게 쓰는 전략 비교용
 WIDE_STOP_CODES = KOSDAQ_CODES | {c for c in SYMBOLS if is_us(c)}
 WIDE_STOP_PCT = -0.12
+_load_watch()   # (WIDE_STOP_CODES 를 만든 뒤에 불러와야 관찰 종목이 매매 설정에 섞이지 않아요)
 
 # 뉴스 분석 방식: "keyword"(무료, 단어 검색) / "claude"(API 사용, 유료) / "auto"(키가 있으면 Claude, 없으면 keyword)
 NEWS_MODE = "keyword"

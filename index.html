@@ -64,7 +64,8 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
-  <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
+  <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
+    <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
   <div class="box" id="fcbox"><h2>보유 종목 가격 예측 · 적중률</h2><div class="sub" id="fcnote"></div><div class="chips" id="fchips"></div><div class="scroll" id="fcopen"></div><div class="sub" id="fcsum" style="margin:10px 0 4px"></div><div class="scroll" id="fcstat"></div><div class="scroll tall" id="fcdone" style="margin-top:8px"></div></div>
   <div class="box sub">
@@ -317,6 +318,19 @@ function render(){
     const n = s.news ? '<span class="' + cls(s.news.score) + '">' + (L_[s.news.score] || "") + "</span> " + esc(s.news.summary) : "-";
     return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${esc(s.group)}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td></tr>`;
   }));
+
+  // 관찰 목록
+  const wl = Object.entries(latest.watch || {}).map(([code, s]) => Object.assign({code}, s));
+  $("watchbox").style.display = wl.length ? "" : "none";
+  if(wl.length){
+    $("watchnote").textContent = "백테스트에서 위험 대비 수익이 좋아지지 않아 매매 종목에서 뺀 종목들이에요. 신호만 참고하세요. (symbols_watch.csv)";
+    $("watch").innerHTML = table(["종목", "시장", "업종", "현재가", "전일 대비", "신호", `기준점 (${rules.short_ma}일선과 각 장기선)`], wl.map(s => {
+      const sm = s.mas && s.mas[rules.short_ma];
+      const base = sm ? `${rules.short_ma}일 ${num(sm)}` + showMas.filter(n => s.mas[n]).map(n => { const g = (sm / s.mas[n] - 1) * 100; return ` · ${n}일 ${num(s.mas[n])} <span class="${cls(g)}">(${sign(g)})</span>`; }).join("") : "-";
+      const day = s.prev_close ? (s.price / s.prev_close - 1) * 100 : null;
+      return `<tr><td>${esc(s.name)}</td><td>${esc(s.group || "-")}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${base}</td></tr>`;
+    }));
+  }
 
   // 자산 추이
   const hd = history.map(h => h.date), i0 = rangeStart(hd), hv = history.slice(i0).map(h => h.equity);
