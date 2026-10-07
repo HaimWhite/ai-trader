@@ -1,35 +1,35 @@
 {
  "005930": {
   "ok": true,
-  "yield_pct": 0.48,
+  "yield_pct": 0.49,
   "annual": 1312.0,
   "last_date": "2026-06-29",
   "currency": "KRW"
  },
  "000660": {
   "ok": true,
-  "yield_pct": 0.16,
+  "yield_pct": 0.17,
   "annual": 3000.0,
   "last_date": "2026-08-28",
   "currency": "KRW"
  },
  "035420": {
   "ok": true,
-  "yield_pct": 1.37,
+  "yield_pct": 1.39,
   "annual": 2630.0,
   "last_date": "2026-02-26",
   "currency": "KRW"
  },
  "005380": {
   "ok": true,
-  "yield_pct": 2.89,
+  "yield_pct": 2.98,
   "annual": 10000.0,
   "last_date": "2026-08-28",
   "currency": "KRW"
  },
  "105560": {
   "ok": true,
-  "yield_pct": 2.89,
+  "yield_pct": 2.87,
   "annual": 4833.0,
   "last_date": "2026-08-06",
   "currency": "KRW"
@@ -42,7 +42,7 @@
  },
  "000270": {
   "ok": true,
-  "yield_pct": 6.02,
+  "yield_pct": 6.2,
   "annual": 6800.0,
   "last_date": "2026-03-24",
   "currency": "KRW"
@@ -63,35 +63,35 @@
  },
  "055550": {
   "ok": true,
-  "yield_pct": 2.8,
+  "yield_pct": 2.84,
   "annual": 2930.0,
   "last_date": "2026-07-29",
   "currency": "KRW"
  },
  "012330": {
   "ok": true,
-  "yield_pct": 1.69,
+  "yield_pct": 1.74,
   "annual": 6500.0,
   "last_date": "2026-08-07",
   "currency": "KRW"
  },
  "033780": {
   "ok": true,
-  "yield_pct": 3.73,
+  "yield_pct": 3.67,
   "annual": 6600.0,
   "last_date": "2026-08-20",
   "currency": "KRW"
  },
  "032830": {
   "ok": true,
-  "yield_pct": 1.83,
+  "yield_pct": 1.89,
   "annual": 5300.0,
   "last_date": "2025-12-29",
   "currency": "KRW"
  },
  "086280": {
   "ok": true,
-  "yield_pct": 2.88,
+  "yield_pct": 3.09,
   "annual": 5800.0,
   "last_date": "2026-03-30",
   "currency": "KRW"
@@ -105,7 +105,7 @@
  },
  "247540": {
   "ok": true,
-  "yield_pct": 0.09,
+  "yield_pct": 0.08,
   "annual": 98.57,
   "last_date": "2026-03-30",
   "currency": "KRW"
@@ -125,7 +125,7 @@
  },
  "086520": {
   "ok": true,
-  "yield_pct": 0.17,
+  "yield_pct": 0.16,
   "annual": 150.0,
   "last_date": "2026-03-30",
   "currency": "KRW"
@@ -138,7 +138,7 @@
  },
  "058470": {
   "ok": true,
-  "yield_pct": 0.95,
+  "yield_pct": 0.94,
   "annual": 800.0,
   "last_date": "2025-12-29",
   "currency": "KRW"
@@ -192,7 +192,7 @@
  },
  "AVGO": {
   "ok": true,
-  "yield_pct": 0.72,
+  "yield_pct": 0.69,
   "annual": 2.6,
   "last_date": "2026-09-21",
   "currency": "USD"
@@ -203,5 +203,5 @@
   "annual": 0,
   "last_date": null
  },
- "_updated": "2026-10-06"
+ "_updated": "2026-10-07"
 }
