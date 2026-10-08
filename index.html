@@ -248,6 +248,7 @@ function render(){
   const multi = !!(rules.long_mas && rules.long_mas.length > 1), RULE_KO = {all: "모두", majority: "과반", any: "하나라도"};
   const longTxt = multi ? rules.long_mas.join("·") + "일선 " + RULE_KO[rules.long_rule] + " 위" : rules.long_ma + "일선 위";
   const sellTxt = multi ? rules.long_mas.join("·") + "일선 기준 상승 조건(" + RULE_KO[rules.long_rule] + " 위)을 더 이상 채우지 못함" : rules.long_ma + "일선 아래로 내려감";
+  const sellCond = multi ? rules.long_mas.join("·") + "일선 기준 상승 조건(" + RULE_KO[rules.long_rule] + " 위)을 더 이상 못 채우면" : rules.long_ma + "일선 아래로 내려가면";
   const grpOf = (code, s) => (s && s.group) || (/^[A-Za-z]/.test(code) ? "나스닥" : "코스피");
   const useLive = !!(live && live.updated_at > latest.updated_at);   // 장중 실시간 데이터가 더 최신일 때
   const cash = useLive ? live.cash : latest.cash;
@@ -385,12 +386,24 @@ function render(){
     const lastBuy = trades.slice().reverse().find(t => t.code === code && t.side === "BUY");
     const recent = trades.filter(t => t.code === code).slice(-3).reverse().map(t => `${esc(t.time.slice(0, 10))} ${t.side === "BUY" ? "매수" : "매도"} ${t.qty}주 @ ${num(t.price)}원`).join("<br>") || "-";
     const r = sign((price / avg - 1) * 100);
+    // 왜 샀는지 / 왜 아직 들고 있는지
+    const why0 = lastBuy ? String(lastBuy.reason || "") : "";
+    const buyWhy = !lastBuy ? "기록 없음" : why0.includes("수동") ? "직접 수량을 지정해 수동으로 매수했어요" :
+      why0.includes("상승 추세") ? `${rules.short_ma}일선이 장기선 위로 올라와 상승 흐름으로 판단해 매수했어요 <span class="sub">(${esc(why0)})</span>` : esc(why0);
+    const ups = Object.values(latest.symbols).filter(x => x.signal === "BUY" && x.short_ma && x.long_ma).map(x => x.short_ma / x.long_ma).sort((a, b) => b - a);
+    const myStr = sy.short_ma && sy.long_ma ? sy.short_ma / sy.long_ma : null;
+    const rank = sy.signal === "BUY" && myStr ? ups.findIndex(v => v <= myStr + 1e-12) + 1 : 0;
+    const nearest = Math.max(...[stopP, trailP, sy.trend_sell > 0 ? sy.trend_sell : null].filter(v => v != null && v > 0));
+    const keepWhy = sy.signal === "BUY"
+      ? `상승 추세가 유지되고 있어요${gap == null ? "" : " (" + rules.short_ma + "일선이 장기선보다 " + sign(gap) + ")"}${rank ? " · 상승 추세 종목 " + ups.length + "개 중 추세 강도 " + rank + "위" : ""}. 매도 기준(손절·추적 손절·추세 이탈)에는 아직 닿지 않았어요 (가장 가까운 기준까지 ${sign((nearest / price - 1) * 100)}).`
+      : sy.signal === "SELL" ? "추세가 꺾여서 다음 거래일 시가에 매도할 예정이에요 (또는 이미 예약돼 있어요)." : "판단 정보가 아직 없어요.";
     return `<details><summary><span>${esc(p.name)} · ${p.qty}주</span><span class="${cls(price - avg)}">${r}</span></summary><div class="kv">` +
+      `<div>왜 샀나</div><div>${buyWhy}</div><div>왜 아직 들고 있나</div><div>${keepWhy}</div>` +
       `<div>매수 시점</div><div>${lastBuy ? esc(lastBuy.time.slice(0, 10)) + " · " + won(lastBuy.price) + " · " + lastBuy.qty + "주" : "-"}</div>` +
       `<div>평균 매입가</div><div>${won(avg)}</div><div>매수 후 최고가</div><div>${won(peak)}</div>` +
       `<div>손절가 (매입가 ${Math.round(rules.stop_loss_pct * 100)}%)</div><div>${won(stopP)} · ${dist(stopP)}</div>` +
       (trailP ? `<div>추적 손절가 (최고가 ${Math.round(rules.trail_pct * 100)}% 아래)</div><div>${won(trailP)} · ${dist(trailP)}</div>` : "") +
-      `<div>추세 매도 기준</div><div>${rules.short_ma}일선이 ${sellTxt}하면 매도${gap == null ? "" : " · 현재 격차 " + sign(gap)}${sy.trend_sell > 0 ? "<br>종가가 " + won(sy.trend_sell) + " 이하로 마감하면 매도 신호 · " + dist(sy.trend_sell) : ""}` + "</div>" +
+      `<div>추세 매도 기준</div><div>${rules.short_ma}일선이 ${sellCond} 매도${gap == null ? "" : " · 현재 격차 " + sign(gap)}${sy.trend_sell > 0 ? "<br>종가가 " + won(sy.trend_sell) + " 이하로 마감하면 매도 신호 · " + dist(sy.trend_sell) : ""}` + "</div>" +
       `<div>최근 거래</div><div>${recent}</div></div></details>`;
   }).join("");
 
