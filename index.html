@@ -55,6 +55,8 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   .wrap{max-width:1680px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px;grid-auto-flow:row dense;align-items:start}
   .wrap>*{grid-column:1/-1}
   .wrap>.half{grid-column:span 1}
+  .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px;align-items:start}
+  .col{min-width:0}
   .box.half{margin-bottom:14px}
 }
 .ctype{display:inline-flex;gap:6px;margin-left:8px;vertical-align:middle}
@@ -76,23 +78,29 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
-    <div class="box half" id="eqbox"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
-  <div class="box half" id="fcbox"><h2>보유 종목 가격 예측 · 적중률</h2><div class="sub" id="fcnote"></div><div class="chips" id="fchips"></div><div class="scroll" id="fcopen"></div><div class="sub" id="fcsum" style="margin:10px 0 4px"></div><div class="scroll" id="fcstat"></div><div class="scroll tall" id="fcdone" style="margin-top:8px"></div></div>
-  <div class="box half sub">
+  <div class="cols">
+  <div class="col">
+    <div class="box" id="eqbox"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
+  <div class="box sub">
     <b>그래프 보는 법</b><br>
     가로축은 날짜, 세로축은 금액(원)이에요. 위 버튼으로 기간을 바꾸고, 그래프를 짚거나 마우스를 올리면 그날의 날짜와 금액이 나와요.<br>
     선이 올라가는 구간은 빨강, 내려가는 구간은 파랑이에요. 점선은 시작 원금이고, 점은 선택한 기간의 최고가(빨강)와 최저가(파랑)예요.<br>
     주가 그래프의 ▲는 가상 매수, ▼는 가상 매도 시점이에요. 자산은 하루 한 번(장 마감 후) 기록돼요.
   </div>
-  <div class="box half" id="stockbox" style="display:none">
+  <div class="box" id="stockbox" style="display:none">
     <h2>종목별 주가 <select id="sel"></select><span class="ctype" id="ctype"><button data-t="line">선 그래프</button><button data-t="candle">캔들 차트</button></span></h2>
     <div class="sub" id="pi"></div><div class="sub" id="pext"></div><div id="pc"></div>
     <div class="sub" id="pmark"></div><div class="sub" id="pdiv" style="margin-top:6px"></div>
   </div>
-  <div class="box half" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
+  </div>
+  <div class="col">
+  <div class="box" id="fcbox"><h2>보유 종목 가격 예측 · 적중률</h2><div class="sub" id="fcnote"></div><div class="chips" id="fchips"></div><div class="scroll" id="fcopen"></div><div class="sub" id="fcsum" style="margin:10px 0 4px"></div><div class="scroll" id="fcstat"></div><div class="scroll tall" id="fcdone" style="margin-top:8px"></div></div>
+  <div class="box" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
+  <div class="box" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
+  </div>
+  </div>
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
-  <div class="box half" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
   <div class="box half" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box half" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
