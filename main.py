@@ -6,12 +6,14 @@ import pandas as pd
 
 import config
 import dividends
+import drawdown
 import earnings
 import forecast
 import market
 import messages
 import news
 import notify
+import review
 import status
 import strategy
 from broker import PaperBroker
@@ -247,8 +249,20 @@ def main():
     prev = broker.prev_equity()   # 전 영업일 마감 기록 (오늘 기록을 쓰기 전에 가져옴)
     broker.record_history(equity)
     broker.save()
+    if trading_allowed:   # 고점 대비 낙폭 경보 (장 마감 후 기록 기준)
+        try:
+            dd_info = drawdown.current(broker.history)
+            kind, lvl = drawdown.decide(dd_info["dd"])
+            if kind:
+                notify.send(messages.drawdown_alert(dd_info, lvl, kind, drawdown.backtest_mdd()), mention=(kind == "deeper"))
+        except Exception as e:
+            print("낙폭 점검 실패:", e)
     hold_rows = [{"name": p["name"], "qty": p["qty"], "price": prices.get(c, p["avg_price"]),
                   "prev": latest.get(c, {}).get("prev_close")} for c, p in broker.account["positions"].items()]
+    try:   # 거래 복기 자료 갱신 (대시보드의 '거래 복기' 칸)
+        review.update()
+    except Exception as e:
+        print("거래 복기 갱신 실패:", e)
     try:   # 하루 단위 예측 (보유 종목의 다음 거래일 종가 예상과 지난 예측 채점)
         forecast.daily_update(broker.account["positions"], frames, broker.trades)
     except Exception as e:

@@ -1,0 +1,28 @@
+name: watchdog
+
+# 평일 17:30(한국 시간)에 오늘 정기 점검 기록이 올라왔는지 확인하고, 없으면 디스코드로 알려줍니다.
+on:
+  schedule:
+    - cron: "30 8 * * 1-5"   # UTC 08:30 = 한국 17:30
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "true 로 실행하면 테스트 메시지를 1건 보냅니다"
+        default: "false"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 확인
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TEST: ${{ github.event.inputs.test }}
+        run: |
+          if [ "$TEST" = "true" ]; then python watchdog.py --test; else python watchdog.py; fi

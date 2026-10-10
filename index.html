@@ -83,6 +83,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
   <div class="box" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
+  <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -270,7 +271,14 @@ function render(){
   $("cards").innerHTML =
     card("원금 (시작 자금)", won(P)) + card("총 평가금액", won(eq)) + card("총 손익", signWon(pl), sign(plp), cls(pl)) +
     card("전 영업일 대비", prev == null ? "-" : signWon(eq - prev), prev == null ? "" : sign((eq / prev - 1) * 100) + " · " + baseH.date.slice(5) + " 종가 대비", prev == null ? "" : cls(eq - prev)) +
-    card("보유 주식 합계", won(stockVal), eq ? (stockVal / eq * 100).toFixed(1) + "% 비중" : "") + card("현금", won(cash));
+    card("보유 주식 합계", won(stockVal), eq ? (stockVal / eq * 100).toFixed(1) + "% 비중" : "") + card("현금", won(cash)) + (() => {
+      let pk = P, pkd = "시작", run = P, mdd = 0;
+      history.forEach(h => { if(h.equity > pk){ pk = h.equity; pkd = h.date; } run = Math.max(run, h.equity); mdd = Math.min(mdd, (h.equity / run - 1) * 100); });
+      if(eq > pk){ pk = eq; pkd = "지금"; }
+      run = Math.max(run, eq); mdd = Math.min(mdd, (eq / run - 1) * 100);
+      const dd = (eq / pk - 1) * 100;
+      return card("현재 낙폭 (고점 대비)", dd >= -0.005 ? "고점 근처" : sign(dd), "고점 " + man(pk) + " (" + esc(pkd.slice(2)) + ") · 실운영 최대 " + sign(mdd), dd < -0.005 ? "down" : "");
+    })();
 
   // 자동 실행이 멈췄는지 확인 (평일 16:15 이후에는 그날의 정기 점검 기록이 있어야 함)
   const nowD = new Date(), ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -533,6 +541,25 @@ function render(){
     }));
   }
 
+  // 거래 복기
+  const RV = D.review;
+  $("reviewbox").style.display = RV ? "" : "none";
+  if(RV){
+    const sm = RV.summary || {}, f1 = v => v == null ? "-" : sign(v);
+    let t = sm.n ? `청산한 거래 <b>${sm.n}건</b> · 승률 <b>${sm.win_rate}%</b> · 이긴 거래 평균 ${f1(sm.avg_win)} / 진 거래 평균 ${f1(sm.avg_loss)}${sm.payoff ? " (손익비 " + sm.payoff + ")" : ""} · 평균 보유 ${sm.avg_days == null ? "-" : sm.avg_days + "일"} · 합계 <span class="${cls(sm.pnl)}">${signWon(sm.pnl)}</span>` : "아직 청산(매도)한 거래가 없어요. 거래가 쌓이면 이유별 성과가 나와요.";
+    if(RV.best) t += `<br>가장 좋았던 거래: ${esc(RV.best.name)} ${sign(RV.best.pct)} (${esc(RV.best.date)}) · 가장 나빴던 거래: ${esc(RV.worst.name)} ${sign(RV.worst.pct)} (${esc(RV.worst.date)})`;
+    const lv = RV.live_vs_bt;
+    if(lv) t += `<br>실운영 ${esc(lv.start)} ~ ${esc(lv.end)} (${lv.days}일): 내 계좌 <b class="${cls(lv.live)}">${sign(lv.live)}</b> · 같은 기간 백테스트 ${sign(lv.backtest)} · 차이 ${lv.diff > 0 ? "+" : ""}${lv.diff.toFixed(2)}%p <span class="sub">(다음날 시가 체결·뉴스 필터 등으로 조금씩 달라질 수 있어요. 차이가 오래 크게 벌어지면 점검이 필요해요)</span>`;
+    $("revsum").innerHTML = t;
+    const kinds = Object.entries(RV.by_kind || {});
+    $("revkind").innerHTML = kinds.length ? '<table><tr><th>청산 이유</th><th>건수</th><th>승률</th><th>평균 수익률</th><th>평균 보유</th><th>손익 합계</th></tr>' +
+      kinds.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v.n}</td><td>${v.win_rate}%</td><td class="${cls(v.avg_pct)}">${f1(v.avg_pct)}</td><td>${v.avg_days == null ? "-" : v.avg_days + "일"}</td><td class="${cls(v.pnl)}">${signWon(v.pnl)}</td></tr>`).join("") + "</table>" : "";
+    const mm = RV.monthly || [];
+    $("revm").textContent = mm.length ? "월별 수익률 (월말 자산 기준, 첫 달은 시작 자금 대비)" : "";
+    $("revmonth").innerHTML = mm.length ? "<table><tr><th>월</th><th>내 계좌</th><th>코스피</th><th>나스닥</th><th>코스피와의 차이</th><th>월말 자산</th></tr>" +
+      mm.slice().reverse().map(m => `<tr><td>${esc(m.month)}</td><td class="${cls(m.ret)}">${sign(m.ret)}</td><td class="${m.kospi == null ? "" : cls(m.kospi)}">${m.kospi == null ? "-" : sign(m.kospi)}</td><td class="${m.nasdaq == null ? "" : cls(m.nasdaq)}">${m.nasdaq == null ? "-" : sign(m.nasdaq)}</td><td>${m.kospi == null ? "-" : (m.ret - m.kospi > 0 ? "+" : "") + (m.ret - m.kospi).toFixed(2) + "%p"}</td><td>${won(m.equity)}</td></tr>`).join("") + "</table>" : "";
+  }
+
   $("trades").innerHTML = table(["시간", "종목", "구분", "체결가", "수량", "손익", "사유"], trades.slice(-30).reverse().map(t =>
     `<tr><td>${esc(t.time)}</td><td>${esc(t.name)}</td><td class="${t.side === "BUY" ? "up" : "down"}">${t.side === "BUY" ? "매수" : "매도"}</td><td>${won(t.price)}</td><td>${t.qty}</td><td class="${cls(t.pnl)}">${t.side === "SELL" ? signWon(t.pnl) : "-"}</td><td class="r">${esc(t.reason)}</td></tr>`));
 }
@@ -606,7 +633,8 @@ async function main(){
     const stat = await load("status").catch(() => null);
     const indices = await load("indices").catch(() => null);
     const fc = await load("forecasts").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc};
+    const review = await load("review").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review};
     render();
   }catch(e){
     $("updated").textContent = "";

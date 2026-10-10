@@ -258,3 +258,17 @@ def weekly_message(d):
         lines.append("")
         lines.append(f"설정 점검: {t}")
     return "\n".join(lines)
+
+
+def drawdown_alert(info, level, kind, bt_mdd=None):
+    """고점 대비 낙폭 경보 (kind: deeper=더 깊어짐 / recover=회복)"""
+    if kind == "recover":
+        return f"{BOSS}, 계좌가 고점 대비 -5% 이내로 회복했습니다. 낙폭 경계를 해제합니다."
+    lines = [f"{BOSS}, 계좌가 고점 대비 {abs(info['dd']):.1f}% 내려와 -{level}% 경계선을 넘었습니다.",
+             f"총 자산은 {info['equity']:,.0f}원이고, 고점({info['peak_date']})은 {info['peak']:,.0f}원이었습니다."]
+    if bt_mdd is not None:
+        if info["dd"] <= bt_mdd:
+            lines.append(f"과거 검증(백테스트)의 최대 낙폭 {bt_mdd:.1f}%보다 깊어졌습니다. 설정을 한 번 점검해 보시길 권합니다.")
+        else:
+            lines.append(f"과거 검증에서도 최대 {bt_mdd:.1f}%까지 빠진 적이 있어, 아직은 설계 범위 안의 변동입니다. 서두르지 않고 지켜보겠습니다.")
+    return "\n".join(lines)

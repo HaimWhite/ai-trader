@@ -159,7 +159,7 @@
  },
  "MSFT": {
   "ok": true,
-  "yield_pct": 0.7,
+  "yield_pct": 0.68,
   "annual": 3.64,
   "last_date": "2026-08-20",
   "currency": "USD"
@@ -172,7 +172,7 @@
  },
  "GOOGL": {
   "ok": true,
-  "yield_pct": 0.25,
+  "yield_pct": 0.24,
   "annual": 0.86,
   "last_date": "2026-09-04",
   "currency": "USD"
@@ -203,5 +203,5 @@
   "annual": 0,
   "last_date": null
  },
- "_updated": "2026-10-09"
+ "_updated": "2026-10-10"
 }

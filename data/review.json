@@ -1,0 +1,35 @@
+{
+ "updated_at": "2026-10-10 14:42:59",
+ "summary": {
+  "n": 0,
+  "wins": 0,
+  "win_rate": 0,
+  "avg_pct": null,
+  "avg_days": null,
+  "pnl": 0,
+  "avg_win": null,
+  "avg_loss": null,
+  "payoff": null
+ },
+ "best": null,
+ "worst": null,
+ "by_kind": {},
+ "by_group": {},
+ "monthly": [
+  {
+   "month": "2026-10",
+   "ret": -0.81,
+   "equity": 19838219,
+   "kospi": null,
+   "nasdaq": 1.88
+  }
+ ],
+ "live_vs_bt": {
+  "start": "2026-10-06",
+  "end": "2026-10-10",
+  "days": 4,
+  "live": -1.78,
+  "backtest": -0.15,
+  "diff": -1.63
+ }
+}
