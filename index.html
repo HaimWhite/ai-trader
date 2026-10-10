@@ -49,6 +49,17 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 .chips button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:5px 12px;border-radius:16px;font-size:13px;cursor:pointer}
 .chips button.on{background:var(--text);color:var(--bg)}
 .err{background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;font-size:13px}
+
+@media (min-width:1100px){
+  body{padding:20px 28px}
+  .wrap{max-width:1680px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px;grid-auto-flow:row dense;align-items:start}
+  .wrap>*{grid-column:1/-1}
+  .wrap>.half{grid-column:span 1}
+  .box.half{margin-bottom:14px}
+}
+.ctype{display:inline-flex;gap:6px;margin-left:8px;vertical-align:middle}
+.ctype button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:3px 10px;border-radius:14px;font-size:12px;cursor:pointer}
+.ctype button.on{background:var(--text);color:var(--bg)}
 </style>
 </head>
 <body>
@@ -65,25 +76,25 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
-    <div class="box"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
+    <div class="box half" id="eqbox"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
-  <div class="box" id="fcbox"><h2>보유 종목 가격 예측 · 적중률</h2><div class="sub" id="fcnote"></div><div class="chips" id="fchips"></div><div class="scroll" id="fcopen"></div><div class="sub" id="fcsum" style="margin:10px 0 4px"></div><div class="scroll" id="fcstat"></div><div class="scroll tall" id="fcdone" style="margin-top:8px"></div></div>
-  <div class="box sub">
+  <div class="box half" id="fcbox"><h2>보유 종목 가격 예측 · 적중률</h2><div class="sub" id="fcnote"></div><div class="chips" id="fchips"></div><div class="scroll" id="fcopen"></div><div class="sub" id="fcsum" style="margin:10px 0 4px"></div><div class="scroll" id="fcstat"></div><div class="scroll tall" id="fcdone" style="margin-top:8px"></div></div>
+  <div class="box half sub">
     <b>그래프 보는 법</b><br>
     가로축은 날짜, 세로축은 금액(원)이에요. 위 버튼으로 기간을 바꾸고, 그래프를 짚거나 마우스를 올리면 그날의 날짜와 금액이 나와요.<br>
     선이 올라가는 구간은 빨강, 내려가는 구간은 파랑이에요. 점선은 시작 원금이고, 점은 선택한 기간의 최고가(빨강)와 최저가(파랑)예요.<br>
     주가 그래프의 ▲는 가상 매수, ▼는 가상 매도 시점이에요. 자산은 하루 한 번(장 마감 후) 기록돼요.
   </div>
-  <div class="box" id="stockbox" style="display:none">
-    <h2>종목별 주가 <select id="sel"></select></h2>
+  <div class="box half" id="stockbox" style="display:none">
+    <h2>종목별 주가 <select id="sel"></select><span class="ctype" id="ctype"><button data-t="line">선 그래프</button><button data-t="candle">캔들 차트</button></span></h2>
     <div class="sub" id="pi"></div><div class="sub" id="pext"></div><div id="pc"></div>
     <div class="sub" id="pmark"></div><div class="sub" id="pdiv" style="margin-top:6px"></div>
   </div>
-  <div class="box" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
+  <div class="box half" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
-  <div class="box" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
-  <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
-  <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
+  <div class="box half" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
+  <div class="box half" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
+  <div class="box half" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -96,7 +107,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const cls = n => n > 0 ? "up" : n < 0 ? "down" : "";
 const sign = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
 const LIVE_URL = "https://raw.githubusercontent.com/HaimWhite/ai-trader/live/live.json";
-let RANGE = 365, SEL = null, D = {};
+let RANGE = 365, SEL = null, D = {}, CTYPE = "line";
 let BT_SORT = {key: "pnl", dir: -1}, DIV_SORT = {key: "y", dir: -1}, HOLD_SORT = {key: "val", dir: -1}, FC_SORT = {key: "n", dir: -1};
 let GSEL = "전체", FC_H = "1d";
 
@@ -240,6 +251,67 @@ function chart(el, series, o){
   svg.addEventListener("pointermove", show);
   svg.addEventListener("pointerdown", show);
   svg.addEventListener("pointerleave", () => [cl, cd, ct].forEach(n => { n.style.display = "none"; }));
+}
+
+
+/* ---------- 캔들 차트 (한국식: 오르면 빨강, 내리면 파랑) ----------
+   o: {marks, tip}. 막대가 너무 많으면 며칠(주/월)씩 묶어서 보여줘요. */
+function candles(el, dates, op, hi, lo, cl, o){
+  o = o || {};
+  const n = dates.length;
+  if(n < 2){ el.innerHTML = '<div class="empty">데이터가 2일 이상 쌓이면 그래프가 표시됩니다.</div>'; return; }
+  const W = el.clientWidth || 600, H = 280, L = 62, R = 10, T = 12, B = 26;
+  const maxBars = Math.max(20, Math.floor((W - L - R) / 5)), k = Math.ceil(n / maxBars);
+  const bars = [];
+  for(let i = 0; i < n; i += k){
+    const e = Math.min(n, i + k) - 1;
+    let h = -Infinity, l = Infinity;
+    for(let j = i; j <= e; j++){ h = Math.max(h, hi[j]); l = Math.min(l, lo[j]); }
+    bars.push({d0: dates[i], d1: dates[e], o: op[i], h, l, c: cl[e]});
+  }
+  let y0 = Math.min(...bars.map(b => b.l)), y1 = Math.max(...bars.map(b => b.h));
+  if(y0 === y1){ y0 -= 1; y1 += 1; }
+  const pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad;
+  const m = bars.length, step = (W - L - R) / m, bw = Math.max(1, Math.min(14, step * 0.7));
+  const X = i => L + step * (i + 0.5);
+  const Y = v => H - B - (H - B - T) * (v - y0) / (y1 - y0);
+  let g = "";
+  ticks(y0, y1, 5).forEach(v => { g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${num(v)}</text>`; });
+  const nx = Math.max(2, Math.min(8, Math.floor((W - L - R) / 58)));
+  const long = (Date.parse(dates[n - 1]) - Date.parse(dates[0])) / 864e5 > 400;
+  for(let q = 0; q < nx; q++){
+    const i = Math.round(q * (m - 1) / (nx - 1)), d = bars[i].d0;
+    g += `<text class="ax" x="${X(i)}" y="${H - 8}" text-anchor="${q === 0 ? "start" : q === nx - 1 ? "end" : "middle"}">${long ? d.slice(2, 4) + "." + d.slice(5, 7) : d.slice(5, 7) + "/" + d.slice(8, 10)}</text>`;
+  }
+  bars.forEach((b, i) => {
+    const up = b.c >= b.o, col = up ? "var(--up)" : "var(--down)", x = X(i);
+    const top = Y(Math.max(b.o, b.c)), bot = Y(Math.min(b.o, b.c));
+    g += `<line x1="${x}" x2="${x}" y1="${Y(b.h)}" y2="${Y(b.l)}" style="stroke:${col}"/><rect x="${x - bw / 2}" y="${top}" width="${bw}" height="${Math.max(1, bot - top)}" style="fill:${col};stroke:${col}"/>`;
+  });
+  (o.marks || []).forEach(mk => {
+    let i = bars.findIndex(b => mk.date >= b.d0 && mk.date <= b.d1);
+    if(i < 0) i = bars.findIndex(b => b.d0 >= mk.date);
+    if(i < 0 || mk.date < bars[0].d0) return;
+    const cx = X(i), cy = Y(mk.y);
+    g += mk.buy
+      ? `<polygon points="${cx},${cy - 9} ${cx - 5},${cy - 1} ${cx + 5},${cy - 1}" style="fill:var(--text)"/>`
+      : `<polygon points="${cx},${cy + 9} ${cx - 5},${cy + 1} ${cx + 5},${cy + 1}" style="fill:var(--sub)"/>`;
+  });
+  g += `<line class="cl" y1="${T}" y2="${H - B}" style="stroke:var(--sub);display:none"/><text class="ct" style="display:none"></text>`;
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  const svg = el.querySelector("svg"), cle = svg.querySelector(".cl"), ct = svg.querySelector(".ct");
+  const show = ev => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.max(0, Math.min(m - 1, Math.floor((ev.clientX - r.left - L) / step)));
+    const b = bars[i], cx = X(i);
+    cle.setAttribute("x1", cx); cle.setAttribute("x2", cx);
+    ct.textContent = `${b.d0}${b.d1 !== b.d0 ? "~" + b.d1.slice(5) : ""} 시 ${num(b.o)} 고 ${num(b.h)} 저 ${num(b.l)} 종 ${num(b.c)}`;
+    ct.setAttribute("x", cx > W / 2 ? cx - 8 : cx + 8); ct.setAttribute("y", T + 10); ct.setAttribute("text-anchor", cx > W / 2 ? "end" : "start");
+    [cle, ct].forEach(nd => { nd.style.display = ""; });
+  };
+  svg.addEventListener("pointermove", show);
+  svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", () => [cle, ct].forEach(nd => { nd.style.display = "none"; }));
 }
 
 /* ---------- 화면 그리기 ---------- */
@@ -428,8 +500,18 @@ function render(){
     $("pi").innerHTML = `현재 ${won(last)} · 선택 기간 <span class="${cls(ret)}">${sign(ret)}</span> (${esc(dd[0])} 대비)`;
     $("pext").innerHTML = extText(ext(dd, cc), won);
     const marks = trades.filter(t => t.code === SEL).map(t => ({date: t.time.slice(0, 10), y: t.price, buy: t.side === "BUY"}));
-    chart($("pc"), [{x: dd, y: cc, seg: true}], {marks, ext: true, tip: won});
-    $("pmark").innerHTML = "▲ 가상 매수 / ▼ 가상 매도 · 빨간 점 = 최고가 / 파란 점 = 최저가";
+    document.querySelectorAll("#ctype button").forEach(b => b.classList.toggle("on", b.dataset.t === CTYPE));
+    const hasOHLC = p.open && p.high && p.low && p.open.length === p.close.length;
+    if(CTYPE === "candle" && hasOHLC){
+      candles($("pc"), dd, p.open.slice(j), p.high.slice(j), p.low.slice(j), cc, {marks});
+      $("pmark").innerHTML = "캔들: 빨강 = 그날 올랐음 / 파랑 = 내렸음 · 가는 선 = 고가~저가 · ▲ 가상 매수, ▼ 가상 매도 (진한 색 = 매수, 회색 = 매도)" + (p.dates.length - j > 600 ? " · 기간이 길어서 며칠씩 묶어 보여줘요" : "");
+    } else {
+      if(CTYPE === "candle") $("pc").innerHTML = '<div class="empty">캔들 차트에 필요한 시가·고가·저가가 아직 없어요. 다음 16:00 점검(또는 update_all.bat) 이후부터 보여요. 아래는 선 그래프예요.</div>';
+      const tmp = CTYPE === "candle" ? document.createElement("div") : $("pc");
+      if(CTYPE === "candle"){ $("pc").appendChild(tmp); tmp.style.width = "100%"; }
+      chart(tmp, [{x: dd, y: cc, seg: true}], {marks, ext: true, tip: won});
+      $("pmark").innerHTML = "▲ 가상 매수 / ▼ 가상 매도 · 빨간 점 = 최고가 / 파란 점 = 최저가";
+    }
     const dv = div && div[SEL];
     if(!div) $("pdiv").innerHTML = "배당: 정보 없음 (아직 수집 전)";
     else if(!dv || !dv.ok) $("pdiv").innerHTML = "배당: 확인하지 못했습니다";
@@ -646,6 +728,8 @@ document.querySelectorAll("#rng button").forEach(b => b.addEventListener("click"
   b.classList.add("on"); RANGE = +b.dataset.d;
   if(D.latest) render();
 }));
+document.querySelectorAll("#ctype button").forEach(b => b.addEventListener("click", () => { CTYPE = b.dataset.t; try{ localStorage.setItem("ctype", CTYPE); }catch(e){} if(D.latest) render(); }));
+try{ CTYPE = localStorage.getItem("ctype") === "candle" ? "candle" : "line"; }catch(e){}
 $("sel").addEventListener("change", e => { SEL = e.target.value; if(D.latest) render(); });
 setInterval(async () => { try{ D.live = await loadLive(); if(D.latest) render(); }catch(e){} }, 120000);
 window.addEventListener("resize", () => { if(D.latest) render(); });

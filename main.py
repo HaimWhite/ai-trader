@@ -278,6 +278,9 @@ def main():
             "dates": [d.strftime("%Y-%m-%d") for d in df.index],
             "close": [int(x) for x in df["Close"]],
         }
+        if all(c in df.columns for c in ("Open", "High", "Low")):   # 캔들 차트용
+            for key, col in (("open", "Open"), ("high", "High"), ("low", "Low")):
+                pdata[code][key] = [int(x) if x == x else int(c) for x, c in zip(df[col], df["Close"])]
     with open(pfile, "w", encoding="utf-8") as f:
         json.dump(pdata, f, ensure_ascii=False, separators=(",", ":"))
 
