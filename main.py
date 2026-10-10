@@ -5,6 +5,7 @@ from datetime import datetime, time as dtime, timedelta
 import pandas as pd
 
 import config
+import backup
 import dividends
 import drawdown
 import earnings
@@ -263,6 +264,10 @@ def main():
         review.update()
     except Exception as e:
         print("거래 복기 갱신 실패:", e)
+    try:   # 중요한 기록 날짜별 백업 (ai-trader 폴더 옆 ai-trader-backup)
+        backup.make()
+    except Exception as e:
+        print("백업 실패:", e)
     try:   # 하루 단위 예측 (보유 종목의 다음 거래일 종가 예상과 지난 예측 채점)
         forecast.daily_update(broker.account["positions"], frames, broker.trades)
     except Exception as e:
