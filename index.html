@@ -62,6 +62,22 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
 .ctype{display:inline-flex;gap:6px;margin-left:8px;vertical-align:middle}
 .ctype button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:3px 10px;border-radius:14px;font-size:12px;cursor:pointer}
 .ctype button.on{background:var(--text);color:var(--bg)}
+
+.scroll{-webkit-overflow-scrolling:touch;
+  background:linear-gradient(to right,var(--card) 30%,rgba(0,0,0,0)) left center/36px 100% no-repeat local,
+             linear-gradient(to left,var(--card) 30%,rgba(0,0,0,0)) right center/36px 100% no-repeat local,
+             radial-gradient(farthest-side at 0 50%,rgba(128,128,128,.45),rgba(0,0,0,0)) left center/12px 100% no-repeat scroll,
+             radial-gradient(farthest-side at 100% 50%,rgba(128,128,128,.45),rgba(0,0,0,0)) right center/12px 100% no-repeat scroll}
+.scroll::-webkit-scrollbar{height:12px;width:12px}
+.scroll::-webkit-scrollbar-track{background:var(--line);border-radius:6px}
+.scroll::-webkit-scrollbar-thumb{background:var(--sub);border-radius:6px;border:2px solid var(--line)}
+.scroll{scrollbar-width:auto;scrollbar-color:var(--sub) var(--line)}
+.hint{display:none;color:var(--sub);font-size:12px;margin:2px 0 4px}
+@media (max-width:700px){
+  .hint{display:block}
+  .scroll td:first-child,.scroll th:first-child{position:sticky;left:0;background:var(--card);z-index:1;box-shadow:2px 0 0 var(--line)}
+  .scroll th:first-child{z-index:3}
+}
 </style>
 </head>
 <body>
@@ -402,7 +418,7 @@ function render(){
   }));
   const view = GSEL === "전체" ? syms : syms.filter(s => s.group === GSEL);
   const showMas = rules.show_mas || [60, 90, 120], tradeMas = new Set(multi ? rules.long_mas : [rules.long_ma]);
-  $("signals").innerHTML = table(["종목", "시장", "업종", "현재가", "전일 대비", "신호", "행동", `기준점 (${rules.short_ma}일선과 각 장기선, 굵은 글씨=매매에 쓰는 선)`, "뉴스"], view.map(s => {
+  $("signals").innerHTML = table(["종목", "현재가", "전일 대비", "신호", "행동", `기준점 (${rules.short_ma}일선과 각 장기선, 굵은 글씨=매매에 쓰는 선)`, "뉴스", "시장", "업종"], view.map(s => {
     let base = "-";
     if(s.mas && s.mas[rules.short_ma]){
       const sm = s.mas[rules.short_ma];
@@ -416,7 +432,7 @@ function render(){
     }
     const day = s.prev_close ? (s.price / s.prev_close - 1) * 100 : null;
     const n = s.news ? '<span class="' + cls(s.news.score) + '">' + (L_[s.news.score] || "") + "</span> " + esc(s.news.summary) : "-";
-    return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${esc(s.group)}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td></tr>`;
+    return `<tr><td>${pos[s.code] ? "● " : ""}${esc(s.name)}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${esc(s.action)}</td><td>${base}</td><td class="r">${n}</td><td>${esc(s.group)}</td><td>${esc(s.sector || "-")}</td></tr>`;
   }));
 
   // 관찰 목록
@@ -424,11 +440,11 @@ function render(){
   $("watchbox").style.display = wl.length ? "" : "none";
   if(wl.length){
     $("watchnote").textContent = "백테스트에서 위험 대비 수익이 좋아지지 않아 매매 종목에서 뺀 종목들이에요. 신호만 참고하세요. (symbols_watch.csv)";
-    $("watch").innerHTML = table(["종목", "시장", "업종", "현재가", "전일 대비", "신호", `기준점 (${rules.short_ma}일선과 각 장기선)`], wl.map(s => {
+    $("watch").innerHTML = table(["종목", "현재가", "전일 대비", "신호", `기준점 (${rules.short_ma}일선과 각 장기선)`, "시장", "업종"], wl.map(s => {
       const sm = s.mas && s.mas[rules.short_ma];
       const base = sm ? `${rules.short_ma}일 ${num(sm)}` + showMas.filter(n => s.mas[n]).map(n => { const g = (sm / s.mas[n] - 1) * 100; return ` · ${n}일 ${num(s.mas[n])} <span class="${cls(g)}">(${sign(g)})</span>`; }).join("") : "-";
       const day = s.prev_close ? (s.price / s.prev_close - 1) * 100 : null;
-      return `<tr><td>${esc(s.name)}</td><td>${esc(s.group || "-")}</td><td>${esc(s.sector || "-")}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${base}</td></tr>`;
+      return `<tr><td>${esc(s.name)}</td><td>${won(s.price)}</td><td class="${day == null ? "" : cls(day)}">${day == null ? "-" : sign(day)}</td><td>${esc(s.signal)}</td><td>${base}</td><td>${esc(s.group || "-")}</td><td>${esc(s.sector || "-")}</td></tr>`;
     }));
   }
 
@@ -751,6 +767,19 @@ document.querySelectorAll("#ctype button").forEach(b => b.addEventListener("clic
 try{ CTYPE = localStorage.getItem("ctype") === "candle" ? "candle" : "line"; }catch(e){}
 $("sel").addEventListener("change", e => { SEL = e.target.value; if(D.latest) render(); });
 setInterval(async () => { try{ D.live = await loadLive(); if(D.latest) render(); }catch(e){} }, 120000);
+
+/* 표가 화면보다 넓으면 '옆으로 밀어요' 안내를 표 위에 붙임 */
+function scrollHints(){
+  document.querySelectorAll(".hint").forEach(h => h.remove());
+  document.querySelectorAll(".scroll").forEach(sc => {
+    if(sc.scrollWidth > sc.clientWidth + 4){
+      const h = document.createElement("div");
+      h.className = "hint"; h.textContent = "↔ 표를 좌우로 밀면 더 보여요 (맨 왼쪽 종목 이름은 고정돼요)";
+      sc.parentNode.insertBefore(h, sc);
+    }
+  });
+}
+{ const _render = render; render = function(){ _render(); try{ scrollHints(); }catch(e){} }; }
 window.addEventListener("resize", () => { if(D.latest) render(); });
 main();
 </script>
