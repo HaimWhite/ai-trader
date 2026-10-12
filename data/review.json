@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-12 16:00:48",
+ "updated_at": "2026-10-13 07:32:37",
  "summary": {
   "n": 1,
   "wins": 0,
@@ -44,18 +44,18 @@
  "monthly": [
   {
    "month": "2026-10",
-   "ret": -1.44,
-   "equity": 19711774,
+   "ret": -0.84,
+   "equity": 19832665,
    "kospi": null,
-   "nasdaq": 1.88
+   "nasdaq": 1.43
   }
  ],
  "live_vs_bt": {
   "start": "2026-10-06",
-  "end": "2026-10-12",
-  "days": 6,
-  "live": -2.4,
+  "end": "2026-10-13",
+  "days": 7,
+  "live": -1.8,
   "backtest": -0.79,
-  "diff": -1.61
+  "diff": -1.01
  }
 }
