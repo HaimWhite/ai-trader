@@ -1,13 +1,6 @@
 {
-  "cash": 957384,
+  "cash": 4586739,
   "positions": {
-    "055550": {
-      "name": "신한지주",
-      "qty": 37,
-      "avg_price": 106006,
-      "cost_basis": 3922810,
-      "peak": 106006
-    },
     "MSFT": {
       "name": "마이크로소프트",
       "qty": 5,
@@ -34,9 +27,11 @@
       "qty": 7,
       "avg_price": 529529,
       "cost_basis": 3707259,
-      "peak": 588000.0
+      "peak": 593000.0
     }
   },
-  "blocked": [],
+  "blocked": [
+    "055550"
+  ],
   "pending": {}
 }
