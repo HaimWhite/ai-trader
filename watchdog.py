@@ -35,8 +35,24 @@ def send(text):
     return False
 
 
-def main(path="data/latest.json"):
-    now = datetime.now(KST)
+def prev_weekday(d):
+    d -= timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= timedelta(days=1)
+    return d
+
+
+def target_day(now):
+    """어느 날의 기록을 확인할지. GitHub 의 예약 실행은 몇 시간씩 늦게 시작될 때가 있어서,
+    17:00 이전(새벽 등)에 시작했으면 '오늘'이 아니라 직전 평일의 기록을 확인해요."""
+    if now.weekday() < 5 and now.strftime("%H:%M") >= "17:00":
+        return now.date()
+    d = now.date()
+    return prev_weekday(d) if now.weekday() >= 5 or now.strftime("%H:%M") < "17:00" else d
+
+
+def main(path="data/latest.json", now=None):
+    now = now or (datetime.fromisoformat(os.environ["WATCHDOG_NOW"]).replace(tzinfo=KST) if os.environ.get("WATCHDOG_NOW") else datetime.now(KST))
     if "--test" in sys.argv:
         ok = send(f"{BOSS}, 감시 장치 테스트입니다. 이 메시지가 보이면 PC 꺼짐 알림이 정상으로 연결된 거예요.")
         print("테스트 메시지 전송:", ok)
@@ -49,14 +65,16 @@ def main(path="data/latest.json"):
     except Exception as e:
         updated = ""
         print("latest.json 을 읽지 못했어요:", e)
-    today = now.strftime("%Y-%m-%d")
-    if updated[:10] == today and updated[11:16] >= "15:35":
-        print("오늘 정기 점검 기록이 있어요:", updated)
+    target = target_day(now).strftime("%Y-%m-%d")
+    late = target != now.strftime("%Y-%m-%d")
+    if updated and (updated[:10] > target or (updated[:10] == target and updated[11:16] >= "15:35")):
+        print(f"{target} 정기 점검 기록이 있어요:", updated, "(늦게 시작된 실행)" if late else "")
         return 0
-    text = (f"{BOSS}, 오늘 16:00 정기 점검 기록이 아직 GitHub에 올라오지 않았습니다.\n"
+    when = f"{target[5:7]}월 {target[8:10]}일" if late else "오늘"
+    text = (f"{BOSS}, {when} 16:00 정기 점검 기록이 GitHub에 올라오지 않았습니다.\n"
             f"마지막 기록은 {updated or '확인 불가'}입니다.\n"
             "PC가 꺼져 있거나 절전 상태이거나, 인터넷·로그인 문제로 업로드가 막혔을 수 있습니다. (공휴일에도 점검은 돌기 때문에 확인이 필요합니다.)\n"
-            "PC를 켜신 뒤 run_auto.bat 를 한 번 실행하시면 오늘 기록이 올라갑니다.")
+            "PC를 켜신 뒤 run_auto.bat 를 한 번 실행하시면 기록이 올라갑니다.")
     print(text)
     send(text)
     return 0

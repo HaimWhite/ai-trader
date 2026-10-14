@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-10-10 19:45:16",
+  "generated_at": "2026-10-14 14:50:41",
   "period": [
     "2021-06-18",
-    "2026-10-09"
+    "2026-10-14"
   ],
   "strategy": {
-    "final": 79877319,
-    "total_return": 303.59,
-    "cagr": 30.06,
+    "final": 79978864,
+    "total_return": 304.1,
+    "cagr": 30.0,
     "mdd": -34.41
   },
   "benchmark": {
-    "final": 67399389,
-    "total_return": 237.0,
-    "cagr": 25.72,
+    "final": 64504542,
+    "total_return": 222.52,
+    "cagr": 24.61,
     "mdd": -32.48
   },
   "settings": "20일/120일 이동평균 · 손절 -7% · 추적 손절 20% · 갭 잦은 종목 건너뜀(7%x3회) · 동시 보유 5종목",
@@ -55,10 +55,10 @@
     },
     {
       "year": 2026,
-      "strategy": 16.8,
-      "benchmark": 13.1,
-      "kospi": 59.6,
-      "nasdaq": 17.7
+      "strategy": 16.9,
+      "benchmark": 8.3,
+      "kospi": 45.4,
+      "nasdaq": 17.0
     }
   ],
   "trades": [
@@ -10422,120 +10422,141 @@
       "date": "2026-09-17",
       "strategy": 83225911,
       "benchmark": 67185154,
-      "kospi": 41153513,
+      "kospi": 41098861,
       "nasdaq": 37658711
     },
     {
       "date": "2026-09-18",
       "strategy": 82153087,
       "benchmark": 67675163,
-      "kospi": 41153513,
+      "kospi": 42193254,
       "nasdaq": 37807300
     },
     {
       "date": "2026-09-21",
       "strategy": 83032561,
       "benchmark": 68583234,
-      "kospi": 41153513,
+      "kospi": 42887822,
       "nasdaq": 38661947
     },
     {
       "date": "2026-09-22",
       "strategy": 82027659,
       "benchmark": 67881179,
-      "kospi": 41153513,
+      "kospi": 42950186,
       "nasdaq": 38836125
     },
     {
       "date": "2026-09-23",
       "strategy": 81433756,
       "benchmark": 67744056,
-      "kospi": 41153513,
+      "kospi": 43335812,
       "nasdaq": 38396735
     },
     {
       "date": "2026-09-24",
       "strategy": 81270691,
       "benchmark": 67815703,
-      "kospi": 41153513,
+      "kospi": 43335812,
       "nasdaq": 38401482
     },
     {
       "date": "2026-09-25",
       "strategy": 81869266,
       "benchmark": 67884448,
-      "kospi": 41153513,
+      "kospi": 43335812,
       "nasdaq": 38585870
     },
     {
       "date": "2026-09-28",
       "strategy": 81961409,
       "benchmark": 67189044,
-      "kospi": 41153513,
+      "kospi": 42165775,
       "nasdaq": 38231867
     },
     {
       "date": "2026-09-29",
       "strategy": 80843141,
       "benchmark": 67074868,
-      "kospi": 41153513,
+      "kospi": 42049922,
       "nasdaq": 38199306
     },
     {
       "date": "2026-09-30",
       "strategy": 80296893,
       "benchmark": 67063271,
-      "kospi": 41153513,
+      "kospi": 41849366,
       "nasdaq": 38289855
     },
     {
       "date": "2026-10-01",
       "strategy": 79894121,
       "benchmark": 67968709,
-      "kospi": 41153513,
+      "kospi": 42665235,
       "nasdaq": 38304878
     },
     {
       "date": "2026-10-02",
       "strategy": 80868458,
       "benchmark": 69003234,
-      "kospi": 41153513,
+      "kospi": 42863464,
       "nasdaq": 38759976
     },
     {
       "date": "2026-10-05",
       "strategy": 80671704,
       "benchmark": 69106569,
-      "kospi": 41153513,
+      "kospi": 42863464,
       "nasdaq": 39168306
     },
     {
       "date": "2026-10-06",
       "strategy": 80515409,
       "benchmark": 69902661,
-      "kospi": 41153513,
+      "kospi": 42481877,
       "nasdaq": 39342896
     },
     {
       "date": "2026-10-07",
       "strategy": 80173891,
       "benchmark": 68521421,
-      "kospi": 41153513,
+      "kospi": 41640427,
       "nasdaq": 39255800
     },
     {
       "date": "2026-10-08",
       "strategy": 79653388,
       "benchmark": 67347332,
-      "kospi": 41153513,
+      "kospi": 40551236,
       "nasdaq": 38763512
     },
     {
       "date": "2026-10-09",
       "strategy": 79877319,
       "benchmark": 67399389,
-      "kospi": 41153513,
+      "kospi": 40551236,
       "nasdaq": 39009877
+    },
+    {
+      "date": "2026-10-12",
+      "strategy": 79822013,
+      "benchmark": 65278012,
+      "kospi": 39072073,
+      "nasdaq": 38838436
+    },
+    {
+      "date": "2026-10-13",
+      "strategy": 79707564,
+      "benchmark": 64399723,
+      "kospi": 36936838,
+      "nasdaq": 38779251
+    },
+    {
+      "date": "2026-10-14",
+      "strategy": 79978864,
+      "benchmark": 64504542,
+      "kospi": 37504475,
+      "nasdaq": 38779251
     }
   ]
 }
