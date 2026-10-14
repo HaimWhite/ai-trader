@@ -10,6 +10,7 @@ import dividends
 import drawdown
 import earnings
 import forecast
+import intraday
 import market
 import messages
 import news
@@ -264,6 +265,10 @@ def main():
         review.update()
     except Exception as e:
         print("거래 복기 갱신 실패:", e)
+    try:   # '1주' 그래프용 1시간 단위 시세 (최근 7일)
+        print(f"1시간 시세 {intraday.update_hourly(list(frames))}종목 저장")
+    except Exception as e:
+        print("1시간 시세 저장 실패:", e)
     try:   # 중요한 기록 날짜별 백업 (ai-trader 폴더 옆 ai-trader-backup)
         backup.make()
     except Exception as e:

@@ -11,6 +11,7 @@ from datetime import datetime, time as dtime, timedelta
 
 import config
 import forecast
+import intraday
 import market
 import messages
 import notify
@@ -57,6 +58,10 @@ def publish_live(broker, quotes, t, fc=None):
     }
     if fc:
         payload["fc"] = fc
+    try:   # 1주 그래프용 5분 단위 자산 기록 (16:00 점검 때 GitHub 로 올라가요)
+        intraday.append_equity(t, payload["equity"])
+    except Exception as e:
+        print("자산 기록 저장 실패:", e)
     try:
         blob = run_git(["hash-object", "-w", "--stdin"], json.dumps(payload, ensure_ascii=False).encode("utf-8"))
         tree = run_git(["mktree"], f"100644 blob {blob}\tlive.json\n".encode("utf-8"))

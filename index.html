@@ -289,6 +289,56 @@ function chart(el, series, o){
 }
 
 
+/* ---------- 시간 단위 선 그래프 (밤·주말처럼 거래가 없는 시간은 건너뛰고 점을 같은 간격으로 놓아요) ----------
+   xs: "YYYY-MM-DD HH:MM" 목록, ys: 값. o: {fmt, tip, base, baseLabel, marks:[{date,y,buy}], ext} */
+function lineIdx(el, xs, ys, o){
+  o = o || {};
+  const n = xs.length, fmt = o.fmt || num, tip = o.tip || fmt;
+  if(n < 2){ el.innerHTML = '<div class="empty">시간 단위 데이터가 아직 부족해요.</div>'; return; }
+  const W = el.clientWidth || 600, H = 260, L = 62, R = 10, T = 12, B = 26;
+  let y0 = Math.min(...ys, o.base != null ? o.base : Infinity), y1 = Math.max(...ys, o.base != null ? o.base : -Infinity);
+  if(y0 === y1){ y0 -= 1; y1 += 1; }
+  const pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad;
+  const X = i => L + (W - L - R) * i / (n - 1), Y = v => H - B - (H - B - T) * (v - y0) / (y1 - y0);
+  const dl = d => d.slice(5, 10).replace("-", "/") + " " + d.slice(11, 16);
+  let g = "";
+  ticks(y0, y1, 5).forEach(v => { g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`; });
+  for(let i = 1; i < n; i++) if(xs[i].slice(0, 10) !== xs[i - 1].slice(0, 10)) g += `<line class="gl" x1="${X(i)}" x2="${X(i)}" y1="${T}" y2="${H - B}" stroke-dasharray="3 3"/>`;
+  const nx = Math.max(2, Math.min(7, Math.floor((W - L - R) / 96)));
+  for(let q = 0; q < nx; q++){ const i = Math.round(q * (n - 1) / (nx - 1)); g += `<text class="ax" x="${X(i)}" y="${H - 8}" text-anchor="${q === 0 ? "start" : q === nx - 1 ? "end" : "middle"}">${dl(xs[i])}</text>`; }
+  if(o.base != null) g += `<line x1="${L}" x2="${W - R}" y1="${Y(o.base)}" y2="${Y(o.base)}" style="stroke:var(--sub)" stroke-dasharray="4 4"/><text class="ax" x="${L + 4}" y="${Y(o.base) - 4}">${o.baseLabel || "원금"}</text>`;
+  const runs = []; let cur = null;
+  for(let i = 1; i < n; i++){
+    const up = ys[i] >= ys[i - 1];
+    if(!cur || cur.up !== up){ cur = {up, pts: [X(i - 1).toFixed(1) + "," + Y(ys[i - 1]).toFixed(1)]}; runs.push(cur); }
+    cur.pts.push(X(i).toFixed(1) + "," + Y(ys[i]).toFixed(1));
+  }
+  runs.forEach(r => { g += `<polyline fill="none" stroke-width="2" stroke-linejoin="round" style="stroke:${r.up ? "var(--up)" : "var(--down)"}" points="${r.pts.join(" ")}"/>`; });
+  if(o.ext){
+    const hi = ys.indexOf(Math.max(...ys)), lo = ys.indexOf(Math.min(...ys));
+    g += `<circle cx="${X(hi)}" cy="${Y(ys[hi])}" r="4" style="fill:var(--up)"/><circle cx="${X(lo)}" cy="${Y(ys[lo])}" r="4" style="fill:var(--down)"/>`;
+  }
+  (o.marks || []).forEach(mk => {
+    const i = xs.findIndex(x => x.slice(0, 10) === mk.date);
+    if(i < 0) return;
+    const cx = X(i), cy = Y(mk.y);
+    g += mk.buy ? `<polygon points="${cx},${cy - 9} ${cx - 5},${cy - 1} ${cx + 5},${cy - 1}" style="fill:var(--up)"/>` : `<polygon points="${cx},${cy + 9} ${cx - 5},${cy + 1} ${cx + 5},${cy + 1}" style="fill:var(--down)"/>`;
+  });
+  g += `<line class="cl" y1="${T}" y2="${H - B}" style="stroke:var(--sub);display:none"/><circle class="cd" r="4" style="fill:var(--text);display:none"/><text class="ct" style="display:none"></text>`;
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  const svg = el.querySelector("svg"), cl = svg.querySelector(".cl"), cd = svg.querySelector(".cd"), ct = svg.querySelector(".ct");
+  const show = ev => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.max(0, Math.min(n - 1, Math.round((ev.clientX - r.left - L) / (W - L - R) * (n - 1)))), cx = X(i);
+    cl.setAttribute("x1", cx); cl.setAttribute("x2", cx); cd.setAttribute("cx", cx); cd.setAttribute("cy", Y(ys[i]));
+    ct.textContent = dl(xs[i]) + " · " + tip(ys[i]);
+    ct.setAttribute("x", cx > W / 2 ? cx - 8 : cx + 8); ct.setAttribute("y", T + 10); ct.setAttribute("text-anchor", cx > W / 2 ? "end" : "start");
+    [cl, cd, ct].forEach(nd => { nd.style.display = ""; });
+  };
+  svg.addEventListener("pointermove", show); svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", () => [cl, cd, ct].forEach(nd => { nd.style.display = "none"; }));
+}
+
 /* ---------- 캔들 차트 (한국식: 오르면 빨강, 내리면 파랑) ----------
    o: {marks, tip}. 막대가 너무 많으면 며칠(주/월)씩 묶어서 보여줘요. */
 function candles(el, dates, op, hi, lo, cl, o){
@@ -312,11 +362,13 @@ function candles(el, dates, op, hi, lo, cl, o){
   const Y = v => H - B - (H - B - T) * (v - y0) / (y1 - y0);
   let g = "";
   ticks(y0, y1, 5).forEach(v => { g += `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${num(v)}</text>`; });
-  const nx = Math.max(2, Math.min(8, Math.floor((W - L - R) / 58)));
-  const long = (Date.parse(dates[n - 1]) - Date.parse(dates[0])) / 864e5 > 400;
+  const nx = Math.max(2, Math.min(8, Math.floor((W - L - R) / (o.intraday ? 96 : 58))));
+  const long = !o.intraday && (Date.parse(dates[n - 1]) - Date.parse(dates[0])) / 864e5 > 400;
+  const dl = d => o.intraday ? d.slice(5, 10).replace("-", "/") + " " + d.slice(11, 16) : long ? d.slice(2, 4) + "." + d.slice(5, 7) : d.slice(5, 7) + "/" + d.slice(8, 10);
+  if(o.intraday) bars.forEach((b, i) => { if(i > 0 && b.d0.slice(0, 10) !== bars[i - 1].d0.slice(0, 10)) g += `<line class="gl" x1="${L + step * i}" x2="${L + step * i}" y1="${T}" y2="${H - B}" stroke-dasharray="3 3"/>`; });
   for(let q = 0; q < nx; q++){
     const i = Math.round(q * (m - 1) / (nx - 1)), d = bars[i].d0;
-    g += `<text class="ax" x="${X(i)}" y="${H - 8}" text-anchor="${q === 0 ? "start" : q === nx - 1 ? "end" : "middle"}">${long ? d.slice(2, 4) + "." + d.slice(5, 7) : d.slice(5, 7) + "/" + d.slice(8, 10)}</text>`;
+    g += `<text class="ax" x="${X(i)}" y="${H - 8}" text-anchor="${q === 0 ? "start" : q === nx - 1 ? "end" : "middle"}">${dl(d)}</text>`;
   }
   bars.forEach((b, i) => {
     const up = b.c >= b.o, col = up ? "var(--up)" : "var(--down)", x = X(i);
@@ -324,9 +376,9 @@ function candles(el, dates, op, hi, lo, cl, o){
     g += `<line x1="${x}" x2="${x}" y1="${Y(b.h)}" y2="${Y(b.l)}" style="stroke:${col}"/><rect x="${x - bw / 2}" y="${top}" width="${bw}" height="${Math.max(1, bot - top)}" style="fill:${col};stroke:${col}"/>`;
   });
   (o.marks || []).forEach(mk => {
-    let i = bars.findIndex(b => mk.date >= b.d0 && mk.date <= b.d1);
-    if(i < 0) i = bars.findIndex(b => b.d0 >= mk.date);
-    if(i < 0 || mk.date < bars[0].d0) return;
+    let i = o.intraday ? bars.findIndex(b => b.d0.slice(0, 10) === mk.date) : bars.findIndex(b => mk.date >= b.d0 && mk.date <= b.d1);
+    if(!o.intraday && i < 0) i = bars.findIndex(b => b.d0 >= mk.date);
+    if(i < 0 || mk.date < bars[0].d0.slice(0, 10)) return;
     const cx = X(i), cy = Y(mk.y);
     g += mk.buy
       ? `<polygon points="${cx},${cy - 9} ${cx - 5},${cy - 1} ${cx + 5},${cy - 1}" style="fill:var(--text)"/>`
@@ -340,7 +392,7 @@ function candles(el, dates, op, hi, lo, cl, o){
     const i = Math.max(0, Math.min(m - 1, Math.floor((ev.clientX - r.left - L) / step)));
     const b = bars[i], cx = X(i);
     cle.setAttribute("x1", cx); cle.setAttribute("x2", cx);
-    ct.textContent = `${b.d0}${b.d1 !== b.d0 ? "~" + b.d1.slice(5) : ""} 시 ${num(b.o)} 고 ${num(b.h)} 저 ${num(b.l)} 종 ${num(b.c)}`;
+    ct.textContent = `${o.intraday ? b.d0.slice(5) : b.d0}${!o.intraday && b.d1 !== b.d0 ? "~" + b.d1.slice(5) : ""} 시 ${num(b.o)} 고 ${num(b.h)} 저 ${num(b.l)} 종 ${num(b.c)}`;
     ct.setAttribute("x", cx > W / 2 ? cx - 8 : cx + 8); ct.setAttribute("y", T + 10); ct.setAttribute("text-anchor", cx > W / 2 ? "end" : "start");
     [cle, ct].forEach(nd => { nd.style.display = ""; });
   };
@@ -450,8 +502,23 @@ function render(){
 
   // 자산 추이
   const hd = history.map(h => h.date), i0 = rangeStart(hd), hv = history.slice(i0).map(h => h.equity);
-  chart($("chart"), [{x: hd.slice(i0), y: hv, seg: true}], {fmt: man, tip: won, base: P, ext: true});
-  $("eq-ext").innerHTML = hv.length ? extText(ext(hd.slice(i0), hv), won) : "";
+  const EQI = D.eqi;   // 5분 단위 자산 기록 (monitor.py 가 쌓고 16:00 점검 때 올라와요)
+  let eqRows = null;
+  if(RANGE === 7 && EQI && EQI.length >= 8){
+    eqRows = EQI.slice();
+    const tail = (useLive ? [live.updated_at.slice(0, 16), live.equity] : [latest.updated_at.slice(0, 16), latest.equity]);
+    if(tail[0] > eqRows[eqRows.length - 1][0]) eqRows.push(tail);
+    const lim = new Date(Date.parse(eqRows[eqRows.length - 1][0].replace(" ", "T") + ":00Z") - 7 * 864e5).toISOString().slice(0, 16).replace("T", " ");
+    eqRows = eqRows.filter(r => r[0] >= lim);
+  }
+  if(eqRows && eqRows.length >= 8){
+    lineIdx($("chart"), eqRows.map(r => r[0]), eqRows.map(r => r[1]), {fmt: man, tip: won, base: P, ext: true});
+    const ev = eqRows.map(r => r[1]);
+    $("eq-ext").innerHTML = `<span class="up">최고 ${won(Math.max(...ev))} (${esc(eqRows[ev.indexOf(Math.max(...ev))][0].slice(5))})</span> · <span class="down">최저 ${won(Math.min(...ev))} (${esc(eqRows[ev.indexOf(Math.min(...ev))][0].slice(5))})</span> · 5분 단위 기록 ${eqRows.length}개 (거래 없는 시간은 건너뛰어요)`;
+  } else {
+    chart($("chart"), [{x: hd.slice(i0), y: hv, seg: true}], {fmt: man, tip: won, base: P, ext: true});
+    $("eq-ext").innerHTML = hv.length ? extText(ext(hd.slice(i0), hv), won) : "";
+  }
   $("chart-lg").innerHTML = legend([["오르는 구간", "var(--up)", false], ["내리는 구간", "var(--down)", false], ["원금", "var(--sub)", true]]);
 
   // 실운영 지수 비교 (시작일 이후)
@@ -536,8 +603,20 @@ function render(){
     $("pext").innerHTML = extText(ext(dd, cc), won);
     const marks = trades.filter(t => t.code === SEL).map(t => ({date: t.time.slice(0, 10), y: t.price, buy: t.side === "BUY"}));
     document.querySelectorAll("#ctype button").forEach(b => b.classList.toggle("on", b.dataset.t === CTYPE));
+    const H1 = RANGE === 7 && D.p1 && D.p1.items && D.p1.items[SEL];
     const hasOHLC = p.open && p.high && p.low && p.open.length === p.close.length;
-    if(CTYPE === "candle" && hasOHLC){
+    if(H1 && H1.t.length >= 8){
+      const hl = H1.c[H1.c.length - 1] / H1.c[0] - 1;
+      $("pi").innerHTML = `현재 ${won(last)} · 최근 1주(1시간 단위) <span class="${cls(hl * 100)}">${sign(hl * 100)}</span> (${esc(H1.t[0].slice(5))} 대비)`;
+      $("pext").innerHTML = `<span class="up">최고 ${won(Math.max(...H1.h))}</span> · <span class="down">최저 ${won(Math.min(...H1.l))}</span> · 1시간봉 ${H1.t.length}개 (거래 없는 시간은 건너뛰어요)`;
+      if(CTYPE === "candle"){
+        candles($("pc"), H1.t, H1.o, H1.h, H1.l, H1.c, {marks, intraday: true});
+        $("pmark").innerHTML = "캔들 1개 = 1시간 · 빨강 = 그 시간에 올랐음 / 파랑 = 내렸음 · 점선 = 날짜가 바뀌는 곳 · ▲ 가상 매수, ▼ 가상 매도";
+      } else {
+        lineIdx($("pc"), H1.t, H1.c, {marks, ext: true, tip: won});
+        $("pmark").innerHTML = "▲ 가상 매수 / ▼ 가상 매도 · 빨간 점 = 최고가 / 파란 점 = 최저가 · 점선 = 날짜가 바뀌는 곳";
+      }
+    } else if(CTYPE === "candle" && hasOHLC){
       candles($("pc"), dd, p.open.slice(j), p.high.slice(j), p.low.slice(j), cc, {marks});
       $("pmark").innerHTML = "캔들: 빨강 = 그날 올랐음 / 파랑 = 내렸음 · 가는 선 = 고가~저가 · ▲ 가상 매수, ▼ 가상 매도 (진한 색 = 매수, 회색 = 매도)" + (p.dates.length - j > 600 ? " · 기간이 길어서 며칠씩 묶어 보여줘요" : "");
     } else {
@@ -751,7 +830,9 @@ async function main(){
     const indices = await load("indices").catch(() => null);
     const fc = await load("forecasts").catch(() => null);
     const review = await load("review").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review};
+    const p1 = await load("prices_1h").catch(() => null);
+    const eqi = await load("equity_intraday").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi};
     render();
   }catch(e){
     $("updated").textContent = "";
