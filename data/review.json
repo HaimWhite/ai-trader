@@ -1,14 +1,14 @@
 {
- "updated_at": "2026-10-14 21:18:43",
+ "updated_at": "2026-10-15 16:00:53",
  "summary": {
-  "n": 1,
+  "n": 2,
   "wins": 0,
   "win_rate": 0.0,
-  "avg_pct": -7.48,
-  "avg_days": 6.0,
-  "pnl": -293455,
+  "avg_pct": -7.53,
+  "avg_days": 7.5,
+  "pnl": -587508,
   "avg_win": null,
-  "avg_loss": -7.48,
+  "avg_loss": -7.53,
   "payoff": null
  },
  "best": {
@@ -17,45 +17,45 @@
   "date": "2026-10-12"
  },
  "worst": {
-  "name": "신한지주",
-  "pct": -7.48,
-  "date": "2026-10-12"
+  "name": "KB금융",
+  "pct": -7.58,
+  "date": "2026-10-15"
  },
  "by_kind": {
   "손절": {
-   "n": 1,
+   "n": 2,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.48,
-   "avg_days": 6.0,
-   "pnl": -293455
+   "avg_pct": -7.53,
+   "avg_days": 7.5,
+   "pnl": -587508
   }
  },
  "by_group": {
   "코스피": {
-   "n": 1,
+   "n": 2,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.48,
-   "avg_days": 6.0,
-   "pnl": -293455
+   "avg_pct": -7.53,
+   "avg_days": 7.5,
+   "pnl": -587508
   }
  },
  "monthly": [
   {
    "month": "2026-10",
-   "ret": 0.68,
-   "equity": 20136169,
-   "kospi": -12.13,
-   "nasdaq": 1.28
+   "ret": -2.76,
+   "equity": 19448608,
+   "kospi": -19.05,
+   "nasdaq": -0.63
   }
  ],
  "live_vs_bt": {
   "start": "2026-10-06",
-  "end": "2026-10-14",
-  "days": 8,
-  "live": -0.3,
-  "backtest": -0.67,
-  "diff": 0.37
+  "end": "2026-10-15",
+  "days": 9,
+  "live": -3.7,
+  "backtest": -0.76,
+  "diff": -2.95
  }
 }
