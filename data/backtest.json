@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-10-14 21:19:01",
+  "generated_at": "2026-10-19 17:29:57",
   "period": [
     "2021-06-18",
-    "2026-10-14"
+    "2026-10-19"
   ],
   "strategy": {
-    "final": 79906864,
-    "total_return": 303.74,
-    "cagr": 29.98,
+    "final": 77760712,
+    "total_return": 292.9,
+    "cagr": 29.23,
     "mdd": -34.41
   },
   "benchmark": {
-    "final": 64327605,
-    "total_return": 221.64,
-    "cagr": 24.55,
+    "final": 62871182,
+    "total_return": 214.36,
+    "cagr": 23.94,
     "mdd": -32.48
   },
   "settings": "20일/120일 이동평균 · 손절 -7% · 추적 손절 20% · 갭 잦은 종목 건너뜀(7%x3회) · 동시 보유 5종목",
@@ -55,10 +55,10 @@
     },
     {
       "year": 2026,
-      "strategy": 16.8,
-      "benchmark": 8.0,
-      "kospi": 42.6,
-      "nasdaq": 17.0
+      "strategy": 13.7,
+      "benchmark": 5.5,
+      "kospi": 34.7,
+      "nasdaq": 12.5
     }
   ],
   "trades": [
@@ -740,11 +740,25 @@
       "pnl": 425022,
       "pct": 2.63,
       "why": "하락 추세"
+    },
+    {
+      "date": "2026-10-16",
+      "name": "삼성SDI",
+      "pnl": -654865,
+      "pct": -4.09,
+      "why": "손절"
+    },
+    {
+      "date": "2026-10-19",
+      "name": "엔비디아",
+      "pnl": -316300,
+      "pct": -2.01,
+      "why": "하락 추세"
     }
   ],
-  "trade_count": 97,
-  "win_rate": 37.1,
-  "avg_trade_pct": 11.8,
+  "trade_count": 99,
+  "win_rate": 36.4,
+  "avg_trade_pct": 11.5,
   "by_symbol": {
     "삼성전자": {
       "trades": 4,
@@ -787,9 +801,9 @@
       "pnl": -3107869
     },
     "삼성SDI": {
-      "trades": 3,
-      "win_rate": 66.7,
-      "pnl": -20218
+      "trades": 4,
+      "win_rate": 50.0,
+      "pnl": -675084
     },
     "신한지주": {
       "trades": 3,
@@ -852,9 +866,9 @@
       "pnl": -2542774
     },
     "엔비디아": {
-      "trades": 3,
-      "win_rate": 66.7,
-      "pnl": 14979899
+      "trades": 4,
+      "win_rate": 50.0,
+      "pnl": 14663599
     },
     "애플": {
       "trades": 4,
@@ -10546,17 +10560,38 @@
     },
     {
       "date": "2026-10-13",
-      "strategy": 79707564,
-      "benchmark": 64399723,
+      "strategy": 79861987,
+      "benchmark": 64525609,
       "kospi": 36936838,
       "nasdaq": 38779251
     },
     {
       "date": "2026-10-14",
-      "strategy": 79906864,
-      "benchmark": 64327605,
+      "strategy": 79802790,
+      "benchmark": 63764333,
       "kospi": 36774411,
-      "nasdaq": 38779251
+      "nasdaq": 38050102
+    },
+    {
+      "date": "2026-10-15",
+      "strategy": 78146585,
+      "benchmark": 60735704,
+      "kospi": 33992283,
+      "nasdaq": 38078840
+    },
+    {
+      "date": "2026-10-16",
+      "strategy": 77926870,
+      "benchmark": 61503956,
+      "kospi": 34688932,
+      "nasdaq": 37262041
+    },
+    {
+      "date": "2026-10-19",
+      "strategy": 77760712,
+      "benchmark": 62871182,
+      "kospi": 34728651,
+      "nasdaq": 37262041
     }
   ]
 }

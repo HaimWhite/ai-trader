@@ -192,3 +192,6 @@ def _apply_tuning():
 
 
 _apply_tuning()
+
+# 디스코드 보고에 붙일 대시보드 주소 (GitHub Pages). 필요 없으면 빈 글자("")로 두세요.
+DASHBOARD_URL = "https://haimwhite.github.io/ai-trader/"

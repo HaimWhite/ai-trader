@@ -4,6 +4,12 @@ import config
 BOSS = "하임님"   # 비서가 부르는 호칭 (원하는 호칭으로 바꾸세요)
 
 
+def link_lines():
+    """보고 끝에 붙일 대시보드 링크 (< > 로 감싸면 디스코드가 큰 미리보기 상자를 만들지 않아요)"""
+    url = getattr(config, "DASHBOARD_URL", "")
+    return ["", f"📊 대시보드: <{url}>"] if url else []
+
+
 def _report_title(now=None):
     """보고하는 시각에 맞는 제목: 장 마감 후에만 '장 마감 보고'라고 합니다."""
     from datetime import datetime, time as dtime
@@ -131,6 +137,7 @@ def daily_message(equity, return_pct, cash, trades, failed, news=None, news_bloc
     if failed:
         lines.append("")
         lines.append(f"한 가지 더 보고드립니다. {', '.join(failed)} 시세를 가져오지 못했습니다. 확인이 필요합니다.")
+    lines += link_lines()
     return "\n".join(lines)
 
 
@@ -173,6 +180,7 @@ def midday_message(now_text, equity, return_pct, cash, holdings, failed, closed=
         lines.append(f"{', '.join(failed)} 시세를 가져오지 못해 매입가 기준으로 계산했습니다.")
     lines.append("")
     lines.append("매매는 오후 4시 마감 후 최종 판단하여 보고드리겠습니다.")
+    lines += link_lines()
     return "\n".join(lines)
 
 
@@ -204,6 +212,7 @@ def open_message(now_text, equity, return_pct, cash, holdings, prev=None):
     else:
         lines.append("현재 보유 중인 종목은 없습니다.")
     lines += ["", "장중에는 5분마다 시세를 확인하겠습니다. 손절 기준에 닿거나 매매가 일어나면 바로 보고드리고, 그 외에는 조용히 지켜보겠습니다."]
+    lines += link_lines()
     return "\n".join(lines)
 
 

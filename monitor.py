@@ -160,7 +160,10 @@ def main():
             if not state["err"]:    # 오류 알림은 하루 한 번만
                 state["err"] = True
                 notify.send(messages.error_message(tb), mention=True)
-        time.sleep(max(5, INTERVAL - (time.time() - began)))
+        if not state["opened"]:   # 개장 보고를 9시 정각에 가깝게: 오늘 시세가 반영될 때까지 20초(9시 10분 뒤엔 1분)마다 확인
+            time.sleep(20 if datetime.now().time() < dtime(9, 10) else 60)
+        else:
+            time.sleep(max(5, INTERVAL - (time.time() - began)))
     print("장중 감시를 마칩니다.")
 
 
