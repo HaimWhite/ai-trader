@@ -1,5 +1,5 @@
 {
-  "cash": 545914,
+  "cash": 3965118,
   "positions": {
     "MSFT": {
       "name": "마이크로소프트",
@@ -14,13 +14,6 @@
       "avg_price": 996908,
       "cost_basis": 3997601,
       "peak": 1017274.1287231445
-    },
-    "006400": {
-      "name": "삼성SDI",
-      "qty": 7,
-      "avg_price": 529529,
-      "cost_basis": 3707259,
-      "peak": 599000.0
     },
     "AAPL": {
       "name": "애플",
@@ -39,7 +32,8 @@
   },
   "blocked": [
     "105560",
-    "META"
+    "META",
+    "006400"
   ],
   "pending": {
     "META": {
