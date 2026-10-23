@@ -38,8 +38,9 @@ def prepare(frames, ma_list):
 
 
 def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2, sector_limit=None,
-             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all", rule_idx=None, rule_defs=None, take=None, take_block=True):
-    """take: 매수가 대비 이 비율 이상 오르면 매도(익절, 예 0.10) / take_block: 익절 뒤 추세가 한 번 꺾일 때까지 재매수 금지
+             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all", rule_idx=None, rule_defs=None, take=None, take_block=True, cash_rate=0.0, entry_gate=None):
+    """cash_rate: 현금에 붙는 연 이자율(예 0.03). 기본 0
+    take: 매수가 대비 이 비율 이상 오르면 매도(익절, 예 0.10) / take_block: 익절 뒤 추세가 한 번 꺾일 때까지 재매수 금지
     stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
     confirm: 상승 신호가 N일 연속 유지돼야 매수 / gap: 단기선이 장기선보다 이 비율 이상 높아야 매수
     trail: 최고가 대비 이 비율만큼 내려오면 매도(추적 손절) / wide_stop: 변동성 큰 종목(config.WIDE_STOP_CODES)의 손절선
@@ -82,6 +83,8 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
     curve, trades = [], []
 
     for i in range(n_days):
+        if cash_rate:   # 놀고 있는 현금의 이자 (연 이율, 거래일 기준)
+            cash *= 1 + cash_rate / 252
         # 1) 전날 신호를 오늘 시가에 체결 (미래 정보를 쓰지 않기 위해)
         if pending:
             for code, (side, why) in list(pending.items()):
@@ -172,6 +175,8 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
             if fast_exit and not c > ms:   # 빠른 청산을 쓰면, 가격이 단기선 위로 돌아온 뒤에만 재진입
                 entry_ok = False
             if breadth_min and breadth < breadth_min:
+                entry_ok = False
+            if entry_gate is not None and not entry_gate[i]:
                 entry_ok = False
             if gap_mode == "skip" and gapcnt[code][i] >= gap_days:
                 entry_ok = False

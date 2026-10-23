@@ -22,6 +22,32 @@ def _env(key):
     return None
 
 
+LAST_MESSAGE_ID = None   # 방금 보낸 DM 의 번호 (답장을 찾을 때 기준으로 씀)
+
+
+def _get(url, headers):
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def fetch_replies(after_id):
+    """after_id 이후에 하임님이 DM 으로 보낸 글 목록(오래된 순). 실패하면 None."""
+    token, user = _env("DISCORD_BOT_TOKEN"), _env("DISCORD_USER_ID")
+    if not token or not user or not after_id:
+        return None
+    base = _env("DISCORD_API_BASE") or "https://discord.com/api/v10"
+    headers = {"Authorization": "Bot " + token, "Content-Type": "application/json", "User-Agent": "DiscordBot (ai-trader, 1.0)"}
+    try:
+        channel = _post(base + "/users/@me/channels", {"recipient_id": user}, headers)["id"]
+        msgs = _get(f"{base}/channels/{channel}/messages?after={after_id}&limit=50", headers)
+    except Exception as e:
+        print("디스코드 답장 확인 실패:", e)
+        return None
+    mine = [m for m in msgs if str(m.get("author", {}).get("id")) == str(user)]   # 본인이 보낸 글만 인정
+    return sorted(mine, key=lambda m: int(m["id"]))
+
+
 def _post(url, payload, headers):
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=10) as r:
@@ -40,7 +66,8 @@ def _send_dm(message, loud):
         payload = {"content": message[:1900]}
         if not loud:
             payload["flags"] = 4096   # 무음 (푸시 알림 없이 도착)
-        _post(f"{base}/channels/{channel}/messages", payload, headers)
+        global LAST_MESSAGE_ID
+        LAST_MESSAGE_ID = _post(f"{base}/channels/{channel}/messages", payload, headers).get("id")
         return True
     except urllib.error.HTTPError as e:
         print("디스코드 DM 실패:", e.code, e.read().decode("utf-8", "ignore")[:200])

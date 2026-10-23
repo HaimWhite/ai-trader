@@ -239,9 +239,26 @@ def advisor_message(entry, applied=False):
             lines.append(f"• {name}: {fmt(c['from'])} → {fmt(c['to'])}")
     if entry.get("reason"):
         lines.append(f"이유: {entry['reason']}")
+    v = entry.get("verify")
+    if v and v.get("cur"):
+        c, n = v["cur"], v["new"]
+        lines.append(f"과거 검증(연수익 / 낙폭): 지금 {c['cagr']}% / {c['mdd']}% → 제안 {n['cagr']}% / {n['mdd']}% (최근 3년: {c['cagr_r']}% → {n['cagr_r']}%)")
+        lines.append("검증 결과: " + v["note"])
+    elif v:
+        lines.append("검증 결과: " + v["note"])
     if entry["changes"] and not applied:
-        lines.append("적용하려면 PC에서 python advisor.py --apply 를 실행해 주세요. (거절은 --reject)")
+        lines.append("")
+        lines.append("이 메시지에 '승인' 또는 '거절'이라고 답장해 주세요. 30분 안에 확인해서 처리하겠습니다. (5일 안에 답이 없으면 제안은 자동으로 취소됩니다.)")
     return "\n".join(lines)
+
+
+def advisor_result_message(kind, entry):
+    ch = ", ".join(f"{_TUNE_NAMES[k][0]} {_TUNE_NAMES[k][1](c['to'])}" for k, c in entry["changes"].items())
+    if kind == "applied":
+        return f"{BOSS}, 승인하신 대로 적용했습니다. ({ch}) 다음 실행부터 새 설정이 쓰입니다. 되돌리려면 PC에서 python advisor.py --undo 를 실행해 주세요."
+    if kind == "rejected":
+        return f"{BOSS}, 제안을 거절하신 것으로 처리했습니다. 설정은 그대로 유지합니다."
+    return f"{BOSS}, 답이 없어서 지난 설정 제안을 취소했습니다. 다음 점검 때 다시 살펴보겠습니다."
 
 
 def weekly_message(d):
@@ -280,4 +297,38 @@ def drawdown_alert(info, level, kind, bt_mdd=None):
             lines.append(f"과거 검증(백테스트)의 최대 낙폭 {bt_mdd:.1f}%보다 깊어졌습니다. 설정을 한 번 점검해 보시길 권합니다.")
         else:
             lines.append(f"과거 검증에서도 최대 {bt_mdd:.1f}%까지 빠진 적이 있어, 아직은 설계 범위 안의 변동입니다. 서두르지 않고 지켜보겠습니다.")
+    return "\n".join(lines)
+
+
+def risk_message(warns):
+    """보유 종목 위험 사전 경고 (risk.check 결과 목록)"""
+    lines = [f"{BOSS}, 보유 종목에 주의가 필요한 움직임이 있습니다."]
+    for w in warns:
+        lines.append(f"• {w['name']}: {w['text']}")
+    lines.append("기준에 닿으면 자동으로 매도 주문이 나가며, 지금은 알려드리는 단계입니다.")
+    return "\n".join(lines)
+
+
+def monthly_message(d):
+    sign = "+" if d["change"] >= 0 else "-"
+    lines = [f"{BOSS}, {d['month']}월 한 달 보고드립니다.",
+             f"총 자산은 {d['equity']:,.0f}원으로, 월초 대비 {sign}{abs(d['change']):,.0f}원 ({d['change_pct']:+.2f}%)입니다. 시작 자금 대비 누적은 {d['total_pct']:+.2f}%입니다."]
+    if d["index"]:
+        lines.append("같은 기간 " + ", ".join(f"{k} {v:+.2f}%" for k, v in d["index"].items()) + "였습니다.")
+    if d["worst_dd"] < -0.05:
+        lines.append(f"이번 달 중 고점 대비 가장 크게 내려간 폭은 {d['worst_dd']:.1f}%였습니다.")
+    lines.append("")
+    if d["buys"] or d["sells"]:
+        lines.append(f"거래는 매수 {d['buys']}건, 매도 {d['sells']}건이었습니다.")
+        if d["sells"]:
+            lines.append(f"매도 중 이익 {d['wins']}건, 손실 {d['sells'] - d['wins']}건이고, 합계는 {abs(d['pnl']):,.0f}원 {'수익' if d['pnl'] >= 0 else '손실'}입니다.")
+            if d["best"]:
+                lines.append(f"가장 도움이 된 종목은 {d['best'][0]}(+{d['best'][1]:,.0f}원)입니다.")
+            if d["worst"]:
+                lines.append(f"가장 아쉬웠던 종목은 {d['worst'][0]}({d['worst'][1]:,.0f}원)입니다.")
+            if d["reasons"]:
+                lines.append("손절 현황: " + ", ".join(f"{k} {v}건" for k, v in d["reasons"].items()) + ".")
+    else:
+        lines.append("이번 달에는 거래가 없었습니다.")
+    lines += ["", f"📊 대시보드: <{config.DASHBOARD_URL}>"]
     return "\n".join(lines)

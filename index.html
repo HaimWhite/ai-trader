@@ -727,7 +727,7 @@ function render(){
   // AI(또는 규칙) 설정 조정 기록
   const TN = {STOP_LOSS_PCT: ["손절선", v => Math.round(v * 100) + "%"], TRAIL_STOP_PCT: ["추적 손절", v => Math.round(v * 100) + "%"],
               MAX_POSITIONS: ["동시 보유", v => v + "종목"], GAP_DAYS: ["갭 건너뜀 기준", v => v + "회"]};
-  const ST = {applied: "적용됨", pending: "승인 대기", rejected: "거절", superseded: "대체됨", keep: "유지", reset: "기본값 복귀"};
+  const ST = {applied: "적용됨", pending: "승인 대기", rejected: "거절", superseded: "대체됨", keep: "유지", reset: "기본값 복귀", expired: "만료", undone: "되돌림"};
   $("tunebox").style.display = tune && tune.length ? "" : "none";
   if(tune && tune.length){
     $("tunetable").innerHTML = table(["시간", "점검", "변경 내용", "이유", "상태"], tune.slice(-6).reverse().map(e => {

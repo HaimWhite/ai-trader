@@ -6,8 +6,13 @@
       python advisor.py --reject   대기 중인 제안 거절
       python advisor.py --reset    기본값으로 되돌리기
       python advisor.py --status   현재 설정 확인
-      python advisor.py --weekly   최근 6일 안에 점검했으면 건너뛰고, 아니면 점검"""
+      python advisor.py --weekly   최근 6일 안에 점검했으면 건너뛰고, 아니면 점검
+      python advisor.py --poll     디스코드 DM 에서 '승인'/'거절' 답장을 확인해 처리 (작업 스케줄러가 30분마다 실행)
+      python advisor.py --undo     마지막으로 적용한 조정을 되돌리기
+
+제안이 만들어지면 과거 데이터로 먼저 검증하고(지금 설정보다 확실히 좋아질 때만 제안), 하임님이 DM 으로 '승인'이라고 답하면 적용합니다."""
 import json
+import re
 import sys
 import urllib.request
 from datetime import datetime
@@ -15,7 +20,7 @@ from datetime import datetime
 import config
 import messages
 import notify
-import status
+import status as heartbeat
 from notify import _env
 
 LOG = config.DATA_DIR / "tuning_log.json"
@@ -138,6 +143,49 @@ def sanitize(changes):
     return out
 
 
+# ---------- 안전장치 2: 과거 데이터로 제안을 먼저 검증 ----------
+RECENT_DAYS = 756        # '최근' 구간 = 약 3년
+MIN_GAIN = 0.02          # 전체 기간 CAL(연수익÷낙폭)이 이만큼은 좋아져야 통과
+
+
+def _run_settings(settings, cache):
+    import backtest
+    import market
+    if "data" not in cache:
+        frames = {c: market.load_prices(c, config.BACKTEST_START) for c in config.SYMBOLS}
+        idx, data = backtest.prepare(frames, [config.SHORT_MA, config.LONG_MA])
+        cache["data"] = (idx, data)
+    idx, data = cache["data"]
+    saved = {k: getattr(config, k) for k in settings}
+    try:
+        for k, v in settings.items():
+            setattr(config, k, v)
+        curve, _ = backtest.simulate(len(idx), data, config.SHORT_MA, config.LONG_MA, config.STOP_LOSS_PCT, **backtest.live_options())
+    finally:
+        for k, v in saved.items():
+            setattr(config, k, v)
+    start = config.LONG_MA + 1
+    a = backtest.metrics(curve[start:], idx[start:])
+    r0 = max(start, len(idx) - RECENT_DAYS)
+    b = backtest.metrics(curve[r0:], idx[r0:])
+    cal = lambda m: round(float(m["cagr"] / abs(m["mdd"])), 2) if m["mdd"] else 0
+    return {"cagr": float(a["cagr"]), "mdd": float(a["mdd"]), "cal": cal(a), "cagr_r": float(b["cagr"]), "mdd_r": float(b["mdd"]), "cal_r": cal(b)}
+
+
+def verify(changes, cache=None):
+    """제안한 설정이 지금 설정보다 과거 전체·최근 3년 모두에서 낫는지 확인. 검증을 못 하면 ok=None"""
+    cache = {} if cache is None else cache
+    try:
+        cur = _run_settings({}, cache)
+        new = _run_settings({k: v["to"] if isinstance(v, dict) else v for k, v in changes.items()}, cache)
+    except Exception as e:
+        return {"ok": None, "note": f"과거 데이터를 불러오지 못해 검증하지 못했습니다 ({str(e)[:50]}).", "cur": None, "new": None}
+    ok = bool(new["cal"] >= cur["cal"] + MIN_GAIN and new["cal_r"] >= cur["cal_r"])
+    note = ("전체 기간과 최근 3년 모두에서 지금 설정보다 낫거나 같아 통과했습니다." if ok else
+            "지금 설정보다 확실히 좋아진다고 보기 어려워 통과하지 못했습니다.")
+    return {"ok": ok, "note": note, "cur": cur, "new": new}
+
+
 def engine_name():
     mode = config.ADVISOR_ENGINE
     return "claude" if mode == "claude" or (mode == "auto" and _env("ANTHROPIC_API_KEY")) else "rules"
@@ -159,6 +207,13 @@ def propose(weekly=False):
         changes, reason = propose_rules(ctx)
     changes = sanitize(changes)
     cur = current()
+    check = None
+    if changes:
+        check = verify({k: {"to": v} for k, v in changes.items()})
+        if check["ok"] is False:   # 검증을 통과하지 못한 제안은 올리지 않고 유지
+            reason += " (검증 통과 못해 변경하지 않습니다)"
+            held = {k: {"from": cur[k], "to": v} for k, v in changes.items()}
+            changes = {}
     log = _read(LOG, [])
     for e in log:
         if e["status"] == "pending":
@@ -168,6 +223,10 @@ def propose(weekly=False):
         "changes": {k: {"from": cur[k], "to": v} for k, v in changes.items()},
         "reason": reason, "status": "pending" if changes else "keep",
     }
+    if check:
+        entry["verify"] = check
+        if not changes:
+            entry["not_proposed"] = held
     log.append(entry)
     _write(LOG, log)
     applied = False
@@ -177,7 +236,10 @@ def propose(weekly=False):
     text = messages.advisor_message(entry, applied)
     print(text)
     notify.send(text, mention=bool(changes))
-    status.beat("advisor", True, "제안 있음" if changes else "유지")
+    if changes and notify.LAST_MESSAGE_ID:   # 이 DM 이후에 온 답장만 승인·거절로 인정
+        entry["msg_id"] = notify.LAST_MESSAGE_ID
+        _write(LOG, log)
+    heartbeat.beat("advisor", True, "제안 있음" if changes else "유지")
 
 
 def apply_pending(quiet=False):
@@ -198,13 +260,83 @@ def apply_pending(quiet=False):
         print("적용했습니다. 다음 실행부터 새 설정이 쓰입니다:", {k: c["to"] for k, c in entry["changes"].items()})
 
 
-def reject_pending():
+APPROVE = {"승인", "적용", "ㅇㅋ", "ok", "okay", "yes", "y", "네", "예", "좋아", "좋아요"}
+REJECT = {"거절", "취소", "거부", "no", "n", "아니", "아니요", "싫어", "보류"}
+EXPIRE_DAYS = 5
+
+
+def _norm(text):
+    return re.sub(r"[\s.!?~,]+", "", (text or "").lower())
+
+
+def poll():
+    """대기 중인 제안에 대한 DM 답장을 확인해서 승인/거절/만료 처리합니다."""
+    log = _read(LOG, [])
+    pend = [e for e in log if e["status"] == "pending"]
+    if not pend:
+        print("대기 중인 제안이 없습니다.")
+        return
+    entry = pend[-1]
+    age = (datetime.now() - datetime.strptime(entry["time"], "%Y-%m-%d %H:%M")).days
+    replies = notify.fetch_replies(entry.get("msg_id")) if entry.get("msg_id") else None
+    decision = None
+    for m in replies or []:   # 가장 먼저 온 분명한 답을 따름
+        w = _norm(m.get("content"))
+        if w in APPROVE:
+            decision = "applied"
+            break
+        if w in REJECT:
+            decision = "rejected"
+            break
+    if decision == "applied":
+        apply_pending(quiet=True)
+        entry = [e for e in _read(LOG, []) if e["id"] == entry["id"]][0]
+    elif decision == "rejected":
+        reject_pending(quiet=True)
+    elif age >= EXPIRE_DAYS:
+        for e in log:
+            if e["id"] == entry["id"]:
+                e["status"] = "expired"
+        _write(LOG, log)
+        decision = "expired"
+    else:
+        print("아직 답장이 없습니다." if replies is not None else "답장을 확인하지 못했습니다(나중에 다시 확인).")
+        return
+    text = messages.advisor_result_message(decision, entry)
+    print(text)
+    notify.send(text, mention=(decision == "applied"))
+
+
+def undo():
+    """마지막으로 적용한 조정을 이전 값으로 되돌립니다."""
+    log = _read(LOG, [])
+    done = [e for e in log if e["status"] == "applied"]
+    if not done:
+        print("되돌릴 조정이 없습니다.")
+        return
+    entry = done[-1]
+    tuning = _read(TUNE, {})
+    for k, c in entry["changes"].items():
+        if c["from"] == config.TUNABLE_DEFAULTS[k]:
+            tuning.pop(k, None)
+        else:
+            tuning[k] = c["from"]
+    _write(TUNE, tuning)
+    entry["status"] = "undone"
+    log.append({"id": len(log) + 1, "time": datetime.now().strftime("%Y-%m-%d %H:%M"), "engine": "manual",
+                "changes": {}, "reason": f"{entry['id']}번 조정을 되돌림", "status": "reset"})
+    _write(LOG, log)
+    print("되돌렸습니다:", {k: c["from"] for k, c in entry["changes"].items()})
+
+
+def reject_pending(quiet=False):
     log = _read(LOG, [])
     for e in log:
         if e["status"] == "pending":
             e["status"] = "rejected"
     _write(LOG, log)
-    print("대기 중인 제안을 거절했습니다.")
+    if not quiet:
+        print("대기 중인 제안을 거절했습니다.")
 
 
 def reset():
@@ -226,5 +358,5 @@ def status():
 
 if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
-    {"--apply": apply_pending, "--reject": reject_pending, "--reset": reset, "--status": status,
+    {"--apply": apply_pending, "--reject": reject_pending, "--reset": reset, "--status": status, "--poll": poll, "--undo": undo,
      "--weekly": lambda: propose(weekly=True)}.get(arg, propose)()

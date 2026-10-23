@@ -16,6 +16,13 @@ TASKS = [
     ("AITraderMonitor", "run_monitor.bat", WEEKDAYS, "08:55", True, True, "평일 08:55 장중 5분 감시"),
     ("AITraderAdvisor", "run_advisor.bat", ("Friday",), "16:30", False, True, "금요일 16:30 설정 점검"),
     ("AITraderWeekly", "run_weekly.bat", ("Friday",), "17:00", False, True, "금요일 17:00 주간 리포트"),
+    ("AITraderMonthly", "run_monthly.bat", WEEKDAYS, "17:10", False, True, "평일 17:10 월간 리포트 (그 달 마지막 평일에만 발송)"),
+]
+
+
+# 반복 작업: (작업 이름, 실행 파일, 몇 분마다, 설명)
+REPEAT_TASKS = [
+    ("AITraderApprove", "run_approve.bat", 30, "30분마다 설정 제안 승인·거절 답장 확인"),
 ]
 
 
@@ -36,7 +43,17 @@ def build_script():
         "  Register-ScheduledTask -TaskName $name -Action $a -Trigger $t -Settings $s | Out-Null",
         "  Write-Output \"$name registered\"",
         "}",
+        "function RegEvery($name, $bat, $min) {",
+        "  if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) { Write-Output \"$name already\"; return }",
+        "  $a = New-ScheduledTaskAction -Execute 'pythonw.exe' -Argument 'advisor.py --poll' -WorkingDirectory $d",
+        "  $t = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes $min) -RepetitionDuration (New-TimeSpan -Days 3650)",
+        "  $s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries",
+        "  Register-ScheduledTask -TaskName $name -Action $a -Trigger $t -Settings $s | Out-Null",
+        "  Write-Output \"$name registered\"",
+        "}",
     ]
+    for name, bat, mins, _ in REPEAT_TASKS:
+        lines.append(f"RegEvery '{name}' '{bat}' {mins}")
     for name, bat, days, time, wake, avail, _ in TASKS:
         dd = ",".join(f"'{x}'" for x in days)
         lines.append(f"Reg '{name}' '{bat}' @({dd}) '{time}' ${str(wake).lower()} ${str(avail).lower()}")
@@ -63,6 +80,7 @@ def main():
     out = r.stdout.decode("cp949", "replace")
     err = r.stderr.decode("cp949", "replace").strip()
     desc = {t[0]: t[6] for t in TASKS}
+    desc.update({t[0]: t[3] for t in REPEAT_TASKS})
     for ln in out.splitlines():
         parts = ln.strip().split()
         if len(parts) == 2 and parts[0] in desc:

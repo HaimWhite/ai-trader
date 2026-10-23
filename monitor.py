@@ -15,6 +15,7 @@ import intraday
 import market
 import messages
 import notify
+import risk
 import status
 from broker import PaperBroker
 
@@ -79,11 +80,13 @@ def tick(state, t):
     ref_code = next(c for c in config.SYMBOLS if not config.is_us(c))
 
     # 오늘 시세가 들어온 종목만 확인
-    quotes = {}
+    quotes, prevs = {}, {}
     for code in set(held) | ({ref_code} if not state["opened"] else set()):
         df = market.load_prices(code, start)
         if df.index[-1].date() == t.date():
             quotes[code] = float(df["Close"].iloc[-1])
+            if len(df) > 1:
+                prevs[code] = float(df["Close"].iloc[-2])
 
     if not state["opened"]:
         if ref_code not in quotes:
@@ -131,6 +134,16 @@ def tick(state, t):
         git_push("intraday stop loss")
     elif peak_changed:
         broker.save()   # 최고가 기록 보존
+    try:   # 손절선 근접·급락 사전 경고 (종목·종류별 하루 한 번)
+        seen = state.setdefault("risk", set())
+        warns = []
+        for code, p in broker.account["positions"].items():
+            if code in quotes and code in held:
+                warns += risk.check(code, p["name"], quotes[code], p["avg_price"], p.get("peak"), prevs.get(code), seen)
+        if warns:
+            notify.send(messages.risk_message(warns), mention=True)
+    except Exception as e:
+        print("위험 알림 실패:", e)
     fc = None
     try:   # 보유 종목의 5분·1시간 뒤 가격 예측과 채점
         fc = forecast.tick({c: p for c, p in broker.account["positions"].items() if c in quotes}, quotes, t)
