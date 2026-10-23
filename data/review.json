@@ -1,14 +1,14 @@
 {
- "updated_at": "2026-10-22 16:00:53",
+ "updated_at": "2026-10-23 16:00:44",
  "summary": {
-  "n": 3,
+  "n": 5,
   "wins": 0,
   "win_rate": 0.0,
-  "avg_pct": -6.62,
-  "avg_days": 6.3,
-  "pnl": -762112,
+  "avg_pct": -7.11,
+  "avg_days": 10.6,
+  "pnl": -1365473,
   "avg_win": null,
-  "avg_loss": -6.62,
+  "avg_loss": -7.11,
   "payoff": null
  },
  "best": {
@@ -17,18 +17,18 @@
   "date": "2026-10-19"
  },
  "worst": {
-  "name": "KB금융",
-  "pct": -7.58,
-  "date": "2026-10-15"
+  "name": "메타",
+  "pct": -7.91,
+  "date": "2026-10-23"
  },
  "by_kind": {
   "손절": {
-   "n": 2,
+   "n": 4,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.53,
-   "avg_days": 7.5,
-   "pnl": -587508
+   "avg_pct": -7.68,
+   "avg_days": 12.2,
+   "pnl": -1190869
   },
   "추세 이탈": {
    "n": 1,
@@ -41,37 +41,37 @@
  },
  "by_group": {
   "코스피": {
+   "n": 3,
+   "wins": 0,
+   "win_rate": 0.0,
+   "avg_pct": -7.61,
+   "avg_days": 10.7,
+   "pnl": -875563
+  },
+  "나스닥": {
    "n": 2,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.53,
-   "avg_days": 7.5,
-   "pnl": -587508
-  },
-  "나스닥": {
-   "n": 1,
-   "wins": 0,
-   "win_rate": 0.0,
-   "avg_pct": -4.81,
-   "avg_days": 4.0,
-   "pnl": -174604
+   "avg_pct": -6.36,
+   "avg_days": 10.5,
+   "pnl": -489910
   }
  },
  "monthly": [
   {
    "month": "2026-10",
-   "ret": -6.0,
-   "equity": 18799136,
-   "kospi": -18.02,
-   "nasdaq": -1.62
+   "ret": -6.97,
+   "equity": 18606164,
+   "kospi": -20.65,
+   "nasdaq": -3.17
   }
  ],
  "live_vs_bt": {
   "start": "2026-10-06",
-  "end": "2026-10-22",
-  "days": 16,
-  "live": -6.92,
+  "end": "2026-10-23",
+  "days": 17,
+  "live": -7.88,
   "backtest": -3.42,
-  "diff": -3.5
+  "diff": -4.45
  }
 }
