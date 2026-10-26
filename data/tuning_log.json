@@ -54,5 +54,34 @@
   "changes": {},
   "reason": "",
   "status": "keep"
+ },
+ {
+  "id": 8,
+  "time": "2026-10-24 00:36",
+  "engine": "test",
+  "changes": {
+   "TRAIL_STOP_PCT": {
+    "from": 0.2,
+    "to": 0.2
+   }
+  },
+  "reason": "시험용 제안입니다. 승인해도 실제 설정은 바뀌지 않아요.",
+  "status": "superseded",
+  "msg_id": "1563214544677896203"
+ },
+ {
+  "id": 9,
+  "time": "2026-10-24 00:38",
+  "engine": "test",
+  "changes": {
+   "TRAIL_STOP_PCT": {
+    "from": 0.2,
+    "to": 0.2
+   }
+  },
+  "reason": "시험용 제안입니다. 승인해도 실제 설정은 바뀌지 않아요.",
+  "status": "applied",
+  "msg_id": "1563215028218368002",
+  "applied_at": "2026-10-24 00:45"
  }
 ]
