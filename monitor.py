@@ -39,16 +39,23 @@ def run_git(args, data=None):
     return r.stdout.decode("utf-8").strip()
 
 
-def publish_live(broker, quotes, t, fc=None):
+def publish_live(broker, quotes, t, fc=None, extra=None):
     """현재 평가금액을 live 브랜치에 올립니다 (대시보드 웹페이지는 이 파일을 읽어 장중에 갱신).
     live 브랜치는 매번 커밋 1개로 덮어써서 기록이 쌓이지 않고, 웹페이지 빌드도 일으키지 않습니다."""
     latest = {}
     lf = config.DATA_DIR / "latest.json"
     if lf.exists():
         latest = json.load(open(lf, encoding="utf-8")).get("symbols", {})
+    us_last = {}
+    uf = config.DATA_DIR / "us_quotes.json"
+    if uf.exists():   # 어젯밤 미국 장중 감시가 남긴 마지막 시세 (있으면 16:00 종가 기록보다 최신)
+        try:
+            us_last = json.load(open(uf, encoding="utf-8")).get("quotes", {})
+        except Exception:
+            us_last = {}
     prices, holdings = {}, []
     for code, p in broker.account["positions"].items():
-        price = quotes.get(code) or latest.get(code, {}).get("price") or p["avg_price"]
+        price = quotes.get(code) or (us_last.get(code) if config.is_us(code) else None) or latest.get(code, {}).get("price") or p["avg_price"]
         prices[code] = price
         holdings.append({"code": code, "name": p["name"], "qty": p["qty"], "avg_price": p["avg_price"], "peak": p.get("peak", p["avg_price"]), "price": price})
     payload = {
@@ -59,6 +66,8 @@ def publish_live(broker, quotes, t, fc=None):
     }
     if fc:
         payload["fc"] = fc
+    if extra:
+        payload.update(extra)
     try:   # 1주 그래프용 5분 단위 자산 기록 (16:00 점검 때 GitHub 로 올라가요)
         intraday.append_equity(t, payload["equity"])
     except Exception as e:

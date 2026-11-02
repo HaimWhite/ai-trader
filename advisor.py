@@ -8,6 +8,7 @@
       python advisor.py --status   현재 설정 확인
       python advisor.py --weekly   최근 6일 안에 점검했으면 건너뛰고, 아니면 점검
       python advisor.py --poll     디스코드 DM 에서 '승인'/'거절' 답장을 확인해 처리 (작업 스케줄러가 30분마다 실행)
+      python advisor.py --test     승인 답장이 잘 되는지 확인하는 시험 제안 (실제 설정은 바뀌지 않음)
       python advisor.py --undo     마지막으로 적용한 조정을 되돌리기
 
 제안이 만들어지면 과거 데이터로 먼저 검증하고(지금 설정보다 확실히 좋아질 때만 제안), 하임님이 DM 으로 '승인'이라고 답하면 적용합니다."""
@@ -242,6 +243,28 @@ def propose(weekly=False):
     heartbeat.beat("advisor", True, "제안 있음" if changes else "유지")
 
 
+def test_proposal():
+    """시험용 제안: 값이 바뀌지 않는 가짜 제안을 DM 으로 보내서 '승인' 답장 흐름을 확인합니다."""
+    cur = current()
+    log = _read(LOG, [])
+    for e in log:
+        if e["status"] == "pending":
+            e["status"] = "superseded"
+    entry = {"id": len(log) + 1, "time": datetime.now().strftime("%Y-%m-%d %H:%M"), "engine": "test",
+             "changes": {"TRAIL_STOP_PCT": {"from": cur["TRAIL_STOP_PCT"], "to": cur["TRAIL_STOP_PCT"]}},
+             "reason": "시험용 제안입니다. 승인해도 실제 설정은 바뀌지 않아요.", "status": "pending"}
+    log.append(entry)
+    _write(LOG, log)
+    text = "[시험] " + messages.advisor_message(entry)
+    print(text)
+    notify.send(text, mention=True)
+    if notify.LAST_MESSAGE_ID:
+        entry["msg_id"] = notify.LAST_MESSAGE_ID
+        _write(LOG, log)
+    else:
+        print("DM 을 보내지 못했어요. .env 의 DISCORD_BOT_TOKEN / DISCORD_USER_ID 를 확인해 주세요.")
+
+
 def apply_pending(quiet=False):
     log = _read(LOG, [])
     pend = [e for e in log if e["status"] == "pending"]
@@ -280,14 +303,23 @@ def poll():
     age = (datetime.now() - datetime.strptime(entry["time"], "%Y-%m-%d %H:%M")).days
     replies = notify.fetch_replies(entry.get("msg_id")) if entry.get("msg_id") else None
     decision = None
+    acked = entry.setdefault("acked", [])
+    unknown = False
     for m in replies or []:   # 가장 먼저 온 분명한 답을 따름
         w = _norm(m.get("content"))
         if w in APPROVE:
             decision = "applied"
-            break
-        if w in REJECT:
+        elif w in REJECT:
             decision = "rejected"
+        if m["id"] not in acked:   # 읽었다는 표시: 알아들은 답은 ✅, 못 알아들은 말은 ❓
+            notify.react(m["id"], "✅" if decision else "❓")
+            acked.append(m["id"])
+            unknown = unknown or not decision
+        if decision:
             break
+    if unknown and not decision:
+        _write(LOG, log)
+        notify.send(f"{messages.BOSS}, 메시지는 확인했는데 '승인' 또는 '거절' 중 하나로 답해 주셔야 처리할 수 있습니다.")
     if decision == "applied":
         apply_pending(quiet=True)
         entry = [e for e in _read(LOG, []) if e["id"] == entry["id"]][0]
@@ -358,5 +390,5 @@ def status():
 
 if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
-    {"--apply": apply_pending, "--reject": reject_pending, "--reset": reset, "--status": status, "--poll": poll, "--undo": undo,
+    {"--apply": apply_pending, "--reject": reject_pending, "--reset": reset, "--status": status, "--poll": poll, "--undo": undo, "--test": test_proposal,
      "--weekly": lambda: propose(weekly=True)}.get(arg, propose)()

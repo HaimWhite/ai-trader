@@ -149,7 +149,17 @@ WIDE_STOP_PCT = -0.12
 _load_watch()   # (WIDE_STOP_CODES 를 만든 뒤에 불러와야 관찰 종목이 매매 설정에 섞이지 않아요)
 
 # 뉴스 분석 방식: "keyword"(무료, 단어 검색) / "claude"(API 사용, 유료) / "auto"(키가 있으면 Claude, 없으면 keyword)
-NEWS_MODE = "keyword"
+NEWS_MODE = "keyword"   # "ollama" 로 바꾸면 내 PC 의 Ollama 가 뉴스를 읽고 판단 (실패하면 키워드 방식으로 대체). 그림자 기록으로 먼저 비교해 본 뒤 바꾸세요
+
+# Ollama(내 PC 로컬 AI) 그림자 모드: 뉴스 판단을 매매에는 쓰지 않고 키워드 판단과 나란히 기록만 합니다 (check_news_shadow.py 로 비교)
+OLLAMA_SHADOW = True
+OLLAMA_URL = "http://localhost:11434"
+OLLAMA_MODEL = "qwen3-vl:4b"
+OLLAMA_TIMEOUT = 90        # 종목당 최대 대기 시간(초)
+OLLAMA_POLISH = True       # 일일·중간·주간·월간 보고서의 말투를 Ollama 로 다듬기 (숫자가 바뀌면 원문 사용). 개장 보고는 시간이 중요해서 제외
+OLLAMA_POLISH_TIMEOUT = 60 # 보고서 한 통을 다듬는 최대 대기 시간(초)
+OLLAMA_REVIEW = True       # 거래 복기 해설을 Ollama 가 써서 대시보드에 표시
+OLLAMA_BUDGET_SEC = 480    # 하루 전체에서 Ollama 에 쓰는 최대 시간(초), 넘으면 나머지 종목은 건너뜀
 
 # 하락장 대응 옵션 (compare_down.py 로 비교한 뒤 켜세요. 기본은 꺼짐)
 VOL_SIZE_RISK = None   # 예: 0.01 -> 종목당 예상 손실이 총자산의 1% 안팎이 되도록, 변동성이 큰 종목은 적게 매수

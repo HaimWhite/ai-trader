@@ -48,6 +48,25 @@ def fetch_replies(after_id):
     return sorted(mine, key=lambda m: int(m["id"]))
 
 
+def react(message_id, emoji="✅"):
+    """하임님이 보낸 DM 에 이모지 반응을 달아 '확인했다'는 표시를 합니다. 실패해도 무시."""
+    token, user = _env("DISCORD_BOT_TOKEN"), _env("DISCORD_USER_ID")
+    if not token or not user:
+        return False
+    base = _env("DISCORD_API_BASE") or "https://discord.com/api/v10"
+    headers = {"Authorization": "Bot " + token, "Content-Type": "application/json", "User-Agent": "DiscordBot (ai-trader, 1.0)"}
+    try:
+        from urllib.parse import quote
+        channel = _post(base + "/users/@me/channels", {"recipient_id": user}, headers)["id"]
+        req = urllib.request.Request(f"{base}/channels/{channel}/messages/{message_id}/reactions/{quote(emoji)}/@me",
+                                     headers=headers, method="PUT")
+        urllib.request.urlopen(req, timeout=10).read()
+        return True
+    except Exception as e:
+        print("반응 달기 실패:", e)
+        return False
+
+
 def _post(url, payload, headers):
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=10) as r:

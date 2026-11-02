@@ -409,6 +409,16 @@ function render(){
   const longTxt = multi ? rules.long_mas.join("·") + "일선 " + RULE_KO[rules.long_rule] + " 위" : rules.long_ma + "일선 위";
   const sellTxt = multi ? rules.long_mas.join("·") + "일선 기준 상승 조건(" + RULE_KO[rules.long_rule] + " 위)을 더 이상 채우지 못함" : rules.long_ma + "일선 아래로 내려감";
   const sellCond = multi ? rules.long_mas.join("·") + "일선 기준 상승 조건(" + RULE_KO[rules.long_rule] + " 위)을 더 이상 못 채우면" : rules.long_ma + "일선 아래로 내려가면";
+  // 미국 장중 시세: 미국 장이 열려 있는 동안 live.us 가 있으면 미국 종목의 현재가·전일 대비를 실시간 값으로 덮어써요
+  const usLive = !!(live && live.us && live.us.updated > latest.updated_at);
+  for(const [c, s] of Object.entries(latest.symbols || {})){
+    if(!/^[A-Za-z]/.test(c)) continue;
+    if(s._p0 === undefined){ s._p0 = s.price; s._pc0 = s.prev_close; }
+    if(usLive && live.us.quotes[c]){
+      s.price = live.us.quotes[c];
+      s.prev_close = live.us.moves[c] != null ? s.price / (1 + live.us.moves[c] / 100) : s._pc0;
+    } else { s.price = s._p0; s.prev_close = s._pc0; }
+  }
   const grpOf = (code, s) => (s && s.group) || (/^[A-Za-z]/.test(code) ? "나스닥" : "코스피");
   const useLive = !!(live && live.updated_at > latest.updated_at);   // 장중 실시간 데이터가 더 최신일 때
   const cash = useLive ? live.cash : latest.cash;
@@ -425,7 +435,7 @@ function render(){
   const pos = useLive ? Object.fromEntries(live.holdings.map(h => [h.code, h])) : account.positions;
   const priceOf = (code, p) => useLive ? p.price : (latest.symbols[code] ? latest.symbols[code].price : p.avg_price);
 
-  $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)" + (useLive ? " · 장중 실시간 " + live.updated_at.slice(11, 16) + " 기준 (5분 간격)" : "");
+  $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)" + (useLive ? " · 장중 실시간 " + live.updated_at.slice(11, 16) + " 기준 (5분 간격)" : "") + (usLive ? " · 미국 장중 " + live.us.updated.slice(11, 16) + " 기준" : "");
   const card = (l, v, s, c) => '<div class="card"><div class="l">' + l + '</div><div class="v ' + (c || "") + '">' + v + "</div>" + (s ? '<div class="s ' + (c || "") + '">' + s + "</div>" : "") + "</div>";
   $("cards").innerHTML =
     card("원금 (시작 자금)", won(P)) + card("총 평가금액", won(eq)) + card("총 손익", signWon(pl), sign(plp), cls(pl)) +
@@ -744,8 +754,16 @@ function render(){
     const sm = RV.summary || {}, f1 = v => v == null ? "-" : sign(v);
     let t = sm.n ? `청산한 거래 <b>${sm.n}건</b> · 승률 <b>${sm.win_rate}%</b> · 이긴 거래 평균 ${f1(sm.avg_win)} / 진 거래 평균 ${f1(sm.avg_loss)}${sm.payoff ? " (손익비 " + sm.payoff + ")" : ""} · 평균 보유 ${sm.avg_days == null ? "-" : sm.avg_days + "일"} · 합계 <span class="${cls(sm.pnl)}">${signWon(sm.pnl)}</span>` : "아직 청산(매도)한 거래가 없어요. 거래가 쌓이면 이유별 성과가 나와요.";
     if(RV.best) t += `<br>가장 좋았던 거래: ${esc(RV.best.name)} ${sign(RV.best.pct)} (${esc(RV.best.date)}) · 가장 나빴던 거래: ${esc(RV.worst.name)} ${sign(RV.worst.pct)} (${esc(RV.worst.date)})`;
+    const sh = RV.shape;
+    if(sh && sh.n_win){
+      t += `<br><b>수익이 나는 모양</b>: 이익 거래 ${sh.n_win}건 합계 <span class="up">${signWon(sh.gross_win)}</span> · 손실 거래 ${sh.n_loss}건 합계 <span class="down">${signWon(sh.gross_loss)}</span>`;
+      t += `<br>가장 큰 이익 1건이 전체 이익의 <b>${sh.top1_share}%</b>, 상위 3건이 <b>${sh.top3_share}%</b>를 차지해요. 가장 큰 1건을 빼면 합계는 <span class="${cls(sh.net_wo_top1)}">${signWon(sh.net_wo_top1)}</span>이에요.`;
+      if(sh.win_days != null && sh.loss_days != null) t += ` 이긴 거래는 평균 ${sh.win_days}일, 진 거래는 평균 ${sh.loss_days}일 들고 있었어요.`;
+      t += ` <span class="sub">(이 전략은 작게 잃고 가끔 크게 버는 방식이라, 큰 이익 한두 건에 수익이 몰리는 게 정상이에요. 큰 이익이 아직 없으면 합계가 마이너스인 것도 자연스러워요.)</span>`;
+    } else if(sh) t += `<br><b>수익이 나는 모양</b>: 아직 이익으로 끝난 거래가 없어서 비교할 게 없어요. (손실 거래 ${sh.n_loss}건 합계 <span class="down">${signWon(sh.gross_loss)}</span>)`;
     const lv = RV.live_vs_bt;
     if(lv) t += `<br>실운영 ${esc(lv.start)} ~ ${esc(lv.end)} (${lv.days}일): 내 계좌 <b class="${cls(lv.live)}">${sign(lv.live)}</b> · 같은 기간 백테스트 ${sign(lv.backtest)} · 차이 ${lv.diff > 0 ? "+" : ""}${lv.diff.toFixed(2)}%p <span class="sub">(다음날 시가 체결·뉴스 필터 등으로 조금씩 달라질 수 있어요. 차이가 오래 크게 벌어지면 점검이 필요해요)</span>`;
+    if(RV.comment && RV.comment.text) t += `<div style="margin-top:8px;padding:8px 10px;border-left:3px solid var(--accent,#6b8afd);background:rgba(120,130,160,.10);border-radius:4px"><b>AI 해설</b> <span class="sub">(내 PC의 AI가 위 숫자를 보고 쓴 설명이에요 · ${esc(RV.comment.at)} · 틀릴 수 있어요)</span><br>${esc(RV.comment.text)}</div>`;
     $("revsum").innerHTML = t;
     const kinds = Object.entries(RV.by_kind || {});
     $("revkind").innerHTML = kinds.length ? '<table><tr><th>청산 이유</th><th>건수</th><th>승률</th><th>평균 수익률</th><th>평균 보유</th><th>손익 합계</th></tr>' +

@@ -2,6 +2,7 @@
 실패하면 중립(0점)으로 처리해서 매매가 멈추지 않게 합니다."""
 import email.utils
 import json
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -62,6 +63,52 @@ def _call_claude(name, headlines):
     return "".join(b.get("text", "") for b in resp.get("content", []) if b.get("type") == "text")
 
 
+# ---------- Ollama(내 PC 로컬 AI) 그림자 모드 ----------
+_ollama = {"off": False, "spent": 0.0}
+
+
+def _call_ollama(name, headlines):
+    import llm
+    llm._state["off"] = _ollama["off"]
+    text = llm.chat(SYSTEM, f"종목: {name}\n최근 뉴스 제목:\n" + "\n".join(f"- {h}" for h in headlines), json_mode=True)
+    _ollama["off"] = llm._state["off"]
+    if text is None:
+        raise urllib.error.URLError("ollama") if _ollama["off"] else RuntimeError("응답 없음")
+    return text
+
+
+def shadow_ollama(code, name, headlines, kw):
+    """매매에는 쓰지 않고, 같은 뉴스에 대한 Ollama 판단을 data/news_shadow.json 에 기록만 합니다. 실패해도 무시."""
+    if not config.OLLAMA_SHADOW or _ollama["off"] or _ollama["spent"] > config.OLLAMA_BUDGET_SEC:
+        return
+    import time
+    t0 = time.time()
+    try:
+        r = _parse(_call_ollama(name, headlines))
+    except urllib.error.URLError:
+        _ollama["off"] = True   # Ollama 가 꺼져 있으면 이번 실행에서는 더 시도하지 않음
+        print("Ollama 에 연결하지 못해 이번에는 건너뜁니다.")
+        return
+    except Exception as e:
+        print(f"[{name}] Ollama 판단 실패(무시): {str(e)[:60]}")
+        return
+    finally:
+        _ollama["spent"] += time.time() - t0
+    _log_shadow(code, name, headlines, kw, r)
+
+
+def _log_shadow(code, name, headlines, kw, r):
+    f = config.DATA_DIR / "news_shadow.json"
+    log = json.load(open(f, encoding="utf-8")) if f.exists() else []
+    day = datetime.now().strftime("%Y-%m-%d")
+    log = [e for e in log if not (e["date"] == day and e["code"] == code)]
+    log.append({"date": day, "code": code, "name": name, "n": len(headlines), "kw": kw["score"], "ollama": r["score"],
+                "summary": r["summary"], "model": config.OLLAMA_MODEL})
+    config.DATA_DIR.mkdir(exist_ok=True)
+    with open(f, "w", encoding="utf-8") as fh:
+        json.dump(log[-3000:], fh, ensure_ascii=False, indent=1)
+
+
 STRONG_BAD = ["횡령", "배임", "거래정지", "상장폐지", "압수수색", "분식회계", "어닝쇼크", "실적 쇼크", "부도", "회생절차"]
 BAD = ["적자 전환", "적자전환", "유상증자", "감자", "리콜", "과징금", "제재", "불성실공시", "소송", "파업", "화재",
        "폭락", "급락", "목표가 하향", "목표주가 하향", "투자의견 하향", "실적 부진", "대규모 손실"]
@@ -82,6 +129,10 @@ def keyword_score(headlines):
     if len(good) > len(bad):
         return {"score": 1, "summary": "호재 키워드 발견: " + ", ".join(good[:3])}
     return {"score": 0, "summary": "특이한 키워드 없음"}
+
+
+def _use_ollama():
+    return config.NEWS_MODE == "ollama"
 
 
 def _use_claude():
@@ -105,7 +156,26 @@ def get_news(code, name):
     try:
         heads = fetch_headlines(name)
         if heads:
-            result = _parse(_call_claude(name, heads)) if _use_claude() else keyword_score(heads)
+            kw = keyword_score(heads)
+            if _use_ollama() and _ollama["spent"] <= config.OLLAMA_BUDGET_SEC * 2:
+                import time
+                t0 = time.time()
+                try:   # Ollama 가 판단하고, 안 되면 키워드 판단으로 대체
+                    result = _parse(_call_ollama(name, heads))
+                    result["summary"] = "[AI] " + result["summary"]
+                except Exception as e:
+                    print(f"[{name}] Ollama 판단 실패, 키워드 방식으로 대체:", str(e)[:50])
+                    result = kw
+                else:
+                    _log_shadow(code, name, heads, kw, result)
+                finally:
+                    _ollama["spent"] += time.time() - t0
+            else:
+                result = _parse(_call_claude(name, heads)) if _use_claude() else kw
+                try:
+                    shadow_ollama(code, name, heads, kw)
+                except Exception as e:
+                    print("Ollama 기록 실패(무시):", str(e)[:60])
         else:
             result = {"score": 0, "summary": "최근 3일간 관련 뉴스가 없습니다."}
         result["ok"] = True
@@ -120,4 +190,4 @@ def get_news(code, name):
 
 
 def mode_name():
-    return "claude" if _use_claude() else "keyword"
+    return "ollama" if _use_ollama() else "claude" if _use_claude() else "keyword"

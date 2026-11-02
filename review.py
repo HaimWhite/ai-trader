@@ -112,6 +112,28 @@ def live_vs_backtest(history, bt):
             "diff": round(live - back, 2)}
 
 
+def shape(rows):
+    """수익이 어떤 모양으로 나는지: 소수의 큰 이익에 얼마나 기대는지 (자르고 달리기 전략의 특징)"""
+    wins = sorted((r["pnl"] for r in rows if r["pnl"] > 0), reverse=True)
+    loss = [r["pnl"] for r in rows if r["pnl"] <= 0]
+    if not rows:
+        return None
+    gw, gl = sum(wins), sum(loss)
+    pcts = [r["pct"] for r in rows if r["pct"] is not None and r["pnl"] > 0]
+    wd = [r["days"] for r in rows if r["pnl"] > 0 and r["days"] is not None]
+    ld = [r["days"] for r in rows if r["pnl"] <= 0 and r["days"] is not None]
+    return {
+        "gross_win": round(gw), "gross_loss": round(gl), "net": round(gw + gl),
+        "n_win": len(wins), "n_loss": len(loss),
+        "top1_share": round(wins[0] / gw * 100, 1) if gw else None,
+        "top3_share": round(sum(wins[:3]) / gw * 100, 1) if gw else None,
+        "net_wo_top1": round(gw + gl - wins[0]) if wins else None,
+        "big_wins": sum(1 for p in pcts if p >= 20),
+        "win_days": round(sum(wd) / len(wd), 1) if wd else None,
+        "loss_days": round(sum(ld) / len(ld), 1) if ld else None,
+    }
+
+
 def build():
     trades, history = _load("trades", []), _load("history", [])
     rows = closed_trades(trades)
@@ -132,6 +154,7 @@ def build():
     return {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "summary": summary,
+        "shape": shape(rows),
         "best": {"name": best["name"], "pct": best["pct"], "date": best["date"]} if best else None,
         "worst": {"name": worst["name"], "pct": worst["pct"], "date": worst["date"]} if worst else None,
         "by_kind": {k: _agg(v) for k, v in by_kind.items()},
@@ -141,9 +164,36 @@ def build():
     }
 
 
+COMMENT_SYSTEM = (
+    "당신은 개인 주식 자동매매 기록을 쉬운 말로 설명해 주는 비서입니다. 아래 JSON 은 지금까지의 거래 복기 숫자입니다. 이 숫자만 근거로, 초보자가 이해하기 쉬운 한국어 존댓말로 3~4문장 설명하세요.\n"
+    "규칙: 1) JSON 에 없는 숫자를 만들지 마세요. 2) 앞으로의 가격 예측이나 사고팔라는 조언은 하지 마세요. 3) 이 전략은 '작게 잃고 가끔 크게 버는' 방식이라는 점을 고려하세요. "
+    "4) 좋았던 점 하나와 아쉬운 점 하나를 균형 있게 말하세요. 5) 제목, 목록, 따옴표 없이 문단 하나로만 쓰세요."
+)
+
+
+def add_comment(out):
+    """Ollama 가 복기 숫자를 읽고 쉬운 설명을 씀 (숫자를 지어내면 버림)"""
+    if not config.OLLAMA_REVIEW or not out["summary"].get("n"):
+        return
+    import llm
+    src = {k: out[k] for k in ("summary", "shape", "best", "worst", "by_kind", "live_vs_bt") if out.get(k)}
+    src["monthly_last3"] = (out.get("monthly") or [])[-3:]
+    text = json.dumps(src, ensure_ascii=False)
+    comment = llm.chat(COMMENT_SYSTEM, text, timeout=config.OLLAMA_POLISH_TIMEOUT * 2)
+    if comment and llm.numbers_subset(text, comment) and 40 <= len(comment) <= 800:
+        out["comment"] = {"text": comment, "model": config.OLLAMA_MODEL, "at": datetime.now().strftime("%Y-%m-%d %H:%M")}
+
+
 def update():
     config.DATA_DIR.mkdir(exist_ok=True)
     out = build()
+    old = _load("review", {}).get("comment")
+    try:
+        add_comment(out)
+    except Exception as e:
+        print("복기 해설 실패(무시):", str(e)[:60])
+    if "comment" not in out and old:   # 이번에 못 썼으면 지난 해설을 유지
+        out["comment"] = old
     with open(config.DATA_DIR / "review.json", "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
     return out

@@ -20,9 +20,14 @@ TASKS = [
 ]
 
 
+# 선택 작업 (python register_tasks.py --us 로 함께 등록)
+OPTIONAL = [
+    ("AITraderMonitorUS", "run_monitor_us.bat", WEEKDAYS, "22:25", True, True, "평일 22:25 미국 장중 감시 (새벽까지)"),
+]
+
 # 반복 작업: (작업 이름, 실행 파일, 몇 분마다, 설명)
 REPEAT_TASKS = [
-    ("AITraderApprove", "run_approve.bat", 30, "30분마다 설정 제안 승인·거절 답장 확인"),
+    ("AITraderApprove", "run_approve.bat", 10, "10분마다 설정 제안 승인·거절 답장 확인"),
 ]
 
 
@@ -54,7 +59,8 @@ def build_script():
     ]
     for name, bat, mins, _ in REPEAT_TASKS:
         lines.append(f"RegEvery '{name}' '{bat}' {mins}")
-    for name, bat, days, time, wake, avail, _ in TASKS:
+    tasks = list(TASKS) + (OPTIONAL if "--us" in sys.argv else [])
+    for name, bat, days, time, wake, avail, _ in tasks:
         dd = ",".join(f"'{x}'" for x in days)
         lines.append(f"Reg '{name}' '{bat}' @({dd}) '{time}' ${str(wake).lower()} ${str(avail).lower()}")
     return "\n".join(lines)
@@ -79,7 +85,7 @@ def main():
     r = subprocess.run(["powershell", "-NoProfile", "-EncodedCommand", enc], capture_output=True)
     out = r.stdout.decode("cp949", "replace")
     err = r.stderr.decode("cp949", "replace").strip()
-    desc = {t[0]: t[6] for t in TASKS}
+    desc = {t[0]: t[6] for t in TASKS + OPTIONAL}
     desc.update({t[0]: t[3] for t in REPEAT_TASKS})
     for ln in out.splitlines():
         parts = ln.strip().split()

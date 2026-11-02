@@ -4,6 +4,22 @@ import config
 BOSS = "하임님"   # 비서가 부르는 호칭 (원하는 호칭으로 바꾸세요)
 
 
+def _polished(fn):
+    """보고서 말투를 Ollama 로 다듬는 덮개 (꺼져 있거나 숫자가 달라지면 원문 그대로)"""
+    import functools
+
+    @functools.wraps(fn)
+    def wrap(*a, **k):
+        text = fn(*a, **k)
+        try:
+            import llm
+            return llm.polish(text)
+        except Exception as e:
+            print("문장 다듬기 건너뜀:", str(e)[:60])
+            return text
+    return wrap
+
+
 def link_lines():
     """보고 끝에 붙일 대시보드 링크 (< > 로 감싸면 디스코드가 큰 미리보기 상자를 만들지 않아요)"""
     url = getattr(config, "DASHBOARD_URL", "")
@@ -91,6 +107,7 @@ def _news_lines(news, blocked, warnings):
     return lines
 
 
+@_polished
 def daily_message(equity, return_pct, cash, trades, failed, news=None, news_blocked=None, warnings=None, pending=None, prev=None, holdings=None):
     if return_pct > 0:
         mood = f"시작 금액 대비 {return_pct}% 높은 수준입니다."
@@ -155,6 +172,7 @@ def _mood(return_pct):
     return "시작 금액과 동일한 수준입니다."
 
 
+@_polished
 def midday_message(now_text, equity, return_pct, cash, holdings, failed, closed=False, prev=None):
     if closed:
         return (f"{BOSS}, 오늘은 휴장이거나 실시간 시세가 아직 반영되지 않아 중간 보고를 생략합니다.\n"
@@ -242,13 +260,19 @@ def advisor_message(entry, applied=False):
     v = entry.get("verify")
     if v and v.get("cur"):
         c, n = v["cur"], v["new"]
-        lines.append(f"과거 검증(연수익 / 낙폭): 지금 {c['cagr']}% / {c['mdd']}% → 제안 {n['cagr']}% / {n['mdd']}% (최근 3년: {c['cagr_r']}% → {n['cagr_r']}%)")
+        dm, dr = n["mdd"] - c["mdd"], n["mdd_r"] - c["mdd_r"]
+        lines.append("")
+        lines.append("예상 변화 (과거 데이터로 같은 규칙을 돌려 본 값)")
+        lines.append(f"• 연 수익률: {c['cagr']:.1f}% → {n['cagr']:.1f}% ({n['cagr'] - c['cagr']:+.1f}%p)")
+        lines.append(f"• 최대 낙폭: {c['mdd']:.1f}% → {n['mdd']:.1f}% ({'줄어듦' if dm > 0 else '커짐' if dm < 0 else '같음'} {abs(dm):.1f}%p)")
+        lines.append(f"• 최근 3년만 보면 연 수익률 {c['cagr_r']:.1f}% → {n['cagr_r']:.1f}% ({n['cagr_r'] - c['cagr_r']:+.1f}%p), 낙폭 {c['mdd_r']:.1f}% → {n['mdd_r']:.1f}%")
+        lines.append("※ 과거 결과라 앞으로도 같다는 보장은 없고, 실제로는 이보다 덜하거나 다를 수 있습니다.")
         lines.append("검증 결과: " + v["note"])
     elif v:
         lines.append("검증 결과: " + v["note"])
     if entry["changes"] and not applied:
         lines.append("")
-        lines.append("이 메시지에 '승인' 또는 '거절'이라고 답장해 주세요. 30분 안에 확인해서 처리하겠습니다. (5일 안에 답이 없으면 제안은 자동으로 취소됩니다.)")
+        lines.append("이 메시지에 '승인' 또는 '거절'이라고 답장해 주세요. 확인하면 답장에 ✅ 표시를 달고 바로 처리 결과를 알려드립니다. (최대 10분 걸립니다. 5일 안에 답이 없으면 제안은 자동으로 취소됩니다.)")
     return "\n".join(lines)
 
 
@@ -261,6 +285,7 @@ def advisor_result_message(kind, entry):
     return f"{BOSS}, 답이 없어서 지난 설정 제안을 취소했습니다. 다음 점검 때 다시 살펴보겠습니다."
 
 
+@_polished
 def weekly_message(d):
     lines = [f"{BOSS}, 이번 주 보고드립니다. ({d['start']} ~ {d['end']})"]
     sign = "+" if d["change"] >= 0 else "-"
@@ -309,6 +334,7 @@ def risk_message(warns):
     return "\n".join(lines)
 
 
+@_polished
 def monthly_message(d):
     sign = "+" if d["change"] >= 0 else "-"
     lines = [f"{BOSS}, {d['month']}월 한 달 보고드립니다.",

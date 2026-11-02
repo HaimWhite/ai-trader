@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-10-24 00:31:41",
+  "generated_at": "2026-11-02 21:40:13",
   "period": [
     "2021-06-18",
-    "2026-10-23"
+    "2026-11-02"
   ],
   "strategy": {
-    "final": 75078769,
-    "total_return": 279.35,
-    "cagr": 28.32,
+    "final": 75136899,
+    "total_return": 279.64,
+    "cagr": 28.17,
     "mdd": -34.41
   },
   "benchmark": {
-    "final": 59209743,
-    "total_return": 196.05,
-    "cagr": 22.51,
+    "final": 60400785,
+    "total_return": 202.0,
+    "cagr": 22.83,
     "mdd": -32.48
   },
   "settings": "20일/120일 이동평균 · 손절 -7% · 추적 손절 20% · 갭 잦은 종목 건너뜀(7%x3회) · 동시 보유 5종목",
@@ -55,10 +55,10 @@
     },
     {
       "year": 2026,
-      "strategy": 9.8,
-      "benchmark": -0.6,
-      "kospi": 31.7,
-      "nasdaq": 12.2
+      "strategy": 9.9,
+      "benchmark": 1.4,
+      "kospi": 39.1,
+      "nasdaq": 9.4
     }
   ],
   "trades": [
@@ -772,14 +772,21 @@
     {
       "date": "2026-10-23",
       "name": "메타",
-      "pnl": -1649023,
-      "pct": -10.91,
+      "pnl": -1637490,
+      "pct": -10.83,
       "why": "손절"
+    },
+    {
+      "date": "2026-10-27",
+      "name": "애플",
+      "pnl": -429111,
+      "pct": -2.64,
+      "why": "하락 추세"
     }
   ],
-  "trade_count": 102,
-  "win_rate": 37.3,
-  "avg_trade_pct": 11.81,
+  "trade_count": 103,
+  "win_rate": 36.9,
+  "avg_trade_pct": 11.67,
   "by_symbol": {
     "삼성전자": {
       "trades": 4,
@@ -892,9 +899,9 @@
       "pnl": 14821397
     },
     "애플": {
-      "trades": 4,
-      "win_rate": 25.0,
-      "pnl": -1652311
+      "trades": 5,
+      "win_rate": 20.0,
+      "pnl": -2081422
     },
     "마이크로소프트": {
       "trades": 2,
@@ -914,7 +921,7 @@
     "메타": {
       "trades": 4,
       "win_rate": 75.0,
-      "pnl": 6645208
+      "pnl": 6656741
     },
     "테슬라": {
       "trades": 4,
@@ -10630,17 +10637,59 @@
     },
     {
       "date": "2026-10-22",
-      "strategy": 75668673,
-      "benchmark": 59850330,
+      "strategy": 75682704,
+      "benchmark": 59857925,
       "kospi": 33867127,
       "nasdaq": 37075061
     },
     {
       "date": "2026-10-23",
-      "strategy": 75078769,
-      "benchmark": 59209743,
+      "strategy": 75086165,
+      "benchmark": 59022827,
       "kospi": 33968292,
-      "nasdaq": 37165882
+      "nasdaq": 36998770
+    },
+    {
+      "date": "2026-10-26",
+      "strategy": 74908348,
+      "benchmark": 59039618,
+      "kospi": 33473606,
+      "nasdaq": 37303881
+    },
+    {
+      "date": "2026-10-27",
+      "strategy": 74505919,
+      "benchmark": 60642984,
+      "kospi": 34507104,
+      "nasdaq": 37743540
+    },
+    {
+      "date": "2026-10-28",
+      "strategy": 74434712,
+      "benchmark": 62258029,
+      "kospi": 36796627,
+      "nasdaq": 37846231
+    },
+    {
+      "date": "2026-10-29",
+      "strategy": 75477505,
+      "benchmark": 61727842,
+      "kospi": 36338967,
+      "nasdaq": 37325747
+    },
+    {
+      "date": "2026-10-30",
+      "strategy": 75174299,
+      "benchmark": 59251305,
+      "kospi": 35072599,
+      "nasdaq": 36259888
+    },
+    {
+      "date": "2026-11-02",
+      "strategy": 75136899,
+      "benchmark": 60400785,
+      "kospi": 35865823,
+      "nasdaq": 36259888
     }
   ]
 }

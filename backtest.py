@@ -38,7 +38,7 @@ def prepare(frames, ma_list):
 
 
 def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0, trail=None, wide_stop=None, pullback=None, fast_exit=None, vol_size=None, breadth_min=None, vol_floor=0.05, class_scale=None, gap_mode=None, gap_thr=0.07, gap_days=2, sector_limit=None,
-             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all", rule_idx=None, rule_defs=None, take=None, take_block=True, cash_rate=0.0, entry_gate=None):
+             trade_from=0, score=None, score_mode=None, score_in=0.5, score_out=0.5, longs=None, long_rule="all", rule_idx=None, rule_defs=None, take=None, take_block=True, cash_rate=0.0, entry_gate=None, lock_at=None, lock_exit=0.005):
     """cash_rate: 현금에 붙는 연 이자율(예 0.03). 기본 0
     take: 매수가 대비 이 비율 이상 오르면 매도(익절, 예 0.10) / take_block: 익절 뒤 추세가 한 번 꺾일 때까지 재매수 금지
     stop: 손절 비율(예 -0.07), 없으면 None / filter_n: 종가가 이 기간 이동평균 위일 때만 매수
@@ -195,6 +195,9 @@ def simulate(n_days, data, short, long_, stop, filter_n=None, confirm=1, gap=0.0
                     blocked.add(code)
                 elif trail is not None and c <= pos[code]["peak"] * (1 - trail):
                     pending[code] = ("SELL", "추적손절")
+                    blocked.add(code)
+                elif lock_at is not None and pos[code]["peak"] / pos[code]["avg"] - 1 >= lock_at and c / pos[code]["avg"] - 1 <= lock_exit:
+                    pending[code] = ("SELL", "본전 보호")
                     blocked.add(code)
                 elif take is not None and c / pos[code]["avg"] - 1 >= take:
                     pending[code] = ("SELL", "익절")
