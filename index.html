@@ -93,7 +93,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
-  <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
+  <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
   <div class="cols">
   <div class="col">
@@ -128,8 +128,8 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
   </div>
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
-  <div class="box half" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
-  <div class="box half" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
+  <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
+  <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
