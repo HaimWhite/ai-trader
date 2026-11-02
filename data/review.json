@@ -1,5 +1,5 @@
 {
- "updated_at": "2026-10-30 16:00:41",
+ "updated_at": "2026-11-02 16:00:38",
  "summary": {
   "n": 5,
   "wins": 0,
@@ -10,6 +10,19 @@
   "avg_win": null,
   "avg_loss": -7.11,
   "payoff": null
+ },
+ "shape": {
+  "gross_win": 0,
+  "gross_loss": -1365473,
+  "net": -1365473,
+  "n_win": 0,
+  "n_loss": 5,
+  "top1_share": null,
+  "top3_share": null,
+  "net_wo_top1": null,
+  "big_wins": 0,
+  "win_days": null,
+  "loss_days": 10.6
  },
  "best": {
   "name": "엔비디아",
@@ -62,16 +75,23 @@
    "month": "2026-10",
    "ret": -5.82,
    "equity": 18836599,
-   "kospi": -17.11,
-   "nasdaq": -2.52
+   "kospi": -16.19,
+   "nasdaq": -5.3
+  },
+  {
+   "month": "2026-11",
+   "ret": -0.95,
+   "equity": 18658486,
+   "kospi": 2.26,
+   "nasdaq": null
   }
  ],
  "live_vs_bt": {
   "start": "2026-10-06",
-  "end": "2026-10-30",
-  "days": 24,
-  "live": -6.73,
+  "end": "2026-11-02",
+  "days": 27,
+  "live": -7.62,
   "backtest": -6.75,
-  "diff": 0.02
+  "diff": -0.86
  }
 }

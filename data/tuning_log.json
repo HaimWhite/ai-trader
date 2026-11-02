@@ -83,5 +83,13 @@
   "status": "applied",
   "msg_id": "1563215028218368002",
   "applied_at": "2026-10-24 00:45"
+ },
+ {
+  "id": 10,
+  "time": "2026-10-30 16:30",
+  "engine": "rules",
+  "changes": {},
+  "reason": "",
+  "status": "keep"
  }
 ]
