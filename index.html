@@ -130,6 +130,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
+  <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -747,6 +748,44 @@ function render(){
     }));
   }
 
+
+  // AI 가상 트레이더 (Ollama) 와 본 전략 비교
+  const AI = D.ai;
+  $("aibox").style.display = AI && AI.history && AI.history.length ? "" : "none";
+  if(AI && AI.history && AI.history.length){
+    const h0 = AI.history, last = h0[h0.length - 1], base = (D.latest && D.latest.initial_cash) || 20000000;
+    const aiRet = (last.equity / base - 1) * 100;
+    const mine = (D.history || []).filter(x => x.date >= h0[0].date);
+    const myRet = mine.length ? (mine[mine.length - 1].equity / mine[0].equity - 1) * 100 : null;
+    const aiRet2 = (last.equity / h0[0].equity - 1) * 100;
+    $("aisum").innerHTML = `내 PC의 AI(${esc(AI.model)})가 같은 원금의 별도 가상 계좌로 직접 매매해 본 결과예요. 본 전략의 매매에는 영향이 없어요.<br>`
+      + `AI 총 자산 <b>${num(last.equity)}원</b> (<span class="${aiRet >= 0 ? "up" : "down"}">${aiRet >= 0 ? "+" : ""}${aiRet.toFixed(2)}%</span>) · 거래 ${AI.n_trades}건 (매도 ${AI.n_sells}건 중 이익 ${AI.wins}건, 실현손익 ${num(AI.realized)}원)`
+      + (myRet != null ? `<br>같은 기간(${esc(h0[0].date)}~) 수익률: AI <b>${aiRet2 >= 0 ? "+" : ""}${aiRet2.toFixed(2)}%</b> vs 본 전략 <b>${myRet >= 0 ? "+" : ""}${myRet.toFixed(2)}%</b>` : "")
+      + `<br><span class="sub">작은 AI의 판단은 틀릴 수 있고 기간이 짧을수록 우연이 커요. 몇 달 이상 쌓인 뒤에 비교하세요.</span>`;
+    // 두 선 그래프 (시작일을 0%로 맞춘 수익률)
+    const dts = h0.map(x => x.date), a0 = h0[0].equity;
+    const m0 = mine.length ? mine[0].equity : null, mm = {}; mine.forEach(x => { mm[x.date] = x.equity; });
+    const A = h0.map(x => (x.equity / a0 - 1) * 100), M = dts.map(d => (m0 && mm[d] != null) ? (mm[d] / m0 - 1) * 100 : null);
+    const el = $("aichart");
+    if(dts.length < 2) el.innerHTML = '<div class="empty">그래프는 이틀 이상 기록이 쌓이면 나와요.</div>';
+    else {
+      const W = el.clientWidth || 600, H = 220, L = 52, R = 10, T = 12, B = 24, vals = A.concat(M.filter(v => v != null));
+      let y0 = Math.min(...vals, 0), y1 = Math.max(...vals, 0); if(y0 === y1){ y0 -= 1; y1 += 1; }
+      const X = i => L + (W - L - R) * i / (dts.length - 1), Y = v => H - B - (H - B - T) * (v - y0) / (y1 - y0);
+      let g = ticks(y0, y1, 4).map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(1)}%</text>`).join("");
+      g += `<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--sub)" stroke-dasharray="4 4"/>`;
+      const path = arr => arr.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" ");
+      g += `<polyline fill="none" stroke-width="2" stroke="#8b5cf6" points="${path(A)}"/><polyline fill="none" stroke-width="2" style="stroke:var(--text)" points="${path(M)}"/>`;
+      g += `<text class="ax" x="${L}" y="${H - 6}">${esc(dts[0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(dts[dts.length - 1].slice(5))}</text>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub"><span style="color:#8b5cf6">━</span> AI 가상 트레이더 &nbsp; <span style="color:var(--text)">━</span> 본 전략</div>`;
+    }
+    $("aihold").innerHTML = (AI.positions && AI.positions.length) ? table(["보유 종목", "수량", "매입가", "현재가", "손익"], AI.positions.map(p =>
+      `<tr><td>${esc(p.name)}</td><td class="r">${num(p.qty)}</td><td class="r">${num(p.avg)}</td><td class="r">${num(p.price)}</td><td class="r ${p.pct >= 0 ? "up" : "down"}">${p.pct >= 0 ? "+" : ""}${p.pct}%</td></tr>`)) : '<div class="empty">AI가 지금 보유한 종목이 없어요.</div>';
+    $("aidec").textContent = "AI의 최근 판단 (다음 날 시가에 체결)";
+    $("aidectable").innerHTML = table(["날짜", "시장 판단", "주문과 이유"], (AI.decisions || []).slice().reverse().map(d =>
+      `<tr><td>${esc(d.date)}</td><td class="r">${esc(d.note || "")}</td><td class="r">${d.orders.length ? d.orders.map(o => (o.side === "BUY" ? "매수 " : "매도 ") + esc(o.name) + " - " + esc(o.reason)).join("<br>") : "주문 없음"}</td></tr>`));
+  }
+
   // 거래 복기
   const RV = D.review;
   $("reviewbox").style.display = RV ? "" : "none";
@@ -850,7 +889,8 @@ async function main(){
     const review = await load("review").catch(() => null);
     const p1 = await load("prices_1h").catch(() => null);
     const eqi = await load("equity_intraday").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi};
+    const ai = await load("ai_trader").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai};
     render();
   }catch(e){
     $("updated").textContent = "";

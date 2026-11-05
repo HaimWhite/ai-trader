@@ -11,7 +11,7 @@ from datetime import datetime
 
 import config
 
-FILES = ["account.json", "trades.json", "history.json", "alerts.json", "forecasts.json", "tuning.json", "review.json"]
+FILES = ["account.json", "trades.json", "history.json", "alerts.json", "forecasts.json", "tuning.json", "review.json", "ai_account.json", "ai_trades.json", "ai_history.json", "ai_decisions.json"]
 EXTRA = ["symbols.csv", "symbols_watch.csv"]       # ai-trader 폴더 안의 설정 파일
 KEEP_DAYS = 60
 ROOT = config.BASE_DIR.parent / "ai-trader-backup"

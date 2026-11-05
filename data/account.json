@@ -20,14 +20,14 @@
       "qty": 20,
       "avg_price": 191191,
       "cost_basis": 3824393,
-      "peak": 198600.0
+      "peak": 200000.0
     },
     "068270": {
       "name": "셀트리온",
       "qty": 19,
       "avg_price": 193093,
       "cost_basis": 3669317,
-      "peak": 200500.0
+      "peak": 214500.0
     }
   },
   "blocked": [
