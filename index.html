@@ -107,9 +107,9 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
-  <div class="box" id="tmbox" style="display:none"><h2>타임머신 · 지금과 비슷했던 과거 100번의 예상 수익률</h2><div class="sub" id="tmnote"></div><div class="rng" id="tmh" style="position:static;margin:8px 0 0"></div><div id="tmtable" class="tmgrid"></div></div>
-  <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
+  <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
+  <div class="box" id="tmbox" style="display:none"><h2>타임머신 · 지금과 비슷했던 과거 100번의 예상 수익률</h2><div class="sub" id="tmnote"></div><div class="rng" id="tmh" style="position:static;margin:8px 0 0"></div><div id="tmtable" class="tmgrid"></div></div>
   <div class="cols">
   <div class="col">
     <div class="box" id="eqbox"><h2>자산 추이</h2><div class="sub" id="eq-ext"></div><div id="chart"></div><div id="chart-lg"></div><div class="sub" id="idxcmp" style="margin-top:6px"></div></div>
@@ -136,12 +136,13 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
   <div class="cols">
   <div class="col">
-  <div class="box" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
-  </div>
-  <div class="col">
   <div class="box" id="statbox"><h2>작동 상태</h2><div class="scroll" id="stattable"></div></div>
   </div>
+  <div class="col">
+  <div class="box" id="newsbox" style="display:none"><h2>뉴스 판단 비교 · 키워드 vs Ollama (그림자 기록)</h2><div class="sub" id="newssum"></div><div class="scroll" id="newstable" style="margin-top:6px"></div><div class="sub" id="newsverdict" style="margin:6px 0"></div><div class="sub" id="newsdiffh"></div><div id="newsdiff"></div></div>
   </div>
+  </div>
+  <div class="box" id="divbox" style="display:none"><h2>종목별 배당률</h2><div class="scroll tall" id="divtable"></div></div>
   <div class="box"><h2>백테스트 (과거 데이터 검증)</h2><div id="bt"><div class="empty">백테스트 결과가 아직 없습니다.</div></div></div>
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
@@ -830,6 +831,35 @@ function render(){
       `<tr><td>${esc(d.date)}</td><td class="r">${esc(d.note || "")}</td><td class="r">${d.orders.length ? d.orders.map(o => (o.side === "BUY" ? "매수 " : "매도 ") + esc(o.name) + " - " + esc(o.reason)).join("<br>") : "주문 없음"}</td></tr>`));
   }
 
+  // 뉴스 판단 비교 (키워드 vs Ollama 그림자 기록)
+  const NS = D.ns;
+  $("newsbox").style.display = NS && NS.length ? "" : "none";
+  if(NS && NS.length){
+    const grp = v => v <= -1 ? 0 : v >= 1 ? 2 : 1, GN = ["악재 (-1·-2)", "중립 (0)", "호재 (+1·+2)"];
+    const fwd5 = (code, day) => {
+      const p = D.prices && D.prices[code]; if(!p || !p.dates) return null;
+      let i = -1; for(let k = 0; k < p.dates.length; k++){ if(p.dates[k] <= day) i = k; else break; }
+      return i < 0 || i + 5 >= p.dates.length ? null : (p.close[i + 5] / p.close[i] - 1) * 100;
+    };
+    const days = [...new Set(NS.map(e => e.date))].sort(), agree = NS.filter(e => grp(e.kw) === grp(e.ollama)).length;
+    const res = NS.map(e => fwd5(e.code, e.date)), done = res.filter(r => r !== null).length;
+    $("newssum").innerHTML = `기록 ${NS.length}건 (${esc(days[0])} ~ ${esc(days[days.length - 1])}, 모델 ${esc(NS[NS.length - 1].model || "?")}) · 두 판단이 같은 비율 <b>${(agree / NS.length * 100).toFixed(0)}%</b> · 판단 뒤 5거래일이 지나 결과를 볼 수 있는 기록 <b>${done}/${NS.length}건</b><br>Ollama 뉴스 판단을 키워드 방식과 나란히 기록만 하고 있어요(매매에는 쓰이지 않아요). 악재라고 한 종목이 그 뒤 5거래일 동안 더 떨어지면 쓸 만한 판단이에요.`;
+    const rows = []; let enough = true;
+    [["키워드", "kw"], ["Ollama", "ollama"]].forEach(([nm, k]) => {
+      [0, 1, 2].forEach(g => {
+        const rs = NS.map((e, i) => grp(e[k]) === g ? res[i] : null).filter(r => r !== null);
+        if(rs.length < 30) enough = false;
+        const avg = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
+        rows.push(`<tr><td style="text-align:left">${nm}</td><td style="text-align:left;white-space:nowrap">${GN[g]}</td><td>${rs.length}건</td><td class="${avg === null ? "" : avg >= 0 ? "up" : "down"}">${avg === null ? "-" : (avg >= 0 ? "+" : "") + avg.toFixed(2) + "%"}</td><td>${rs.length ? (rs.filter(r => r < 0).length / rs.length * 100).toFixed(0) + "%" : "-"}</td></tr>`);
+      });
+    });
+    $("newstable").innerHTML = table(["판단", "구분", "건수", "5일 뒤 평균", "하락 비율"], rows);
+    $("newsverdict").textContent = enough ? "각 그룹이 30건 이상이라 비교해 볼 만해요. 악재 그룹 평균이 중립·호재보다 뚜렷하게 낮은 쪽이 더 쓸 만한 판단이에요." : "아직 결론을 내릴 수 없어요. 판단 뒤 5거래일이 지나야 결과가 채워지고, 각 그룹이 30건 이상 쌓일 때까지는 우연일 수 있어요.";
+    const diff = NS.filter(e => grp(e.kw) !== grp(e.ollama)).slice(-8).reverse();
+    $("newsdiffh").textContent = diff.length ? "두 판단이 달랐던 최근 사례" : "";
+    $("newsdiff").innerHTML = diff.map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${esc(e.name)}</b> <span class="sub">${esc(e.date.slice(5))}</span> · 키워드 <b>${e.kw > 0 ? "+" : ""}${e.kw}</b> / Ollama <b>${e.ollama > 0 ? "+" : ""}${e.ollama}</b><div class="sub">${esc(e.summary || "")}</div></div>`).join("");
+  }
+
   // 거래 복기
   const RV = D.review;
   $("reviewbox").style.display = RV ? "" : "none";
@@ -935,7 +965,8 @@ async function main(){
     const eqi = await load("equity_intraday").catch(() => null);
     const ai = await load("ai_trader").catch(() => null);
     const tm = await load("time_machine").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm};
+    const ns = await load("news_shadow").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns};
     render();
   }catch(e){
     $("updated").textContent = "";
