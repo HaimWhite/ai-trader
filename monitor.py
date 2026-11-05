@@ -20,6 +20,7 @@ import status
 from broker import PaperBroker
 
 OPEN, CLOSE = dtime(9, 0), dtime(15, 30)
+LAST = dtime(15, 50)   # 장 마감 뒤에도 15:50 까지는 종가 반영을 위해 시세만 갱신 (매매·알림 없음)
 INTERVAL = 300   # 5분
 
 
@@ -117,10 +118,11 @@ def tick(state, t):
                                           prev=broker.prev_equity(t.strftime("%Y-%m-%d"))), mention=True)
         state["opened"] = True
 
+    closed = t.time() > CLOSE
     blocked = broker.account.setdefault("blocked", [])
     sold, peak_changed = [], False
     for code, p in held.items():
-        if code not in quotes:
+        if closed or code not in quotes:
             continue
         price = quotes[code]
         p.setdefault("peak", p["avg_price"])
@@ -143,7 +145,9 @@ def tick(state, t):
         git_push("intraday stop loss")
     elif peak_changed:
         broker.save()   # 최고가 기록 보존
-    try:   # 손절선 근접·급락 사전 경고 (종목·종류별 하루 한 번)
+    try:   # 손절선 근접·급락 사전 경고 (종목·종류별 하루 한 번, 장 마감 뒤엔 생략)
+        if closed:
+            raise StopIteration
         seen = state.setdefault("risk", set())
         warns = []
         for code, p in broker.account["positions"].items():
@@ -151,14 +155,20 @@ def tick(state, t):
                 warns += risk.check(code, p["name"], quotes[code], p["avg_price"], p.get("peak"), prevs.get(code), seen)
         if warns:
             notify.send(messages.risk_message(warns), mention=True)
+    except StopIteration:
+        pass
     except Exception as e:
         print("위험 알림 실패:", e)
     fc = None
     try:   # 보유 종목의 5분·1시간 뒤 가격 예측과 채점
+        if closed:
+            raise StopIteration
         fc = forecast.tick({c: p for c, p in broker.account["positions"].items() if c in quotes}, quotes, t)
+    except StopIteration:
+        pass
     except Exception as e:
         print("예측 갱신 실패:", e)
-    publish_live(broker, quotes, t, fc)
+    publish_live(broker, quotes, t, fc, extra={"closed": True} if closed else None)
     status.beat("monitor", True, f"감시 {len(held)}종목")
     print(f"[{t:%H:%M}] 확인 완료 (감시 {len(held)}종목, 손절 {len(sold)}건)")
     return None
@@ -178,7 +188,7 @@ def main():
             pass
     while datetime.now().time() < OPEN:
         time.sleep(20)
-    while datetime.now().time() <= CLOSE:
+    while datetime.now().time() <= LAST:
         began = time.time()
         try:
             if tick(state, datetime.now()) == "exit":

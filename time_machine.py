@@ -3,7 +3,7 @@
   python time_machine.py --codes=005930,NVDA   원하는 종목만      --all  30종목 전부      --n=100  비슷한 과거 횟수
 ① 과거 타임머신: 30종목의 모든 날 중 '지금 이 종목의 상태(최근 5·20·60일 등락, 20일선·120일선 위치, 고점 대비 하락, 변동성)'와
    가장 비슷했던 날 n(100)개를 골라요. 같은 종목의 비슷한 날이 며칠 연속이면 하나로 쳐요(10거래일 간격).
-   그날 다음 날 시가에 샀다면 20거래일·60거래일 뒤에 얼마였는지의 분포(중앙값·하위10%·상위10%·오른 비율)를 보여줘요.
+   그날 다음 날 시가에 샀다면 20·30·60·90·120거래일 뒤에 얼마였는지의 분포(중앙값·하위10%·상위10%·오른 비율)를 보여줘요.
 ② 미래 시뮬레이션: 그 종목의 최근 2년 일별 등락을 무작위로 이어 붙여 60거래일 미래를 1000번 만들어요(과거의 상승 추세는 빼고 변동성만 씀).
    60일 뒤 범위와, 중간에 손절선(-7%)에 닿을 확률을 보여줘요.
 ※ 과거 통계일 뿐 앞으로의 보장이 아니고, 수수료·세금은 빼고 계산했어요. 예상 수익률의 숫자는 코드가 계산하고, Ollama 는 그 숫자를 쉬운 말로만 풀어줘요."""
@@ -17,7 +17,8 @@ import pandas as pd
 import config
 import llm
 
-H = (20, 60)
+H = (20, 30, 60, 90, 120)   # 몇 거래일 뒤를 볼지
+BASE_H = 60                  # 손절 시뮬레이션·+10% 닿음 기준 기간
 SPACING = 10
 MC_PATHS = 1000
 
@@ -26,7 +27,7 @@ def build_table(frames):
     """모든 종목·모든 날의 특징과 미래 수익률"""
     rows = []
     for code, df in frames.items():
-        if len(df) < config.LONG_MA + H[1] + 5:
+        if len(df) < config.LONG_MA + H[-1] + 5:
             continue
         c, o = df["Close"].astype(float), df["Open"].astype(float)
         f = pd.DataFrame(index=df.index)
@@ -39,7 +40,7 @@ def build_table(frames):
         entry = o.shift(-1)
         for h in H:
             f[f"f{h}"] = (c.shift(-1 - h) / entry - 1) * 100
-        f["hit10"] = (c[::-1].rolling(H[1]).max()[::-1].shift(-1) / entry - 1) * 100   # 이후 60일 중 최고 종가 수익률
+        f["hit10"] = (c[::-1].rolling(BASE_H).max()[::-1].shift(-1) / entry - 1) * 100   # 이후 60일 중 최고 종가 수익률
         f["pos"] = np.arange(len(f))
         rows.append(f)
     return pd.concat(rows)
@@ -50,7 +51,7 @@ FEATS = ["r5", "r20", "r60", "vs20", "m20_120", "dd120", "vol20"]
 
 def analogs(table, code, n):
     now = table[table.code == code].iloc[-1]
-    pool = table.dropna(subset=FEATS + [f"f{h}" for h in H] + ["hit10"])
+    pool = table.dropna(subset=FEATS + [f"f{BASE_H}", "hit10"])   # 긴 기간(90·120일)은 아직 안 지난 최근 날이 빠져서 개수가 조금 줄 수 있어요
     sd = pool[FEATS].std().replace(0, 1)
     dist = (((pool[FEATS] - now[FEATS]) / sd) ** 2).sum(axis=1) ** 0.5
     order = dist.sort_values().index
@@ -70,15 +71,17 @@ def analogs(table, code, n):
     sel = pool.iloc[chosen]
     out = {"n": int(len(sel))}
     for h in H:
-        v = sel[f"f{h}"]
-        out[f"h{h}"] = {"mean": round(v.mean(), 2), "median": round(v.median(), 2), "p10": round(v.quantile(0.1), 2),
+        v = sel[f"f{h}"].dropna()
+        if len(v) < 10:
+            continue
+        out[f"h{h}"] = {"n": int(len(v)), "mean": round(v.mean(), 2), "median": round(v.median(), 2), "p10": round(v.quantile(0.1), 2),
                         "p90": round(v.quantile(0.9), 2), "up": round((v > 0).mean() * 100, 1)}
     out["hit10"] = round((sel["hit10"] >= 10).mean() * 100, 1)
     out["avg_dist"] = round(float(d.iloc[chosen].mean()), 2)
     return out
 
 
-def monte_carlo(df, paths=MC_PATHS, days=H[1], seed=7):
+def monte_carlo(df, paths=MC_PATHS, days=BASE_H, seed=7):
     c = df["Close"].astype(float).iloc[-500:]
     r = np.log(c / c.shift(1)).dropna().values
     r = r - r.mean()   # 과거 상승 추세는 빼고 변동성만 사용

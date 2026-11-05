@@ -107,7 +107,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
-  <div class="box" id="tmbox" style="display:none"><h2>타임머신 · 지금과 비슷했던 과거 100번의 예상 수익률</h2><div class="sub" id="tmnote"></div><div id="tmtable" class="tmgrid"></div></div>
+  <div class="box" id="tmbox" style="display:none"><h2>타임머신 · 지금과 비슷했던 과거 100번의 예상 수익률</h2><div class="sub" id="tmnote"></div><div class="rng" id="tmh" style="position:static;margin:8px 0 0"></div><div id="tmtable" class="tmgrid"></div></div>
   <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
   <div class="cols">
@@ -160,6 +160,7 @@ const sign = n => (n > 0 ? "+" : "") + n.toFixed(2) + "%";
 const LIVE_URL = "https://raw.githubusercontent.com/HaimWhite/ai-trader/live/live.json";
 let RANGE = 365, SEL = null, D = {}, CTYPE = "line";
 let BT_SORT = {key: "pnl", dir: -1}, DIV_SORT = {key: "y", dir: -1}, HOLD_SORT = {key: "val", dir: -1}, FC_SORT = {key: "n", dir: -1};
+let TMH = 60;
 let GSEL = "전체", FC_H = "1d";
 
 /* ---------- 테마 (자동 / 라이트 / 다크) ---------- */
@@ -451,7 +452,7 @@ function render(){
   const pos = useLive ? Object.fromEntries(live.holdings.map(h => [h.code, h])) : account.positions;
   const priceOf = (code, p) => useLive ? p.price : (latest.symbols[code] ? latest.symbols[code].price : p.avg_price);
 
-  $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)" + (useLive ? " · 장중 실시간 " + live.updated_at.slice(11, 16) + " 기준 (5분 간격)" : "") + (usLive ? " · 미국 장중 " + live.us.updated.slice(11, 16) + " 기준" : "");
+  $("updated").textContent = "마지막 갱신: " + latest.updated_at + " (가상 계좌)" + (useLive ? (live.closed ? " · 장 마감 후 " : " · 장중 실시간 ") + live.updated_at.slice(11, 16) + " 기준 (5분 간격)" : "") + (usLive ? " · 미국 장중 " + live.us.updated.slice(11, 16) + " 기준" : "");
   const card = (l, v, s, c) => '<div class="card"><div class="l">' + l + '</div><div class="v ' + (c || "") + '">' + v + "</div>" + (s ? '<div class="s ' + (c || "") + '">' + s + "</div>" : "") + "</div>";
   $("cards").innerHTML =
     card("원금 (시작 자금)", won(P)) + card("총 평가금액", won(eq)) + card("총 손익", signWon(pl), sign(plp), cls(pl)) +
@@ -769,18 +770,25 @@ function render(){
   $("tmbox").style.display = TM && TM.items && TM.items.length ? "" : "none";
   if(TM && TM.items && TM.items.length){
     const pc = v => `<span class="${v >= 0 ? "up" : "down"}">${v >= 0 ? "+" : ""}${v.toFixed(1)}%</span>`;
-    $("tmnote").innerHTML = `${esc(TM.updated)} 계산 · 지금과 가장 비슷했던 과거 ${TM.n}번의 날에 다음 날 시가로 샀다면 60거래일 뒤 얼마였는지예요. 큰 숫자는 중앙값, 막대는 하위10%~상위10% 범위(검은 눈금이 중앙값, 점선이 0%)예요. 60일 중앙값이 큰 순서이고 📌는 보유 종목이에요.<br><span class="sub">${esc(TM.note)}</span>`;
-    const its = TM.items, lo = Math.min(...its.map(i => i.analog.h60.p10), -5), hi = Math.max(...its.map(i => i.analog.h60.p90), 5), pos = v => ((v - lo) / (hi - lo) * 100).toFixed(1);
+    const HS = [20, 30, 60, 90, 120].filter(h => TM.items.some(i => i.analog["h" + h]));
+    if(!HS.includes(TMH)) TMH = HS.includes(60) ? 60 : HS[0];
+    $("tmh").innerHTML = HS.map(h => `<button data-h="${h}" class="${h === TMH ? "on" : ""}">${h}일 뒤</button>`).join("");
+    $("tmh").querySelectorAll("button").forEach(bt => bt.addEventListener("click", () => { TMH = +bt.dataset.h; render(); }));
+    $("tmnote").innerHTML = `${esc(TM.updated)} 계산 · 지금과 가장 비슷했던 과거 ${TM.n}번의 날에 다음 날 시가로 샀다면 <b>${TMH}거래일 뒤</b> 얼마였는지예요(아래 버튼으로 기간 변경). 큰 숫자는 중앙값, 막대는 하위10%~상위10% 범위(검은 눈금이 중앙값, 점선이 0%)예요. 선택한 기간의 중앙값이 큰 순서이고 📌는 보유 종목이에요.<br><span class="sub">${esc(TM.note)} 기간이 길수록(90·120일) 아직 결과가 안 나온 최근 날이 빠져서 표본이 조금 적어요.</span>`;
+    const key = "h" + TMH, its = TM.items.filter(i => i.analog[key]).sort((x, y) => y.analog[key].median - x.analog[key].median);
+    const lo = Math.min(...its.map(i => i.analog[key].p10), -5), hi = Math.max(...its.map(i => i.analog[key].p90), 5), pos = v => ((v - lo) / (hi - lo) * 100).toFixed(1);
     const sg = v => (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
     $("tmtable").innerHTML = its.map(it => {
-      const a = it.analog, m = a.h60.median, col = m >= 0 ? "var(--up)" : "var(--down)";
-      const bd = (m >= 5 && a.h60.up >= 60) ? "유리한 편" : (m < 0 || a.h60.up < 50) ? "불리한 편" : "보통";
+      const a = it.analog, h = a[key], m = h.median, col = m >= 0 ? "var(--up)" : "var(--down)";
+      const bd = (m >= 5 && h.up >= 60) ? "유리한 편" : (m < 0 || h.up < 50) ? "불리한 편" : "보통";
       const sh = it.mc.stop_hit;
+      const others = HS.filter(x => x !== TMH && a["h" + x]).map(x => `${x}일 <span class="${a["h" + x].median >= 0 ? "up" : "down"}">${sg(a["h" + x].median)}</span>`).join(" · ");
       return `<div class="tmc${it.held ? " held" : ""}"><div class="tmh"><b>${esc(it.name)}${it.held ? " 📌" : ""}</b><span class="tmbd">${bd}</span></div>`
-        + `<div class="tmh" style="margin-top:4px"><span class="tmbig" style="color:${col}">${sg(m)}</span><span class="sub">60일 중앙 · 20일 ${sg(a.h20.median)}</span></div>`
-        + `<div class="tmbar"><i style="left:${pos(a.h60.p10)}%;width:${(pos(a.h60.p90) - pos(a.h60.p10)).toFixed(1)}%;background:${col}"></i><s style="left:${pos(0)}%"></s><u style="left:calc(${pos(m)}% - 1px)"></u></div>`
-        + `<div class="tmr"><span>${sg(a.h60.p10)}</span><span>${sg(a.h60.p90)}</span></div>`
-        + `<div class="tmchips"><span>오른 비율 <b>${a.h60.up.toFixed(0)}%</b></span><span>+10% 닿음 <b>${a.hit10.toFixed(0)}%</b></span><span>손절선 닿을 확률 <b>${sh.toFixed(0)}%</b></span></div>`
+        + `<div class="tmh" style="margin-top:4px"><span class="tmbig" style="color:${col}">${sg(m)}</span><span class="sub">${TMH}일 뒤 중앙값</span></div>`
+        + `<div class="tmbar"><i style="left:${pos(h.p10)}%;width:${(pos(h.p90) - pos(h.p10)).toFixed(1)}%;background:${col}"></i><s style="left:${pos(0)}%"></s><u style="left:calc(${pos(m)}% - 1px)"></u></div>`
+        + `<div class="tmr"><span>${sg(h.p10)}</span><span>${sg(h.p90)}</span></div>`
+        + `<div class="tmchips"><span>오른 비율 <b>${h.up.toFixed(0)}%</b></span>` + (TMH === 60 ? `<span>+10% 닿음 <b>${a.hit10.toFixed(0)}%</b></span>` : "") + `<span>60일 안 손절선 닿을 확률 <b>${sh.toFixed(0)}%</b></span></div>`
+        + `<div class="tmr" style="margin-top:6px;justify-content:flex-start">${others}</div>`
         + (it.comment ? `<div class="tmai">🤖 ${esc(it.comment)}</div>` : "") + `</div>`;
     }).join("");
   }
