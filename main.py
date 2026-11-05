@@ -332,6 +332,11 @@ def main():
     # 거래가 있었거나 시세 조회에 실패했을 때만 푸시 알림이 울리게 보냄
     notify.send(text, mention=bool(new_trades) or bool(failed) or bool(warnings))
     status.beat("main", True, f"거래 {len(new_trades)}건, 예약 {len(pending_list)}건")
+    try:   # 타임머신: 지금과 비슷했던 과거 100번의 예상 수익률 (대시보드 '타임머신' 칸)
+        import time_machine
+        time_machine.run(frames)
+    except Exception as e:
+        print("타임머신 계산 실패(무시):", str(e)[:80])
     try:   # AI 가상 트레이더 (본 전략과 별도 계좌, Ollama 가 꺼져 있으면 건너뜀)
         import ai_trader
         ai_trader.run(frames)

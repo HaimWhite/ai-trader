@@ -93,6 +93,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   </div>
 
   <div class="box"><h2>오늘의 판단</h2><div class="sub" id="rules"></div><div class="scroll" id="gsum" style="margin:8px 0"></div><div class="chips" id="gchips"></div><div class="scroll tall" id="signals"></div></div>
+  <div class="box" id="tmbox" style="display:none"><h2>타임머신 · 지금과 비슷했던 과거 100번의 예상 수익률</h2><div class="sub" id="tmnote"></div><div class="scroll tall" id="tmtable"></div></div>
   <div class="box" id="reviewbox" style="display:none"><h2>거래 복기 · 실운영 점검</h2><div class="sub" id="revsum"></div><div class="scroll" id="revkind" style="margin-top:8px"></div><div class="sub" id="revm" style="margin:10px 0 4px"></div><div class="scroll tall" id="revmonth"></div></div>
   <div class="box"><h2>보유 종목</h2><div class="sub" id="hnote" style="margin-bottom:4px"></div><div class="scroll" id="holdings"></div><div id="folders"></div></div>
   <div class="cols">
@@ -749,6 +750,19 @@ function render(){
   }
 
 
+  // 타임머신 예상 수익률
+  const TM = D.tm;
+  $("tmbox").style.display = TM && TM.items && TM.items.length ? "" : "none";
+  if(TM && TM.items && TM.items.length){
+    const pc = v => `<span class="${v >= 0 ? "up" : "down"}">${v >= 0 ? "+" : ""}${v.toFixed(1)}%</span>`;
+    $("tmnote").innerHTML = `${esc(TM.updated)} 계산 · 각 종목의 지금 상태(최근 5·20·60일 등락, 20일선·120일선 위치, 고점 대비 하락, 변동성)와 가장 비슷했던 과거 ${TM.n}번의 날에 다음 날 시가로 샀다면 20·60거래일 뒤 얼마였는지예요. 맨 오른쪽은 변동성만 가지고 미래를 1000번 시뮬레이션했을 때 60거래일 안에 손절선(-7%)에 닿는 비율이에요.<br><span class="sub">${esc(TM.note)} 표는 60일 중앙값이 큰 순서예요.</span>`;
+    $("tmtable").innerHTML = table(["종목", "20일 중앙", "60일 중앙", "60일 범위 (하위10%~상위10%)", "오른 비율", "+10% 닿은 비율", "손절선 닿을 확률(시뮬)"], TM.items.map(it => {
+      const a = it.analog;
+      return `<tr><td>${esc(it.name)}${it.held ? " 📌" : ""}</td><td class="r">${pc(a.h20.median)}</td><td class="r"><b>${pc(a.h60.median)}</b></td><td class="r">${a.h60.p10.toFixed(1)}% ~ ${a.h60.p90.toFixed(1)}%</td><td class="r">${a.h60.up.toFixed(0)}%</td><td class="r">${a.hit10.toFixed(0)}%</td><td class="r">${it.mc.stop_hit.toFixed(0)}%</td></tr>`
+        + (it.comment ? `<tr><td colspan="7" class="sub" style="padding:2px 8px 8px">🤖 ${esc(it.comment)}</td></tr>` : "");
+    }));
+  }
+
   // AI 가상 트레이더 (Ollama) 와 본 전략 비교
   const AI = D.ai;
   $("aibox").style.display = AI && AI.history && AI.history.length ? "" : "none";
@@ -890,7 +904,8 @@ async function main(){
     const p1 = await load("prices_1h").catch(() => null);
     const eqi = await load("equity_intraday").catch(() => null);
     const ai = await load("ai_trader").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai};
+    const tm = await load("time_machine").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm};
     render();
   }catch(e){
     $("updated").textContent = "";

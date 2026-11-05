@@ -1,19 +1,19 @@
 {
-  "generated_at": "2026-11-05 11:14:03",
+  "generated_at": "2026-11-05 11:49:39",
   "period": [
     "2021-06-18",
     "2026-11-05"
   ],
   "strategy": {
-    "final": 76779160,
-    "total_return": 287.94,
-    "cagr": 28.64,
+    "final": 78420155,
+    "total_return": 296.23,
+    "cagr": 29.15,
     "mdd": -34.41
   },
   "benchmark": {
-    "final": 59430705,
-    "total_return": 197.15,
-    "cagr": 22.43,
+    "final": 59327422,
+    "total_return": 196.64,
+    "cagr": 22.39,
     "mdd": -32.48
   },
   "settings": "20일/120일 이동평균 · 손절 -7% · 추적 손절 20% · 갭 잦은 종목 건너뜀(7%x3회) · 동시 보유 5종목",
@@ -55,8 +55,8 @@
     },
     {
       "year": 2026,
-      "strategy": 12.3,
-      "benchmark": -0.2,
+      "strategy": 14.7,
+      "benchmark": -0.4,
       "kospi": 34.9,
       "nasdaq": 10.7
     }
@@ -10700,15 +10700,15 @@
     },
     {
       "date": "2026-11-04",
-      "strategy": 75437460,
-      "benchmark": 60493464,
+      "strategy": 77271955,
+      "benchmark": 60424962,
       "kospi": 34785323,
       "nasdaq": 36686838
     },
     {
       "date": "2026-11-05",
-      "strategy": 76779160,
-      "benchmark": 59430705,
+      "strategy": 78420155,
+      "benchmark": 59327422,
       "kospi": 34785323,
       "nasdaq": 36686838
     }

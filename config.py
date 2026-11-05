@@ -160,6 +160,7 @@ OLLAMA_POLISH = True       # 일일·중간·주간·월간 보고서의 말투�
 OLLAMA_POLISH_TIMEOUT = 60 # 보고서 한 통을 다듬는 최대 대기 시간(초)
 OLLAMA_AI_TRADER = True    # AI 가상 트레이더(별도 가상 계좌)를 매일 돌리기. 본 전략과는 무관하게 성적만 비교
 OLLAMA_TRADER_TIMEOUT = 180
+OLLAMA_TIMEMACHINE_EXPLAIN = True   # 타임머신 예상 수익률을 Ollama 가 쉬운 말로 한 줄 풀어쓰기
 OLLAMA_REVIEW = True       # 거래 복기 해설을 Ollama 가 써서 대시보드에 표시
 OLLAMA_BUDGET_SEC = 480    # 하루 전체에서 Ollama 에 쓰는 최대 시간(초), 넘으면 나머지 종목은 건너뜀
 
