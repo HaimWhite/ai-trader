@@ -169,6 +169,13 @@ def main():
         tick({"opened": True, "err": False, "quiet": True}, datetime.now())
         return
     state = {"opened": False, "err": False}
+    now = datetime.now()
+    if now.weekday() < 5 and dtime(9, 30) < now.time() <= CLOSE:   # 장 도중에 컴퓨터를 켠 경우: 늦은 개장 보고는 생략하고 바로 감시
+        state["opened"] = True
+        try:
+            notify.send(f"하임님, 장중 감시를 {now:%H:%M}에 시작했어요. 지금부터 5분마다 확인할게요.")
+        except Exception:
+            pass
     while datetime.now().time() < OPEN:
         time.sleep(20)
     while datetime.now().time() <= CLOSE:

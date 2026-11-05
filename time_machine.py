@@ -125,6 +125,19 @@ def targets(frames, codes=None, all_=False):
     return [c for c in dict.fromkeys(held + up) if c in frames]
 
 
+def long_frames(frames):
+    """'비슷했던 과거'를 찾기 위해 2016년부터의 긴 시세를 불러옵니다 (실패한 종목은 기존 시세 사용)."""
+    import market
+    out = {}
+    for code in frames:
+        try:
+            df = market.load_prices(code, config.AI_HISTORY_START)
+            out[code] = df if len(df) > len(frames[code]) else frames[code]
+        except Exception:
+            out[code] = frames[code]
+    return out
+
+
 def run(frames, codes=None, all_=False, n=100):
     table = build_table(frames)
     items, held = [], set()

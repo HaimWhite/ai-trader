@@ -31,6 +31,16 @@ REPEAT_TASKS = [
 ]
 
 
+FIX_MONITOR = """$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$t1 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At '08:55'
+$t2 = New-ScheduledTaskTrigger -AtLogOn
+$t2.Delay = 'PT1M'
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -ExecutionTimeLimit (New-TimeSpan -Hours 8) -MultipleInstances IgnoreNew
+Set-ScheduledTask -TaskName AITraderMonitor -Trigger @($t1,$t2) -Settings $s | Out-Null
+Write-Output 'fixed'"""
+
+
 def build_script():
     d = str(config.BASE_DIR).replace("'", "''")
     lines = [
@@ -74,7 +84,7 @@ def real_error(returncode, err):
 
 
 def main():
-    script = build_script()
+    script = FIX_MONITOR if "--fix-monitor" in sys.argv else build_script()
     if "--print" in sys.argv:
         print(script)
         return
@@ -87,6 +97,9 @@ def main():
     err = r.stderr.decode("cp949", "replace").strip()
     desc = {t[0]: t[6] for t in TASKS + OPTIONAL}
     desc.update({t[0]: t[3] for t in REPEAT_TASKS})
+    if "--fix-monitor" in sys.argv and "fixed" in out:
+        print("장중 감시 작업을 고쳤어요: 평일 08:55 + 로그인 1분 뒤에도 시작, 놓친 실행은 켜자마자 실행, 중복 실행 방지.")
+        return
     for ln in out.splitlines():
         parts = ln.strip().split()
         if len(parts) == 2 and parts[0] in desc:

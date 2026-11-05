@@ -136,6 +136,9 @@ BACKTEST_START = "2021-01-01"   # 백테스트 시작일
 # 대시보드 주가 그래프에 쓸 시세 기록 시작일
 PRICE_HISTORY_START = "2020-01-01"
 
+# AI 가 참고하는 과거 데이터 시작일 (타임머신·AI 가상 트레이더의 '비슷했던 과거' 통계용, 매매는 지금부터)
+AI_HISTORY_START = "2016-01-01"
+
 # 뉴스 설정
 USE_NEWS = True                          # 뉴스 분석 사용 (끄려면 False)
 NEWS_MODEL = "claude-haiku-4-5-20251001" # 뉴스 분석에 쓰는 Claude 모델 (저렴한 모델)
