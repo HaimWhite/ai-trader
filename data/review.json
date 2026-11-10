@@ -1,28 +1,28 @@
 {
- "updated_at": "2026-11-09 16:09:13",
+ "updated_at": "2026-11-10 16:09:31",
  "summary": {
-  "n": 5,
+  "n": 6,
   "wins": 0,
   "win_rate": 0.0,
-  "avg_pct": -7.11,
-  "avg_days": 10.6,
-  "pnl": -1365473,
+  "avg_pct": -7.15,
+  "avg_days": 12.3,
+  "pnl": -1647058,
   "avg_win": null,
-  "avg_loss": -7.11,
+  "avg_loss": -7.15,
   "payoff": null
  },
  "shape": {
   "gross_win": 0,
-  "gross_loss": -1365473,
-  "net": -1365473,
+  "gross_loss": -1647058,
+  "net": -1647058,
   "n_win": 0,
-  "n_loss": 5,
+  "n_loss": 6,
   "top1_share": null,
   "top3_share": null,
   "net_wo_top1": null,
   "big_wins": 0,
   "win_days": null,
-  "loss_days": 10.6
+  "loss_days": 12.3
  },
  "best": {
   "name": "엔비디아",
@@ -36,12 +36,12 @@
  },
  "by_kind": {
   "손절": {
-   "n": 4,
+   "n": 5,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.68,
-   "avg_days": 12.2,
-   "pnl": -1190869
+   "avg_pct": -7.62,
+   "avg_days": 14.0,
+   "pnl": -1472454
   },
   "추세 이탈": {
    "n": 1,
@@ -54,12 +54,12 @@
  },
  "by_group": {
   "코스피": {
-   "n": 3,
+   "n": 4,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.61,
-   "avg_days": 10.7,
-   "pnl": -875563
+   "avg_pct": -7.55,
+   "avg_days": 13.2,
+   "pnl": -1157148
   },
   "나스닥": {
    "n": 2,
@@ -80,19 +80,19 @@
   },
   {
    "month": "2026-11",
-   "ret": 0.49,
-   "equity": 18929495,
-   "kospi": -10.81,
-   "nasdaq": -3.37
+   "ret": 0.42,
+   "equity": 18915570,
+   "kospi": -8.76,
+   "nasdaq": -0.72
   }
  ],
  "live_vs_bt": {
   "start": "2026-10-06",
-  "end": "2026-11-09",
-  "days": 34,
-  "live": -6.27,
+  "end": "2026-11-10",
+  "days": 35,
+  "live": -6.34,
   "backtest": -2.42,
-  "diff": -3.86
+  "diff": -3.93
  },
  "comment": {
   "text": "이번 주식 자동매매 기록은 5번의 거래로 모두 손실을 보였습니다. 평균 손실률 -7.11%로 작은 규모의 손실을 유지한 점이 전략의 핵심을 잘 반영했지만, 전혀 이익이 나오지 않아 '작게 잃고 가끔 크게 버는' 방식이 효과적으로 작동하지 못한 부분이 아쉽습니다.",
