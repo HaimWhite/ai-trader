@@ -548,5 +548,35 @@
   "ollama": 1,
   "summary": "하나증권 280,000원 목표가 발표, 단기 주가 상승 기대",
   "model": "qwen3-vl:4b"
+ },
+ {
+  "date": "2026-11-16",
+  "code": "033780",
+  "name": "KT&G",
+  "n": 3,
+  "kw": 0,
+  "ollama": 2,
+  "summary": "해외 담배 성장 및 주주 환원 목표 250,000원, 단기 주가 긍정적",
+  "model": "qwen3-vl:4b"
+ },
+ {
+  "date": "2026-11-16",
+  "code": "086280",
+  "name": "현대글로비스",
+  "n": 3,
+  "kw": 0,
+  "ollama": 1,
+  "summary": "현대글로비스 주가 2,500원 상승, 긍정적 호재",
+  "model": "qwen3-vl:4b"
+ },
+ {
+  "date": "2026-11-16",
+  "code": "AMZN",
+  "name": "아마존",
+  "n": 8,
+  "kw": 0,
+  "ollama": 2,
+  "summary": "아마존 AWS 39% 성장과 Antelope IPO 투자로 단기 주가 긍정적",
+  "model": "qwen3-vl:4b"
  }
 ]
