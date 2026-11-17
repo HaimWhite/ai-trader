@@ -578,5 +578,25 @@
   "ollama": 2,
   "summary": "아마존 AWS 39% 성장과 Antelope IPO 투자로 단기 주가 긍정적",
   "model": "qwen3-vl:4b"
+ },
+ {
+  "date": "2026-11-17",
+  "code": "068270",
+  "name": "셀트리온",
+  "n": 8,
+  "kw": -1,
+  "ollama": 2,
+  "summary": "신제품 판매 호조로 목표가 상향, 주가 9% 상승세 지속",
+  "model": "qwen3-vl:4b"
+ },
+ {
+  "date": "2026-11-17",
+  "code": "AAPL",
+  "name": "애플",
+  "n": 8,
+  "kw": 0,
+  "ollama": 2,
+  "summary": "애플, 사상 최고치 경신 및 '트레이드 오브 더 올해' 호재로 단기 주가 상승 기대",
+  "model": "qwen3-vl:4b"
  }
 ]
