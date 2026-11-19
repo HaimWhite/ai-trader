@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-11-05 23:37:35",
+  "generated_at": "2026-11-19 11:50:44",
   "period": [
     "2021-06-18",
-    "2026-11-05"
+    "2026-11-19"
   ],
   "strategy": {
-    "final": 78569289,
-    "total_return": 296.98,
-    "cagr": 29.19,
+    "final": 73831271,
+    "total_return": 273.04,
+    "cagr": 27.49,
     "mdd": -34.41
   },
   "benchmark": {
-    "final": 58205918,
-    "total_return": 191.03,
-    "cagr": 21.95,
-    "mdd": -32.74
+    "final": 53914843,
+    "total_return": 169.57,
+    "cagr": 20.07,
+    "mdd": -37.83
   },
   "settings": "20일/120일 이동평균 · 손절 -7% · 추적 손절 20% · 갭 잦은 종목 건너뜀(7%x3회) · 동시 보유 5종목",
   "yearly": [
@@ -55,10 +55,10 @@
     },
     {
       "year": 2026,
-      "strategy": 14.9,
-      "benchmark": -2.3,
-      "kospi": 27.8,
-      "nasdaq": 8.9
+      "strategy": 8.0,
+      "benchmark": -9.5,
+      "kospi": 20.2,
+      "nasdaq": 5.1
     }
   ],
   "trades": [
@@ -782,11 +782,18 @@
       "pnl": -429111,
       "pct": -2.64,
       "why": "하락 추세"
+    },
+    {
+      "date": "2026-11-11",
+      "name": "KT&G",
+      "pnl": -1475452,
+      "pct": -9.63,
+      "why": "손절"
     }
   ],
-  "trade_count": 103,
-  "win_rate": 36.9,
-  "avg_trade_pct": 11.67,
+  "trade_count": 104,
+  "win_rate": 36.5,
+  "avg_trade_pct": 11.47,
   "by_symbol": {
     "삼성전자": {
       "trades": 4,
@@ -844,9 +851,9 @@
       "pnl": 8914724
     },
     "KT&G": {
-      "trades": 3,
-      "win_rate": 66.7,
-      "pnl": 5003833
+      "trades": 4,
+      "win_rate": 50.0,
+      "pnl": 3528381
     },
     "삼성생명": {
       "trades": 2,
@@ -10707,10 +10714,80 @@
     },
     {
       "date": "2026-11-05",
-      "strategy": 78569289,
-      "benchmark": 58205918,
+      "strategy": 77478708,
+      "benchmark": 56982076,
       "kospi": 32949298,
-      "nasdaq": 36082096
+      "nasdaq": 34660501
+    },
+    {
+      "date": "2026-11-06",
+      "strategy": 76664564,
+      "benchmark": 56017375,
+      "kospi": 30965718,
+      "nasdaq": 35037440
+    },
+    {
+      "date": "2026-11-09",
+      "strategy": 77405450,
+      "benchmark": 54662556,
+      "kospi": 30715774,
+      "nasdaq": 35997800
+    },
+    {
+      "date": "2026-11-10",
+      "strategy": 75324714,
+      "benchmark": 55345785,
+      "kospi": 32063906,
+      "nasdaq": 35730849
+    },
+    {
+      "date": "2026-11-11",
+      "strategy": 75231858,
+      "benchmark": 57457571,
+      "kospi": 32897645,
+      "nasdaq": 36301497
+    },
+    {
+      "date": "2026-11-12",
+      "strategy": 75462233,
+      "benchmark": 56645877,
+      "kospi": 32697946,
+      "nasdaq": 36158807
+    },
+    {
+      "date": "2026-11-13",
+      "strategy": 75343437,
+      "benchmark": 56520705,
+      "kospi": 32378478,
+      "nasdaq": 35831203
+    },
+    {
+      "date": "2026-11-16",
+      "strategy": 75068864,
+      "benchmark": 54484670,
+      "kospi": 31215479,
+      "nasdaq": 34938127
+    },
+    {
+      "date": "2026-11-17",
+      "strategy": 74349426,
+      "benchmark": 53799389,
+      "kospi": 30407506,
+      "nasdaq": 34679575
+    },
+    {
+      "date": "2026-11-18",
+      "strategy": 73907271,
+      "benchmark": 54652620,
+      "kospi": 31013149,
+      "nasdaq": 34824267
+    },
+    {
+      "date": "2026-11-19",
+      "strategy": 73831271,
+      "benchmark": 53914843,
+      "kospi": 31013149,
+      "nasdaq": 34824267
     }
   ]
 }

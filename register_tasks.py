@@ -41,6 +41,15 @@ Set-ScheduledTask -TaskName AITraderMonitor -Trigger @($t1,$t2) -Settings $s | O
 Write-Output 'fixed'"""
 
 
+FIX_TASKS = """$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -MultipleInstances IgnoreNew
+foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderApprove','AITraderMonitorUS') {
+  if (Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName $n -Settings $s | Out-Null; Write-Output "$n fixed" }
+}
+Write-Output 'fixed'"""
+
+
 def build_script():
     d = str(config.BASE_DIR).replace("'", "''")
     lines = [
@@ -51,9 +60,7 @@ def build_script():
         "  if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) { Write-Output \"$name already\"; return }",
         "  $a = New-ScheduledTaskAction -Execute \"$d\\$bat\" -WorkingDirectory $d",
         "  $t = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $days -At $time",
-        "  $p = @{}",
-        "  if ($wake) { $p['WakeToRun'] = $true }",
-        "  if ($avail) { $p['StartWhenAvailable'] = $true }",
+        "  $p = @{AllowStartIfOnBatteries = $true; DontStopIfGoingOnBatteries = $true; WakeToRun = $true; StartWhenAvailable = $true}",
         "  $s = New-ScheduledTaskSettingsSet @p",
         "  Register-ScheduledTask -TaskName $name -Action $a -Trigger $t -Settings $s | Out-Null",
         "  Write-Output \"$name registered\"",
@@ -84,7 +91,7 @@ def real_error(returncode, err):
 
 
 def main():
-    script = FIX_MONITOR if "--fix-monitor" in sys.argv else build_script()
+    script = FIX_MONITOR if "--fix-monitor" in sys.argv else FIX_TASKS if "--fix-tasks" in sys.argv else build_script()
     if "--print" in sys.argv:
         print(script)
         return
@@ -97,6 +104,10 @@ def main():
     err = r.stderr.decode("cp949", "replace").strip()
     desc = {t[0]: t[6] for t in TASKS + OPTIONAL}
     desc.update({t[0]: t[3] for t in REPEAT_TASKS})
+    if "--fix-tasks" in sys.argv and "fixed" in out:
+        print("모든 자동 작업을 고쳤어요: 배터리로 켜져 있어도 실행, 절전 중이면 깨워서 실행, 놓친 실행은 켜자마자 실행.")
+        print(out.strip())
+        return
     if "--fix-monitor" in sys.argv and "fixed" in out:
         print("장중 감시 작업을 고쳤어요: 평일 08:55 + 로그인 1분 뒤에도 시작, 놓친 실행은 켜자마자 실행, 중복 실행 방지.")
         return

@@ -40,6 +40,16 @@ def run_git(args, data=None):
     return r.stdout.decode("utf-8").strip()
 
 
+def keep_awake(on=True):
+    """감시하는 동안 윈도우가 절전 모드로 들어가지 않게 합니다 (화면은 꺼져도 돼요). 윈도우가 아니면 아무 일도 안 해요."""
+    try:
+        import ctypes
+        flags = 0x80000000 | (0x00000001 if on else 0)   # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+        ctypes.windll.kernel32.SetThreadExecutionState(flags)
+    except Exception:
+        pass
+
+
 def publish_live(broker, quotes, t, fc=None, extra=None):
     """현재 평가금액을 live 브랜치에 올립니다 (대시보드 웹페이지는 이 파일을 읽어 장중에 갱신).
     live 브랜치는 매번 커밋 1개로 덮어써서 기록이 쌓이지 않고, 웹페이지 빌드도 일으키지 않습니다."""
@@ -179,6 +189,7 @@ def main():
         tick({"opened": True, "err": False, "quiet": True}, datetime.now())
         return
     state = {"opened": False, "err": False}
+    keep_awake(True)
     now = datetime.now()
     if now.weekday() < 5 and dtime(9, 30) < now.time() <= CLOSE:   # 장 도중에 컴퓨터를 켠 경우: 늦은 개장 보고는 생략하고 바로 감시
         state["opened"] = True
@@ -203,6 +214,7 @@ def main():
             time.sleep(20 if datetime.now().time() < dtime(9, 10) else 60)
         else:
             time.sleep(max(5, INTERVAL - (time.time() - began)))
+    keep_awake(False)
     print("장중 감시를 마칩니다.")
 
 

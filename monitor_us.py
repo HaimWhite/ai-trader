@@ -102,6 +102,7 @@ def main():
     if day.weekday() >= 5:
         print("주말이라 미국 장이 열리지 않아요.")
         return
+    monitor.keep_awake(True)
     while datetime.now() < start - timedelta(minutes=5):
         time.sleep(30)
     empty, err = 0, False
@@ -122,6 +123,7 @@ def main():
             print("시세가 계속 들어오지 않아 오늘은 휴장으로 보고 마칩니다.")
             break
         time.sleep(max(5, INTERVAL - (time.time() - began)))
+    monitor.keep_awake(False)
     print("미국 장중 감시를 마칩니다.")
 
 
