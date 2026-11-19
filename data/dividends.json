@@ -1,7 +1,7 @@
 {
  "005930": {
   "ok": true,
-  "yield_pct": 3.04,
+  "yield_pct": 3.08,
   "annual": 5913.0,
   "last_date": "2026-09-29",
   "currency": "KRW"
@@ -15,21 +15,21 @@
  },
  "035420": {
   "ok": true,
-  "yield_pct": 1.54,
+  "yield_pct": 1.56,
   "annual": 2630.0,
   "last_date": "2026-02-26",
   "currency": "KRW"
  },
  "005380": {
   "ok": true,
-  "yield_pct": 3.75,
+  "yield_pct": 3.83,
   "annual": 10000.0,
   "last_date": "2026-08-28",
   "currency": "KRW"
  },
  "105560": {
   "ok": true,
-  "yield_pct": 3.24,
+  "yield_pct": 3.26,
   "annual": 5070.0,
   "last_date": "2026-11-11",
   "currency": "KRW"
@@ -42,7 +42,7 @@
  },
  "000270": {
   "ok": true,
-  "yield_pct": 7.38,
+  "yield_pct": 7.49,
   "annual": 6800.0,
   "last_date": "2026-03-24",
   "currency": "KRW"
@@ -70,21 +70,21 @@
  },
  "012330": {
   "ok": true,
-  "yield_pct": 1.83,
+  "yield_pct": 1.92,
   "annual": 6500.0,
   "last_date": "2026-08-07",
   "currency": "KRW"
  },
  "033780": {
   "ok": true,
-  "yield_pct": 3.63,
+  "yield_pct": 3.56,
   "annual": 6600.0,
   "last_date": "2026-08-20",
   "currency": "KRW"
  },
  "032830": {
   "ok": true,
-  "yield_pct": 2.08,
+  "yield_pct": 2.1,
   "annual": 5300.0,
   "last_date": "2025-12-29",
   "currency": "KRW"
@@ -98,7 +98,7 @@
  },
  "015760": {
   "ok": true,
-  "yield_pct": 6.14,
+  "yield_pct": 6.12,
   "annual": 1542.0,
   "last_date": "2025-12-29",
   "currency": "KRW"
@@ -145,7 +145,7 @@
  },
  "NVDA": {
   "ok": true,
-  "yield_pct": 0.33,
+  "yield_pct": 0.34,
   "annual": 0.52,
   "last_date": "2026-09-10",
   "currency": "USD"
@@ -172,7 +172,7 @@
  },
  "GOOGL": {
   "ok": true,
-  "yield_pct": 0.31,
+  "yield_pct": 0.3,
   "annual": 0.86,
   "last_date": "2026-09-04",
   "currency": "USD"
@@ -192,7 +192,7 @@
  },
  "AVGO": {
   "ok": true,
-  "yield_pct": 0.76,
+  "yield_pct": 0.73,
   "annual": 2.6,
   "last_date": "2026-09-21",
   "currency": "USD"
@@ -203,5 +203,5 @@
   "annual": 0,
   "last_date": null
  },
- "_updated": "2026-11-18"
+ "_updated": "2026-11-19"
 }
