@@ -1,33 +1,33 @@
 {
- "updated_at": "2026-11-23 16:09:21",
+ "updated_at": "2026-11-24 16:08:51",
  "summary": {
-  "n": 6,
+  "n": 7,
   "wins": 0,
   "win_rate": 0.0,
-  "avg_pct": -7.15,
-  "avg_days": 12.3,
-  "pnl": -1647058,
+  "avg_pct": -6.74,
+  "avg_days": 17.6,
+  "pnl": -1798147,
   "avg_win": null,
-  "avg_loss": -7.15,
+  "avg_loss": -6.74,
   "payoff": null
  },
  "shape": {
   "gross_win": 0,
-  "gross_loss": -1647058,
-  "net": -1647058,
+  "gross_loss": -1798147,
+  "net": -1798147,
   "n_win": 0,
-  "n_loss": 6,
+  "n_loss": 7,
   "top1_share": null,
   "top3_share": null,
   "net_wo_top1": null,
   "big_wins": 0,
   "win_days": null,
-  "loss_days": 12.3
+  "loss_days": 17.6
  },
  "best": {
-  "name": "엔비디아",
-  "pct": -4.81,
-  "date": "2026-10-19"
+  "name": "마이크로소프트",
+  "pct": -4.28,
+  "date": "2026-11-24"
  },
  "worst": {
   "name": "메타",
@@ -36,12 +36,12 @@
  },
  "by_kind": {
   "손절": {
-   "n": 5,
+   "n": 6,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -7.62,
-   "avg_days": 14.0,
-   "pnl": -1472454
+   "avg_pct": -7.06,
+   "avg_days": 19.8,
+   "pnl": -1623543
   },
   "추세 이탈": {
    "n": 1,
@@ -62,12 +62,12 @@
    "pnl": -1157148
   },
   "나스닥": {
-   "n": 2,
+   "n": 3,
    "wins": 0,
    "win_rate": 0.0,
-   "avg_pct": -6.36,
-   "avg_days": 10.5,
-   "pnl": -489910
+   "avg_pct": -5.67,
+   "avg_days": 23.3,
+   "pnl": -640999
   }
  },
  "monthly": [
@@ -80,19 +80,19 @@
   },
   {
    "month": "2026-11",
-   "ret": -3.81,
-   "equity": 18119422,
-   "kospi": -17.35,
-   "nasdaq": -11.08
+   "ret": -1.76,
+   "equity": 18505180,
+   "kospi": -12.48,
+   "nasdaq": -5.3
   }
  ],
  "live_vs_bt": {
   "start": "2026-10-06",
-  "end": "2026-11-23",
-  "days": 48,
-  "live": -10.29,
+  "end": "2026-11-24",
+  "days": 49,
+  "live": -8.38,
   "backtest": -8.3,
-  "diff": -1.98
+  "diff": -0.07
  },
  "comment": {
   "text": "이번 주식 자동매매 기록은 6번의 거래로 모두 손실을 기록했으며, 평균 손실률 -7.15%로 작은 규모의 손실을 반복하는 방식으로 위험을 관리하고 있습니다. 좋았던 점은 일정한 패턴을 유지하며 전략을 철저히 적용했으며, 아쉬운 점은 승리한 적이 없어 더 많은 경험을 쌓아야 할 것 같습니다.",
