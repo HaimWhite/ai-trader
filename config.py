@@ -213,3 +213,7 @@ _apply_tuning()
 
 # 디스코드 보고에 붙일 대시보드 주소 (GitHub Pages). 필요 없으면 빈 글자("")로 두세요.
 DASHBOARD_URL = "https://haimwhite.github.io/ai-trader/"
+
+
+# ---- 코드이터 (매주 금요일 깃허브를 돌아다니며 주식 전략을 스스로 강화, python codeeater.py) ----
+CODEEATER_MODEL = "qwen3:8b"    # 깃허브 글(README)에서 전략 규칙을 뽑아내는 Ollama 모델 (생각을 끌 수 있는 모델을 권장)

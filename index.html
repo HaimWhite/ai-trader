@@ -147,6 +147,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama 모델별) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="rng" id="aisel" style="position:static;margin:10px 0 0"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
+  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -748,6 +749,7 @@ function render(){
   addStat("12:30 중간 보고", (sx.report || {}).time, (sx.report || {}).ok, 4, (sx.report || {}).note);
   addStat("백테스트", bt ? bt.generated_at : null, true, 10, "");
   addStat("설정 점검(주 1회)", (sx.advisor || {}).time, (sx.advisor || {}).ok, 9, (sx.advisor || {}).note);
+  addStat("코드이터 강화(주 1회)", (sx.codeeater || {}).time, (sx.codeeater || {}).ok, 9, (sx.codeeater || {}).note);
   addStat("주간 리포트", (sx.weekly || {}).time, (sx.weekly || {}).ok, 9, "");
   addStat("배당 수집", div && div._updated ? div._updated + " 00:00:00" : null, true, 4, "");
   $("stattable").innerHTML = table(["작업", "마지막 실행", "경과", "상태", "메모"], srows) + '<div class="sub" style="margin-top:6px">✅ 정상 · ⚠️ 오래됨/멈춤 · ❌ 마지막 실행이 오류 · – 기록 없음. 12:30 보고·장중 감시는 PC에만 먼저 기록되고, 16:00 점검 때 함께 올라와요.</div>';
@@ -837,6 +839,30 @@ function render(){
     $("aidec").textContent = `${sel.model}의 최근 판단 (다음 날 시가에 체결)`;
     $("aidectable").innerHTML = table(["날짜", "시장 판단", "주문과 이유"], (sel.decisions || []).slice().reverse().map(d =>
       `<tr><td>${esc(d.date)}</td><td class="r">${esc(d.note || "")}</td><td class="r">${d.orders.length ? d.orders.map(o => (o.side === "BUY" ? "매수 " : "매도 ") + esc(o.name) + " - " + esc(o.reason)).join("<br>") : "주문 없음"}</td></tr>`));
+  }
+
+  // 코드이터 (주식 전략 자동 강화)
+  const CE = D.ce;
+  $("cebox").style.display = CE && CE.versions && CE.versions.length ? "" : "none";
+  if(CE && CE.versions && CE.versions.length){
+    const V = CE.versions, cur = V[V.length - 1], v1 = V[0], mt = x => x.metrics || {};
+    const imp = (a, b) => (mt(b).cal > 0 && mt(a).cal != null) ? (mt(a).cal / mt(b).cal - 1) * 100 : null, fp = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(0) + "%";
+    const last = (CE.runs || [])[CE.runs.length - 1];
+    $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 강화` + (last ? ` (후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "이번 주는 유지"})` : "")
+      + `<br>매주 금요일, 코드이터가 깃허브의 주식 전략 글을 읽고 규칙 후보를 만들어 같은 과거 데이터로 시험해요. 전체 기간 <b>연수익÷낙폭</b>이 5% 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`;
+    $("cetable").innerHTML = table(["버전", "탄생일", "바뀐 점 · 배운 곳", "연수익", "최대 낙폭", "연수익÷낙폭", "최근 3년 연수익", "V" + v1.v + " 대비"], V.slice().reverse().map(x =>
+      `<tr><td><b>V${x.v}</b></td><td>${esc(x.born)}</td><td style="text-align:left;white-space:normal;min-width:220px">${esc(x.idea || x.describe || "")}<div class="sub">${esc(x.source || "")}</div><div class="sub">${esc(x.describe || "")}</div></td><td class="${mt(x).cagr >= 0 ? "up" : "down"}">${mt(x).cagr != null ? mt(x).cagr + "%" : "-"}</td><td>${mt(x).mdd != null ? mt(x).mdd + "%" : "-"}</td><td>${mt(x).cal != null ? mt(x).cal : "-"}</td><td>${mt(x).cagr_r != null ? mt(x).cagr_r + "%" : "-"}</td><td class="${(imp(x, v1) || 0) >= 0 ? "up" : "down"}">${x.v === v1.v ? "기준" : fp(imp(x, v1))}</td></tr>`));
+    const cv = CE.curves || {}, el = $("cechart");
+    if(cv.current && cv.current.length > 1){
+      const A = cv.current, B = cv.v1 || [], W = el.clientWidth || 600, H = 200, L = 62, R = 10, T = 12, Bm = 24, vals = A.map(x => x[1]).concat(B.map(x => x[1]));
+      let y0 = Math.min(...vals), y1 = Math.max(...vals); if(y0 === y1){ y0 -= 1; y1 += 1; }
+      const X = i => L + (W - L - R) * i / (A.length - 1), Y = v => H - Bm - (H - Bm - T) * (v - y0) / (y1 - y0), pl = (arr, st2) => `<polyline fill="none" stroke-width="2" ${st2} points="${arr.map((x, i) => X(i).toFixed(1) + "," + Y(x[1]).toFixed(1)).join(" ")}"/>`;
+      let g = ticks(y0, y1, 4).map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${(v / 1e6).toFixed(1)}백만</text>`).join("");
+      g += pl(B, 'style="stroke:var(--text)"') + pl(A, 'stroke="#10b981"') + `<text class="ax" x="${L}" y="${H - 6}">${esc(A[0][0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(A[A.length - 1][0].slice(5))}</text>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub"><span style="color:#10b981">━</span> 지금 버전 V${cur.v} &nbsp; <span style="color:var(--text)">━</span> V${v1.v}(기준) · 코드이터를 시작한 ${esc(A[0][0])}부터 이 설정으로 매매했다면의 가상 결과예요</div>`;
+    } else el.innerHTML = "";
+    $("ceideash").textContent = (CE.ideas && CE.ideas.length) ? "최근에 돌아다닌 깃허브 저장소와 배운 것" : "";
+    $("ceideas").innerHTML = (CE.ideas || []).slice(-8).reverse().map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${esc(e.repo)}</b> <span class="sub">★${e.stars} · ${esc(e.date.slice(5))} · 시험한 후보 ${e.tested}개</span>${(e.found && e.found.length) ? e.found.map(f => `<div class="sub">· ${esc(f)}</div>`).join("") : '<div class="sub">· 시험해 볼 만한 규칙이 없었어요</div>'}</div>`).join("");
   }
 
   // 뉴스 판단 비교 (키워드 vs Ollama 그림자 기록)
@@ -974,7 +1000,8 @@ async function main(){
     const ai = await load("ai_trader").catch(() => null);
     const tm = await load("time_machine").catch(() => null);
     const ns = await load("news_shadow").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns};
+    const ce = await load("codeeater").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce};
     render();
   }catch(e){
     $("updated").textContent = "";

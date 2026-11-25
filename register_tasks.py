@@ -14,6 +14,8 @@ TASKS = [
     ("AITrader", "run_auto.bat", WEEKDAYS, "16:00", True, True, "평일 16:00 정기 점검"),
     ("AITraderMidday", "run_report.bat", WEEKDAYS, "12:30", True, False, "평일 12:30 중간 보고"),
     ("AITraderMonitor", "run_monitor.bat", WEEKDAYS, "08:55", True, True, "평일 08:55 장중 5분 감시"),
+    ("AITraderUpdate", "run_daily_update.bat", WEEKDAYS, "09:00", True, True, "평일 09:00 전체 점검 (데이터 갱신 + 백테스트 + 대시보드 올리기, 매매 없음)"),
+    ("AITraderCodeEaterWeekly", "run_codeeater.bat", ("Friday",), "17:30", True, True, "금요일 17:30 코드이터 강화 (깃허브 탐색 + 시험 + 버전 알림)"),
     ("AITraderAdvisor", "run_advisor.bat", ("Friday",), "16:30", False, True, "금요일 16:30 설정 점검"),
     ("AITraderWeekly", "run_weekly.bat", ("Friday",), "17:00", False, True, "금요일 17:00 주간 리포트"),
     ("AITraderMonthly", "run_monthly.bat", WEEKDAYS, "17:10", False, True, "평일 17:10 월간 리포트 (그 달 마지막 평일에만 발송)"),
@@ -44,7 +46,7 @@ Write-Output 'fixed'"""
 FIX_TASKS = """$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -MultipleInstances IgnoreNew
-foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderApprove','AITraderMonitorUS') {
+foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderUpdate','AITraderCodeEaterWeekly','AITraderApprove','AITraderMonitorUS') {
   if (Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName $n -Settings $s | Out-Null; Write-Output "$n fixed" }
 }
 Write-Output 'fixed'"""
@@ -56,6 +58,7 @@ def build_script():
         "$ErrorActionPreference = 'Stop'",
         "$ProgressPreference = 'SilentlyContinue'",   # '모듈을 준비하는 중' 같은 진행 표시가 오류처럼 보이지 않게
         f"$d = '{d}'",
+        "Unregister-ScheduledTask -TaskName AITraderCodeEater -Confirm:$false -ErrorAction SilentlyContinue",   # 예전(D드라이브 연결 방식) 작업 삭제
         "function Reg($name, $bat, $days, $time, $wake, $avail) {",
         "  if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) { Write-Output \"$name already\"; return }",
         "  $a = New-ScheduledTaskAction -Execute \"$d\\$bat\" -WorkingDirectory $d",

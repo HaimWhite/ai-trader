@@ -1,0 +1,24 @@
+
+[notice] A new release of pip available: 22.2.1 -> 26.3
+[notice] To update, run: python.exe -m pip install --upgrade pip
+🍴 코드이터 - GitHub에서 배우고 스스로 강해지는 프로그램
+ℹ 검색 정확도를 높이려면: ollama pull nomic-embed-text  (없어도 작동해요)
+ℹ GitHub 토큰 없음: 시간당 탐색량이 제한돼요 (README 참고)
+
+  1. 한 바퀴 탐험하기
+  2. 자동 탐험 모드
+  3. 강화된 AI와 대화
+  4. 현황 보기
+  5. [가끔] 학습 데이터 내보내기 (Colab용)
+  6. [가끔] Colab에서 학습한 모델 설치
+  7. [가끔] 이전 두뇌로 되돌리기
+  0. 종료
+선택 > Traceback (most recent call last):
+  File "D:\codeeater\codeeater\main.py", line 306, in <module>
+    main()
+  File "D:\codeeater\codeeater\main.py", line 293, in main
+    c = input("선택 > ").strip()
+EOFError: EOF when reading a line
+Press any key to continue . . . 
+
+===== 2026-11-25 19:54 업그레이드 시작 =====

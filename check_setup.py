@@ -111,7 +111,7 @@ def main():
             print(f"   -> 등록 안 된 작업이 {missing}개 있어요: python register_tasks.py")
 
     print("\n-- 로그 파일의 오류 흔적 --")
-    for fname in ("run_log.txt", "monitor_log.txt", "advisor_log.txt", "weekly_log.txt"):
+    for fname in ("run_log.txt", "monitor_log.txt", "advisor_log.txt", "weekly_log.txt", "update_log.txt"):
         p = config.BASE_DIR / fname
         if not p.exists():
             print(f"[정보] {fname} 없음 (아직 한 번도 실행되지 않았거나 해당 작업이 없어요)")

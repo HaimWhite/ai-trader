@@ -339,9 +339,10 @@ def main():
         time_machine.run(lframes)
     except Exception as e:
         print("타임머신 계산 실패(무시):", str(e)[:80])
-    try:   # AI 가상 트레이더 (본 전략과 별도 계좌, Ollama 가 꺼져 있으면 건너뜀)
+    try:   # AI 가상 트레이더 (본 전략과 별도 계좌, Ollama 가 꺼져 있으면 건너뜀). 장중 점검 실행(09:00 등)에서는 판단을 하루 두 번 하지 않도록 건너뜀
         import ai_trader
-        ai_trader.run(frames, lframes)
+        if trading_allowed:
+            ai_trader.run(frames, lframes)
     except Exception as e:
         print("AI 가상 트레이더 실패(무시):", str(e)[:80])
 

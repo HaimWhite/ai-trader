@@ -1,18 +1,18 @@
 {
-  "generated_at": "2026-11-25 19:21:14",
+  "generated_at": "2026-11-25 20:47:56",
   "period": [
     "2021-06-18",
     "2026-11-25"
   ],
   "strategy": {
-    "final": 74106394,
-    "total_return": 274.43,
-    "cagr": 27.48,
+    "final": 74069894,
+    "total_return": 274.25,
+    "cagr": 27.47,
     "mdd": -34.41
   },
   "benchmark": {
-    "final": 51804256,
-    "total_return": 159.02,
+    "final": 51800556,
+    "total_return": 159.0,
     "cagr": 19.13,
     "mdd": -41.42
   },
@@ -55,8 +55,8 @@
     },
     {
       "year": 2026,
-      "strategy": 8.4,
-      "benchmark": -13.0,
+      "strategy": 8.3,
+      "benchmark": -13.1,
       "kospi": 11.5,
       "nasdaq": 2.1
     }
@@ -10826,8 +10826,8 @@
     },
     {
       "date": "2026-11-25",
-      "strategy": 74106394,
-      "benchmark": 51804256,
+      "strategy": 74069894,
+      "benchmark": 51800556,
       "kospi": 28749147,
       "nasdaq": 33831641
     }
