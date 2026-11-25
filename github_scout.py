@@ -33,6 +33,24 @@ IDEA_SYSTEM = (
 )
 
 
+ERRORS = []   # 이번 실행에서 난 탐색 오류 (codeeater 가 기록해서 대시보드·점검 도구에 보여줘요)
+
+
+def note_error(msg):
+    ERRORS.append(str(msg)[:80])
+
+
+def has_token():
+    return bool(_token())
+
+
+def rate_status():
+    """깃허브 검색 호출 한도 현황 (이 조회 자체는 한도를 쓰지 않아요). {'limit':, 'remaining':, 'reset': 'HH:MM'}"""
+    d = json.loads(_get(f"{API}/rate_limit")).get("resources", {}).get("search", {})
+    reset = datetime.fromtimestamp(d.get("reset", 0)).strftime("%H:%M") if d.get("reset") else "?"
+    return {"limit": d.get("limit"), "remaining": d.get("remaining"), "reset": reset}
+
+
 def _token():
     try:
         return notify._env("GITHUB_TOKEN")
@@ -75,6 +93,7 @@ def pick_repos(seen, n=4, rnd=None, min_stars=30):
                 out.append({**r, "query": q})
         except Exception as e:
             print("깃허브 검색 실패(건너뜀):", str(e)[:60])
+            note_error("검색 실패: " + str(e))
             if "403" in str(e) or "429" in str(e):
                 break
         time.sleep(2)

@@ -305,12 +305,14 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
         except Exception as e:
             repos = []
             print("깃허브 탐색 실패(건너뜀):", str(e)[:60])
+            github_scout.note_error("탐색 실패: " + str(e))
         for r in repos:
             st["seen"].append(r["full"])
             try:
                 ideas = github_scout.extract_ideas(github_scout.readme(r["full"]), clamp, model=getattr(config, "CODEEATER_MODEL", None))
             except Exception as e:
                 print(f"  {r['full']} 읽기 실패: {str(e)[:50]}")
+                github_scout.note_error(f"{r['full']} 읽기 실패: {e}")
                 continue
             print(f"  {r['full']} (★{r['stars']}): 아이디어 {len(ideas)}개")
             st["ideas"].append({"date": today, "repo": r["full"], "stars": r["stars"], "found": [i["summary"] for i in ideas], "tested": 0})
@@ -343,7 +345,14 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
     pool["cands"].sort(key=lambda c: -c["cal"])
     pool["cands"] = pool["cands"][:POOL_KEEP]
     pool["tested"] = pool["tested"][-WEEK_TEST_CAP:]
+    pool["git_ideas"] = pool.get("git_ideas", 0) + n_git
     pool["rounds"] += 1
+    pool["token"] = github_scout.has_token()
+    stamp = datetime.now().strftime("%m-%d %H:%M")
+    if github_scout.ERRORS:
+        pool["errors"] = (pool.get("errors", []) + [f"{stamp} {e}" for e in github_scout.ERRORS])[-10:]
+        github_scout.ERRORS.clear()
+    pool["rounds_github_ok"] = pool.get("rounds_github_ok", 0) + (1 if n_git else 0)
     pool["last"] = now.strftime("%Y-%m-%d %H:%M")
     pool["cur_cal"] = cur_m["cal"]
     pool["need"] = round(need_gain(pool["tests"]) * 100, 1)
