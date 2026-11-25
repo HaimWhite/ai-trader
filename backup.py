@@ -14,6 +14,11 @@ import config
 FILES = ["account.json", "trades.json", "history.json", "alerts.json", "forecasts.json", "tuning.json", "review.json", "ai_account.json", "ai_trades.json", "ai_history.json", "ai_decisions.json"]
 EXTRA = ["symbols.csv", "symbols_watch.csv"]       # ai-trader 폴더 안의 설정 파일
 KEEP_DAYS = 60
+
+
+def data_files():
+    """기본 기록 + 모델별 AI 가상 계좌 파일(ai_account_모델이름.json 등)"""
+    return FILES + sorted(p.name for p in config.DATA_DIR.glob("ai_*_*.json") if p.name not in FILES)
 ROOT = config.BASE_DIR.parent / "ai-trader-backup"
 
 
@@ -23,7 +28,7 @@ def make(tag=None):
     dest = ROOT / day
     dest.mkdir(parents=True, exist_ok=True)
     n = 0
-    for name in FILES:
+    for name in data_files():
         src = config.DATA_DIR / name
         if src.exists():
             shutil.copy2(src, dest / name)
@@ -50,7 +55,7 @@ def restore(day):
         return
     make(datetime.now().strftime("%Y-%m-%d_복원전"))   # 되돌리기 전 상태도 남겨 둠
     for f in src.iterdir():
-        dst = (config.DATA_DIR if f.name in FILES else config.BASE_DIR) / f.name
+        dst = (config.DATA_DIR if f.name in FILES or f.name.startswith("ai_") else config.BASE_DIR) / f.name
         shutil.copy2(f, dst)
     print(f"{day} 상태로 되돌렸어요. 대시보드에 반영하려면 .\\update_all.bat 을 실행하세요.")
 
