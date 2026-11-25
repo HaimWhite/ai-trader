@@ -809,9 +809,11 @@ function render(){
       + table(["", "AI 모델", "기간 수익률", "총 자산", "거래", "이익 매도"], AIS.map((x, i) => `<tr><td><span style="color:${COLORS[i % 3]}">━</span></td><td style="text-align:left">${esc(x.model)}</td><td class="${(ret(ser[i]) || 0) >= 0 ? "up" : "down"}">${fp(ret(ser[i]))}</td><td>${num(x.history[x.history.length - 1].equity)}원</td><td>${x.n_trades}건</td><td>${x.wins}/${x.n_sells}</td></tr>`).concat([`<tr><td><span>━</span></td><td style="text-align:left">본 전략</td><td class="${(myRet || 0) >= 0 ? "up" : "down"}">${fp(myRet)}</td><td>${mine.length ? num(mine[mine.length - 1].equity) + "원" : "-"}</td><td></td><td></td></tr>`]))
       + `<span class="sub">작은 AI의 판단은 틀릴 수 있고 기간이 짧을수록 우연이 커요. 몇 달 이상 쌓인 뒤에 비교하세요.</span>`;
     // 수익률 그래프 (비교 시작일을 0%로)
-    const dts = [...new Set(ser.flat().map(h => h.date))].sort(), mm = {}; mine.forEach(x => { mm[x.date] = x.equity; });
-    const lines = ser.map(r => { const m = {}, r0 = r[0] ? r[0].equity : 1; r.forEach(h => { m[h.date] = (h.equity / r0 - 1) * 100; }); return dts.map(d => m[d] != null ? m[d] : null); });
-    const m0 = mine.length ? mine[0].equity : null, M = dts.map(d => (m0 && mm[d] != null) ? (mm[d] / m0 - 1) * 100 : null);
+    // 그래프는 각 AI 가 자기 시작일부터 보여줘요(새로 시작한 AI 의 기록이 하루뿐이어도 선이 보이도록). 선마다 자기 시작일이 0% 예요.
+    const gstart = AIS.map(x => x.history[0].date).sort()[0], gmine = (D.history || []).filter(x => x.date >= gstart);
+    const dts = [...new Set(AIS.flatMap(x => x.history.map(h => h.date)))].sort(), mm = {}; gmine.forEach(x => { mm[x.date] = x.equity; });
+    const lines = AIS.map(x => x.history).map(r => { const m = {}, r0 = r[0] ? r[0].equity : 1; r.forEach(h => { m[h.date] = (h.equity / r0 - 1) * 100; }); return dts.map(d => m[d] != null ? m[d] : null); });
+    const m0 = gmine.length ? gmine[0].equity : null, M = dts.map(d => (m0 && mm[d] != null) ? (mm[d] / m0 - 1) * 100 : null);
     const el = $("aichart");
     if(dts.length < 2) el.innerHTML = '<div class="empty">그래프는 이틀 이상 기록이 쌓이면 나와요.</div>';
     else {
@@ -821,10 +823,10 @@ function render(){
       let g = ticks(y0, y1, 4).map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(1)}%</text>`).join("");
       g += `<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--sub)" stroke-dasharray="4 4"/>`;
       const path = arr => arr.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" ");
-      lines.forEach((ln, i) => { g += `<polyline fill="none" stroke-width="2" stroke="${COLORS[i % 3]}" points="${path(ln)}"/>`; });
+      lines.forEach((ln, i) => { g += `<polyline fill="none" stroke-width="2" stroke="${COLORS[i % 3]}" points="${path(ln)}"/>`; const k = ln.map(v => v != null).lastIndexOf(true); if(k >= 0) g += `<circle cx="${X(k).toFixed(1)}" cy="${Y(ln[k]).toFixed(1)}" r="3.5" fill="${COLORS[i % 3]}"/>`; });
       g += `<polyline fill="none" stroke-width="2" style="stroke:var(--text)" points="${path(M)}"/>`;
       g += `<text class="ax" x="${L}" y="${H - 6}">${esc(dts[0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(dts[dts.length - 1].slice(5))}</text>`;
-      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub">${AIS.map((x, i) => `<span style="color:${COLORS[i % 3]}">━</span> ${esc(x.model)}`).join(" &nbsp; ")} &nbsp; <span style="color:var(--text)">━</span> 본 전략</div>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub">${AIS.map((x, i) => `<span style="color:${COLORS[i % 3]}">━</span> ${esc(x.model)}`).join(" &nbsp; ")} &nbsp; <span style="color:var(--text)">━</span> 본 전략 &nbsp; (선마다 자기 시작일이 0%)</div>`;
     }
     // 모델 선택 버튼 + 선택한 모델의 보유 종목·판단
     const sel = AIS[AISEL];
