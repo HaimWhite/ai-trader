@@ -1,7 +1,8 @@
 """자동 실행 작업(작업 스케줄러)을 한 번에 등록합니다. 이미 등록된 것은 건드리지 않아요.
   python register_tasks.py           빠진 작업만 등록
   python register_tasks.py --print   실행하지 않고 등록 명령만 보기
-등록되는 작업: 평일 08:55 장중 감시 / 12:30 중간 보고 / 16:00 정기 점검, 금요일 16:30 설정 점검 / 17:00 주간 리포트"""
+등록되는 작업: 평일 08:55 장중 감시 / 12:30 중간 보고 / 16:00 정기 점검, 금요일 16:30 설정 점검 / 17:00 주간 리포트,
+코드이터: 평일 09:00~16:30 30분마다 탐색 / 금요일 16:30 고르기·적용"""
 import base64
 import subprocess
 import sys
@@ -15,7 +16,6 @@ TASKS = [
     ("AITraderMidday", "run_report.bat", WEEKDAYS, "12:30", True, False, "평일 12:30 중간 보고"),
     ("AITraderMonitor", "run_monitor.bat", WEEKDAYS, "08:55", True, True, "평일 08:55 장중 5분 감시"),
     ("AITraderUpdate", "run_daily_update.bat", WEEKDAYS, "09:00", True, True, "평일 09:00 전체 점검 (데이터 갱신 + 백테스트 + 대시보드 올리기, 매매 없음)"),
-    ("AITraderCodeEaterWeekly", "run_codeeater.bat", ("Friday",), "17:30", True, True, "금요일 17:30 코드이터 강화 (깃허브 탐색 + 시험 + 버전 알림)"),
     ("AITraderAdvisor", "run_advisor.bat", ("Friday",), "16:30", False, True, "금요일 16:30 설정 점검"),
     ("AITraderWeekly", "run_weekly.bat", ("Friday",), "17:00", False, True, "금요일 17:00 주간 리포트"),
     ("AITraderMonthly", "run_monthly.bat", WEEKDAYS, "17:10", False, True, "평일 17:10 월간 리포트 (그 달 마지막 평일에만 발송)"),
@@ -32,6 +32,27 @@ REPEAT_TASKS = [
     ("AITraderApprove", "run_approve.bat", 10, "10분마다 설정 제안 승인·거절 답장 확인"),
 ]
 
+# 코드이터: 평일 09:00 부터 30분마다 7시간(마지막 16:00 시작, 16:30 전에 끝남) 탐색 + 금요일 16:30 적용. 이미 있으면 지우고 새로 등록(시각 변경 반영)
+CE_TASKS = {
+    "AITraderCodeEaterScout": "평일 09:00~16:30 코드이터 탐색 (30분마다, 창 없이 조용히)",
+    "AITraderCodeEaterWeekly": "금요일 16:30 코드이터 고르기·적용 (버전 상승 + 알림)",
+}
+CE_PS = r"""
+foreach ($n in 'AITraderCodeEaterScout','AITraderCodeEaterWeekly') { Unregister-ScheduledTask -TaskName $n -Confirm:$false -ErrorAction SilentlyContinue }
+$p = @{AllowStartIfOnBatteries = $true; DontStopIfGoingOnBatteries = $true; StartWhenAvailable = $true; MultipleInstances = 'IgnoreNew'}
+$s1 = New-ScheduledTaskSettingsSet @p -ExecutionTimeLimit (New-TimeSpan -Minutes 25)
+$a1 = New-ScheduledTaskAction -Execute 'pythonw.exe' -Argument 'codeeater.py --scout' -WorkingDirectory $d
+$t1 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At '09:00'
+$t1.Repetition = (New-ScheduledTaskTrigger -Once -At '09:00' -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Hours 7)).Repetition
+Register-ScheduledTask -TaskName AITraderCodeEaterScout -Action $a1 -Trigger $t1 -Settings $s1 | Out-Null
+Write-Output 'AITraderCodeEaterScout registered'
+$s2 = New-ScheduledTaskSettingsSet @p -WakeToRun
+$a2 = New-ScheduledTaskAction -Execute "$d\run_codeeater.bat" -WorkingDirectory $d
+$t2 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At '16:30'
+Register-ScheduledTask -TaskName AITraderCodeEaterWeekly -Action $a2 -Trigger $t2 -Settings $s2 | Out-Null
+Write-Output 'AITraderCodeEaterWeekly registered'
+"""
+
 
 FIX_MONITOR = """$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -46,10 +67,10 @@ Write-Output 'fixed'"""
 FIX_TASKS = """$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -MultipleInstances IgnoreNew
-foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderUpdate','AITraderCodeEaterWeekly','AITraderApprove','AITraderMonitorUS') {
+foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderUpdate','AITraderApprove','AITraderMonitorUS') {
   if (Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName $n -Settings $s | Out-Null; Write-Output "$n fixed" }
 }
-Write-Output 'fixed'"""
+"""
 
 
 def build_script():
@@ -83,6 +104,7 @@ def build_script():
     for name, bat, days, time, wake, avail, _ in tasks:
         dd = ",".join(f"'{x}'" for x in days)
         lines.append(f"Reg '{name}' '{bat}' @({dd}) '{time}' ${str(wake).lower()} ${str(avail).lower()}")
+    lines.append(CE_PS)
     return "\n".join(lines)
 
 
@@ -94,7 +116,9 @@ def real_error(returncode, err):
 
 
 def main():
-    script = FIX_MONITOR if "--fix-monitor" in sys.argv else FIX_TASKS if "--fix-tasks" in sys.argv else build_script()
+    d = str(config.BASE_DIR).replace("'", "''")
+    fix_tasks = f"$d = '{d}'\n" + FIX_TASKS + CE_PS + "Write-Output 'fixed'"
+    script = FIX_MONITOR if "--fix-monitor" in sys.argv else fix_tasks if "--fix-tasks" in sys.argv else build_script()
     if "--print" in sys.argv:
         print(script)
         return
@@ -107,6 +131,7 @@ def main():
     err = r.stderr.decode("cp949", "replace").strip()
     desc = {t[0]: t[6] for t in TASKS + OPTIONAL}
     desc.update({t[0]: t[3] for t in REPEAT_TASKS})
+    desc.update(CE_TASKS)
     if "--fix-tasks" in sys.argv and "fixed" in out:
         print("모든 자동 작업을 고쳤어요: 배터리로 켜져 있어도 실행, 절전 중이면 깨워서 실행, 놓친 실행은 켜자마자 실행.")
         print(out.strip())

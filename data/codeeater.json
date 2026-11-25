@@ -1,13 +1,1 @@
-{
- "n": 1,
- "version": "V1",
- "runs": [
-  {
-   "time": "2026-11-25 19:54",
-   "ok": true,
-   "version": "V1",
-   "minutes": 0.2,
-   "note": ""
-  }
- ]
-}
+{"versions":[{"v":1,"genome":{"short":20,"long":120,"stop":-0.07,"trail":0.2,"rsi_max":null,"breakout_n":null,"mom_min":null,"vol_max":null,"slope_up":false},"born":"2026-11-25","source":"기준 (지금 쓰는 본 전략과 같은 설정)","idea":"","metrics":{"cagr":22.92,"mdd":-34.3,"cal":0.668,"cagr_r":27.13,"mdd_r":-30.13,"cal_r":0.9,"trades":191},"describe":"20/120일선 · 손절 -7% · 추적 20%"}],"runs":[{"date":"2026-11-25","tried":40,"from_github":1,"promoted":false,"version":1},{"date":"2026-11-25","tried":40,"from_github":0,"promoted":false,"version":1},{"date":"2026-11-25","tried":30,"from_github":1,"promoted":false,"version":1,"need":5.0}],"ideas":[{"date":"2026-11-25","repo":"amstrdm/mlm-trend-following","stars":48,"found":["RSI14가 70 이하일 때만 매수"],"tested":1}],"seen":["amstrdm/mlm-trend-following"],"updated":"2026-11-25 21:05","curves":{"current":[["2026-11-25",20000000]],"v1":[["2026-11-25",20000000]]},"pool":{"week":"applied-2026-W48","tests":0,"rounds":0,"tested":[],"cands":[],"last":""}}

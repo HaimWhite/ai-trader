@@ -749,7 +749,8 @@ function render(){
   addStat("12:30 중간 보고", (sx.report || {}).time, (sx.report || {}).ok, 4, (sx.report || {}).note);
   addStat("백테스트", bt ? bt.generated_at : null, true, 10, "");
   addStat("설정 점검(주 1회)", (sx.advisor || {}).time, (sx.advisor || {}).ok, 9, (sx.advisor || {}).note);
-  addStat("코드이터 강화(주 1회)", (sx.codeeater || {}).time, (sx.codeeater || {}).ok, 9, (sx.codeeater || {}).note);
+  addStat("코드이터 탐색(평일 30분마다)", (sx.codeeater_scout || {}).time, (sx.codeeater_scout || {}).ok, 4, (sx.codeeater_scout || {}).note);
+  addStat("코드이터 적용(금 16:30)", (sx.codeeater || {}).time, (sx.codeeater || {}).ok, 9, (sx.codeeater || {}).note);
   addStat("주간 리포트", (sx.weekly || {}).time, (sx.weekly || {}).ok, 9, "");
   addStat("배당 수집", div && div._updated ? div._updated + " 00:00:00" : null, true, 4, "");
   $("stattable").innerHTML = table(["작업", "마지막 실행", "경과", "상태", "메모"], srows) + '<div class="sub" style="margin-top:6px">✅ 정상 · ⚠️ 오래됨/멈춤 · ❌ 마지막 실행이 오류 · – 기록 없음. 12:30 보고·장중 감시는 PC에만 먼저 기록되고, 16:00 점검 때 함께 올라와요.</div>';
@@ -847,9 +848,11 @@ function render(){
   if(CE && CE.versions && CE.versions.length){
     const V = CE.versions, cur = V[V.length - 1], v1 = V[0], mt = x => x.metrics || {};
     const imp = (a, b) => (mt(b).cal > 0 && mt(a).cal != null) ? (mt(a).cal / mt(b).cal - 1) * 100 : null, fp = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(0) + "%";
-    const last = (CE.runs || [])[CE.runs.length - 1];
-    $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 강화` + (last ? ` (후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "이번 주는 유지"})` : "")
-      + `<br>매주 금요일, 코드이터가 깃허브의 주식 전략 글을 읽고 규칙 후보를 만들어 같은 과거 데이터로 시험해요. 전체 기간 <b>연수익÷낙폭</b>이 5% 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`;
+    const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
+    $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
+      + `<br>평일 09:00~16:30 에는 30분마다 깃허브의 주식 전략 글을 읽고 규칙 후보를 만들어 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`
+      + (pool ? `<br>📡 이번 주 탐색: <b>${pool.rounds}번</b> · 시험 <b>${pool.tests}개</b> · 후보 풀 <b>${(pool.cands || []).length}개</b> · 현재 기준 ${pool.need}% 이상 개선 필요 (마지막 ${esc((pool.last || "").slice(5))})`
+        + ((pool.top || []).length ? `<br>지금 1등 후보: 연수익÷낙폭 ${pool.top[0].cal} (현재 V${cur.v}는 ${pool.cur_cal}) · ${esc(pool.top[0].idea || "")}` : "") : `<br>📡 이번 주 탐색은 월요일 09:00 에 시작돼요.`);
     $("cetable").innerHTML = table(["버전", "탄생일", "바뀐 점 · 배운 곳", "연수익", "최대 낙폭", "연수익÷낙폭", "최근 3년 연수익", "V" + v1.v + " 대비"], V.slice().reverse().map(x =>
       `<tr><td><b>V${x.v}</b></td><td>${esc(x.born)}</td><td style="text-align:left;white-space:normal;min-width:220px">${esc(x.idea || x.describe || "")}<div class="sub">${esc(x.source || "")}</div><div class="sub">${esc(x.describe || "")}</div></td><td class="${mt(x).cagr >= 0 ? "up" : "down"}">${mt(x).cagr != null ? mt(x).cagr + "%" : "-"}</td><td>${mt(x).mdd != null ? mt(x).mdd + "%" : "-"}</td><td>${mt(x).cal != null ? mt(x).cal : "-"}</td><td>${mt(x).cagr_r != null ? mt(x).cagr_r + "%" : "-"}</td><td class="${(imp(x, v1) || 0) >= 0 ? "up" : "down"}">${x.v === v1.v ? "기준" : fp(imp(x, v1))}</td></tr>`));
     const cv = CE.curves || {}, el = $("cechart");
