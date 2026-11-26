@@ -410,7 +410,59 @@ def curves(st, ctx):
         cv = evaluate(v["genome"], ctx, since_i=i0)
         seg = [(str(ctx["idx"][i].date()), round(float(cv[i]))) for i in range(i0, ctx["n"])]
         out[name] = [x for k, x in enumerate(seg) if k % 5 == 0 or k == len(seg) - 1]
+    # V1, V5, V10, V15 … (5의 배수) 버전들을 한 그래프에서 비교할 수 있게 각각의 곡선도 저장
+    ms = {}
+    for v in st["versions"]:
+        if v["v"] == 1 or v["v"] % 5 == 0:
+            cv = evaluate(v["genome"], ctx, since_i=i0)
+            seg = [(str(ctx["idx"][i].date()), round(float(cv[i]))) for i in range(i0, ctx["n"])]
+            ms["V%d" % v["v"]] = [x for k, x in enumerate(seg) if k % 5 == 0 or k == len(seg) - 1]
+    out["ms"] = ms
     return out
+
+
+def forward(st, ctx):
+    """각 버전이 태어난 날 '이후'의 성적 (그 날짜 뒤의 데이터는 버전을 고를 때 못 본 것이라 진짜 검증이에요).
+    V1(지금 본 전략과 같은 기준)과 같은 기간으로 비교해요."""
+    out = []
+    base = st["versions"][0]
+    for v in st["versions"][1:]:
+        i0 = int(ctx["idx"].searchsorted(pd.Timestamp(v["born"])))
+        days = ctx["n"] - 1 - i0
+        if days < 1:
+            continue
+        r = {}
+        for name, g in (("v", v["genome"]), ("base", base["genome"])):
+            cv = evaluate(g, ctx, since_i=i0)
+            r[name] = round((float(cv[ctx["n"] - 1]) / float(cv[i0]) - 1) * 100, 2) if cv[i0] else 0.0
+        out.append({"v": v["v"], "born": v["born"], "days": int(days), "ret": r["v"], "base": r["base"], "diff": round(r["v"] - r["base"], 2)})
+    return out
+
+
+def scoreboard(st):
+    """금요일 보고에 붙이는 한 장 요약"""
+    cur = st["versions"][-1]
+    e = (st.get("engine") or {}).get("versions") or []
+    try:
+        kn = codeknow.read()
+        ms = kn.get("models") or []
+        n = (kn.get("train") or {}).get("count", 0)
+        m_txt = f"M{ms[-1]['m']}" if ms else "M없음"
+    except Exception:
+        n, m_txt = 0, "M?"
+    lines = ["📋 이번 주 성적표",
+             f"· 버전: V{cur['v']} · 탐색 방식 E{e[-1]['e'] if e else 1} · 두뇌 {m_txt}",
+             f"· 학습 데이터 {n}/300개 ({min(100, n * 100 // 300)}%)"]
+    p = st.get("runs") or []
+    if p:
+        lines.append(f"· 이번 주 시험 {p[-1].get('tried', 0)}개 (깃허브에서 배운 것 {p[-1].get('from_github', 0)}개)")
+    fw = [f for f in st.get("forward", []) if f["v"] == cur["v"]]
+    if fw:
+        f = fw[0]
+        lines.append(f"· V{cur['v']} 탄생({f['born'][5:]}) 뒤 {f['days']}거래일: {f['ret']:+.1f}% (V1은 {f['base']:+.1f}%)")
+    else:
+        lines.append(f"· V{cur['v']} 가 태어난 뒤 지난 거래일이 아직 없어요 (검증 데이터가 쌓이는 중)")
+    return "\n".join(lines)
 
 
 def improvement_lines(st, new_metrics_by_v, cur_v):
@@ -614,6 +666,7 @@ def apply_week(st, ctx, args):
     st["pool"]["week"] = "applied-" + week_id()   # 다음 월요일 탐색에서 새 풀로 시작
     st["updated"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     st["curves"] = curves(st, ctx)
+    st["forward"] = forward(st, ctx)
     write_state(st)
     status.beat("codeeater", True, f"V{cur_v}, 이번 주 {tried}개 시험")
     return promoted, tried, git_tested, mets, gain
@@ -765,6 +818,10 @@ def main():
     e = st.get("engine") or {}
     if e.get("versions") and not st.get("engine_msg"):
         msg += f"\n(탐색 방식 현재 E{e['versions'][-1]['e']}: {describe_engine(e['versions'][-1]['opts'])})"
+    try:
+        msg += "\n\n" + scoreboard(st)
+    except Exception as e:
+        print("성적표 오류(무시):", str(e)[:60])
     print("\n" + msg.replace("**", ""))
     try:   # 승인·설치된 도구가 있으면 격리해서 실행하고, 결과를 글로만 덧붙여요
         import plugins
