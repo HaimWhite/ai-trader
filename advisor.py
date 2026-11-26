@@ -272,6 +272,11 @@ def apply_pending(quiet=False):
             print(t)
     except Exception as e:
         print("도구 답장 확인 오류:", str(e)[:60])
+    try:   # 코드이터 이상 알림 (멈춤·오류, 하루 한 번)
+        import ce_health
+        ce_health.check()
+    except Exception as e:
+        print("코드이터 점검 오류:", str(e)[:60])
     log = _read(LOG, [])
     pend = [e for e in log if e["status"] == "pending"]
     if not pend:

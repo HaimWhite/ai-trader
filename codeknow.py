@@ -296,6 +296,8 @@ def weekly(k, model=None):
     except Exception:
         pass
     n = train_count()
+    if n < TRAIN_ALERT:
+        msgs.append(f"학습 데이터 {n}/{TRAIN_ALERT}개 ({n * 100 // TRAIN_ALERT}%) 모였어요. 300개가 되면 Colab 파인튜닝을 알려드릴게요.")
     if n >= TRAIN_ALERT and not k["train"].get("alerted"):
         k["train"]["alerted"] = True
         msgs.append(f"학습 데이터가 {n}개 쌓였어요(data/ce_train.jsonl). Colab 파인튜닝을 해볼 만한 양이에요. 원하시면 방법을 안내해 드릴게요. 효과는 보장되지 않아서 결과는 별도 계좌로 비교해야 해요.")

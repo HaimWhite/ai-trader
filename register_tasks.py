@@ -2,7 +2,7 @@
   python register_tasks.py           빠진 작업만 등록
   python register_tasks.py --print   실행하지 않고 등록 명령만 보기
 등록되는 작업: 평일 08:55 장중 감시 / 12:30 중간 보고 / 16:00 정기 점검, 금요일 16:30 설정 점검 / 17:00 주간 리포트,
-코드이터: 평일 09:00~16:30 30분마다 탐색 / 금요일 16:30 고르기·적용"""
+코드이터: 평일 09:00~16:28 쉬지 않고 탐색 / 금요일 16:30 고르기·적용"""
 import base64
 import subprocess
 import sys
@@ -32,18 +32,18 @@ REPEAT_TASKS = [
     ("AITraderApprove", "run_approve.bat", 10, "10분마다 설정 제안 승인·거절 답장 확인"),
 ]
 
-# 코드이터: 평일 09:00 부터 30분마다 7시간(마지막 16:00 시작, 16:30 전에 끝남) 탐색 + 금요일 16:30 적용. 이미 있으면 지우고 새로 등록(시각 변경 반영)
+# 코드이터: 평일 09:00 에 시작해 16:28 까지 쉬지 않고 탐색(한 번 켜지면 계속 돎, 15분마다 확인해서 꺼져 있으면 다시 시작) + 금요일 16:30 적용. 이미 있으면 지우고 새로 등록(시각 변경 반영)
 CE_TASKS = {
-    "AITraderCodeEaterScout": "평일 09:00~16:30 코드이터 탐색 (30분마다, 창 없이 조용히)",
+    "AITraderCodeEaterScout": "평일 09:00~16:28 코드이터 쉬지 않고 탐색 (꺼지면 15분마다 다시 시작, 창 없이 조용히)",
     "AITraderCodeEaterWeekly": "금요일 16:30 코드이터 고르기·적용 (버전 상승 + 알림)",
 }
 CE_PS = r"""
 foreach ($n in 'AITraderCodeEaterScout','AITraderCodeEaterWeekly') { Unregister-ScheduledTask -TaskName $n -Confirm:$false -ErrorAction SilentlyContinue }
 $p = @{AllowStartIfOnBatteries = $true; DontStopIfGoingOnBatteries = $true; StartWhenAvailable = $true; MultipleInstances = 'IgnoreNew'}
-$s1 = New-ScheduledTaskSettingsSet @p -ExecutionTimeLimit (New-TimeSpan -Minutes 25)
+$s1 = New-ScheduledTaskSettingsSet @p -ExecutionTimeLimit (New-TimeSpan -Hours 8)
 $a1 = New-ScheduledTaskAction -Execute 'pythonw.exe' -Argument 'codeeater.py --scout' -WorkingDirectory $d
 $t1 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At '09:00'
-$t1.Repetition = (New-ScheduledTaskTrigger -Once -At '09:00' -RepetitionInterval (New-TimeSpan -Minutes 30) -RepetitionDuration (New-TimeSpan -Hours 7)).Repetition
+$t1.Repetition = (New-ScheduledTaskTrigger -Once -At '09:00' -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Hours 7)).Repetition
 Register-ScheduledTask -TaskName AITraderCodeEaterScout -Action $a1 -Trigger $t1 -Settings $s1 | Out-Null
 Write-Output 'AITraderCodeEaterScout registered'
 $s2 = New-ScheduledTaskSettingsSet @p -WakeToRun

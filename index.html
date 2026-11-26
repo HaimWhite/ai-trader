@@ -749,7 +749,7 @@ function render(){
   addStat("12:30 중간 보고", (sx.report || {}).time, (sx.report || {}).ok, 4, (sx.report || {}).note);
   addStat("백테스트", bt ? bt.generated_at : null, true, 10, "");
   addStat("설정 점검(주 1회)", (sx.advisor || {}).time, (sx.advisor || {}).ok, 9, (sx.advisor || {}).note);
-  addStat("코드이터 탐색(평일 30분마다)", (sx.codeeater_scout || {}).time, (sx.codeeater_scout || {}).ok, 4, (sx.codeeater_scout || {}).note);
+  addStat("코드이터 탐색(평일 쉬지 않고)", (sx.codeeater_scout || {}).time, (sx.codeeater_scout || {}).ok, 4, (sx.codeeater_scout || {}).note);
   addStat("코드이터 적용(금 16:30)", (sx.codeeater || {}).time, (sx.codeeater || {}).ok, 9, (sx.codeeater || {}).note);
   addStat("주간 리포트", (sx.weekly || {}).time, (sx.weekly || {}).ok, 9, "");
   addStat("배당 수집", div && div._updated ? div._updated + " 00:00:00" : null, true, 4, "");
@@ -853,13 +853,15 @@ function render(){
     const imp = (a, b) => (mt(b).cal > 0 && mt(a).cal != null) ? (mt(a).cal / mt(b).cal - 1) * 100 : null, fp = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(0) + "%";
     const eV = CE.engine && CE.engine.versions && CE.engine.versions.length ? CE.engine.versions[CE.engine.versions.length - 1].e : null, mV = D.ck && (D.ck.models || []).length ? D.ck.models[D.ck.models.length - 1].m : null,
       plI = D.pl && D.pl.items ? D.pl.items : [], plOn = plI.filter(x => x.status === "installed").length, plWait = plI.filter(x => x.status === "pending").length,
+      trN = D.ck && D.ck.train ? (D.ck.train.count || 0) : 0, bar = f => `<span style="display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--line);vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, f * 100).toFixed(0)}%;background:#10b981"></span></span>`,
       chip = (t, on) => `<span style="padding:3px 10px;border-radius:12px;border:1px solid var(--line);font-size:13px;${on ? "font-weight:700" : "opacity:.6"}">${t}</span>`;
     $("celine").innerHTML = chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip("두뇌 <b>" + (mV ? "M" + mV : "-") + "</b>", !!mV)
-      + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0);
+      + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0)
+      + chip("학습 데이터 <b>" + trN + "/300</b> " + bar(trN / 300), trN >= 300);
     $("celine").title = "V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
     const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
     $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
-      + `<br>평일 09:00~16:30 에는 30분마다 깃허브의 주식 전략 글을 읽고 규칙 후보를 만들어 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`
+      + `<br>평일 09:00~16:28 에는 쉬지 않고 계속 (깃허브 호출 한도가 남을 때는 깃허브의 주식 전략 글과 코드를 읽고, 아니면 PC 안에서 후보를 만들어) 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`
       + (pool ? `<br>📡 이번 주 탐색: <b>${pool.rounds}번</b> · 시험 <b>${pool.tests}개</b> · 후보 풀 <b>${(pool.cands || []).length}개</b> · 현재 기준 ${pool.need}% 이상 개선 필요 (마지막 ${esc((pool.last || "").slice(5))})`
         + ((pool.top || []).length ? `<br>지금 1등 후보: 연수익÷낙폭 ${pool.top[0].cal} (현재 V${cur.v}는 ${pool.cur_cal}) · ${esc(pool.top[0].idea || "")}` : "") + ((pool.rounds >= 3 && !pool.git_ideas) ? `<br>⚠️ 깃허브에서 배운 아이디어가 아직 없어요 (스스로 변형 시험만 하는 중). python check_codeeater.py 로 확인해 보세요.` : "") + ((pool.errors || []).length ? `<br><span class="sub">최근 오류: ${esc(pool.errors[pool.errors.length - 1])}${pool.token ? "" : " · GITHUB_TOKEN 이 없어서 호출 한도가 작아요"}</span>` : "") : `<br>📡 이번 주 탐색은 월요일 09:00 에 시작돼요.`);
     $("cetable").innerHTML = table(["버전", "탄생일", "바뀐 점 · 배운 곳", "연수익", "최대 낙폭", "연수익÷낙폭", "최근 3년 연수익", "V" + v1.v + " 대비"], V.slice().reverse().map(x =>
@@ -887,7 +889,7 @@ function render(){
     if(CK && (CK.tips || []).length + ((CK.stats || {}).read || 0) > 0){
       const stt = CK.stats || {}, md = (CK.models || [])[(CK.models || []).length - 1], tc = (CK.train || {}).count || 0;
       $("ceknowhd").innerHTML = `📚 지식 창고 · 읽은 코드 <b>${stt.read || 0}개</b> (위험해서 거른 것 ${stt.rejected || 0}개, 점수가 낮아 버린 것 ${stt.low || 0}개) → 저장한 팁 <b>${(CK.tips || []).length}개</b>`
-        + `<br>🧠 두뇌(codeeater-trader): ${md ? "<b>M" + md.m + "</b> (" + esc(md.date) + ", 팁 " + md.tips_in + "개 반영)" : "아직 만들지 않았어요 (팁 3개 이상 쌓이면 금요일에 만들어요)"} · 📈 학습 데이터 <b>${tc}/300</b>${tc >= 300 ? " (Colab 파인튜닝을 해볼 만해요)" : ""} · 🧩 플러그인 초안 ${(CK.drafts || []).length}개 (설치 안 함)`
+        + `<br>🧠 두뇌(codeeater-trader): ${md ? "<b>M" + md.m + "</b> (" + esc(md.date) + ", 팁 " + md.tips_in + "개 반영)" : "아직 만들지 않았어요 (팁 3개 이상 쌓이면 금요일에 만들어요)"} · 📈 파인튜닝 준비: 학습 데이터 <b>${tc}/300</b> (${Math.min(100, Math.floor(tc / 3))}%) <span style="display:inline-block;width:90px;height:7px;border-radius:4px;background:var(--line);vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, tc / 3)}%;background:#10b981"></span></span>${tc >= 300 ? " ✅ Colab 파인튜닝을 해볼 만해요" : " · 300개가 되면 알려드려요"} · 🧩 플러그인 초안 ${(CK.drafts || []).length}개 (설치 안 함)`
         + `<br>🔎 다음에 찾아볼 검색어: ${(CK.queue || []).length ? esc(CK.queue.slice(0, 4).join(", ")) : "기본 목록에서 고름"}<br><span class="sub">자유 라이선스(MIT·Apache 등) 파이썬 코드만 읽고, 실행은 하지 않아요. 점수 6점 이상만 저장해요.</span>`;
       $("ceknow").innerHTML = (CK.tips || []).length ? table(["점수", "배운 팁", "출처 (라이선스)", "날짜"], (CK.tips || []).slice(-8).reverse().map(t =>
         `<tr><td>${t.score}</td><td style="text-align:left;white-space:normal;min-width:240px">${esc(t.tip)}</td><td style="text-align:left;white-space:normal">${esc(t.repo)}<div class="sub">${esc(t.license || "")}</div></td><td>${esc((t.date || "").slice(5))}</td></tr>`)) : "";

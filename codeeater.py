@@ -17,6 +17,7 @@ import random
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from datetime import datetime
 
@@ -35,8 +36,10 @@ STATE = config.DATA_DIR / "codeeater.json"
 RECENT_DAYS = 756
 MIN_GAIN = 0.05
 MAX_CANDIDATES = 40
-WEEK_TEST_CAP = 400      # 한 주에 시험하는 후보 수 상한
+WEEK_TEST_CAP = 20000    # 한 주에 시험하는 후보 수 상한 (사실상 계속 탐색, 대신 시험이 많을수록 기준을 올려요)
 SCOUT_START, SCOUT_END = (9, 0), (16, 30)
+SCOUT_STOP = (16, 28)    # 탐색 반복은 여기서 멈춰서 16:30 적용과 겹치지 않게 해요
+LOCK = Path(tempfile.gettempdir()) / "ai_trader_ce_scout.lock"
 POOL_KEEP = 30
 FRAME_CACHE = Path(tempfile.gettempdir()) / "ai_trader_ce_frames.pkl"   # 깃허브에 올라가지 않도록 임시 폴더에 저장
 GRID = {"short": [10, 15, 20, 30], "long": [60, 90, 120, 150], "stop": [-0.05, -0.07, -0.10], "trail": [0.15, 0.20, 0.25, 0.30],
@@ -425,8 +428,8 @@ def week_id():
 
 
 def need_gain(tests):
-    """이번 주 시험을 많이 했을수록 요구 개선폭을 높여요 (우연히 좋아 보이는 후보를 거르려고). 40개까지 5%, 400개면 약 10%"""
-    return MIN_GAIN * (1 + math.log10(max(1.0, tests / 40)))
+    """이번 주 시험을 많이 했을수록 요구 개선폭을 높여요 (우연히 좋아 보이는 후보를 거르려고). 40개까지 5%, 400개 약 8.5%, 4,000개 약 12%, 최대 15%"""
+    return min(0.15, MIN_GAIN * (1 + 0.7 * math.log10(max(1.0, tests / 40))))
 
 
 def passes_at(new, cur, gain):
@@ -438,10 +441,10 @@ def fresh_pool():
     return {"week": week_id(), "tests": 0, "rounds": 0, "tested": [], "cands": [], "last": ""}
 
 
-def in_scout_window(now=None):
+def in_scout_window(now=None, end=None):
     now = now or datetime.now()
     hm = (now.hour, now.minute)
-    return now.weekday() < 5 and SCOUT_START <= hm <= SCOUT_END
+    return now.weekday() < 5 and SCOUT_START <= hm <= (end or SCOUT_END)
 
 
 def ensure_v1(st, today):
@@ -477,20 +480,21 @@ def scout_engine_ideas(st, eng, rnd, today):
                 eng["notes"] = (eng["notes"] + [{"date": today, "repo": r["full"], "text": it["human"]}])[-15:]
 
 
-def scout(st, ctx, args, repos_n=2, n_mut=10):
+def scout(st, ctx, args, repos_n=2, n_mut=10, gh=True):
     """탐색 한 번: 깃허브에서 아이디어를 읽고 + 스스로 변형을 만들어 시험하고, 쓸 만한 후보를 이번 주 후보 풀에 모아요 (버전은 안 바뀜)."""
     now = datetime.now()
-    rnd = random.Random(now.strftime("%Y%m%d%H%M"))
+    rnd = random.Random(f"{now:%Y%m%d%H%M%S}{time.time_ns() % 100000}")
     today = now.strftime("%Y-%m-%d")
+    gh = gh and "--no-github" not in args   # 깃허브 호출 여유가 없는 회차는 PC 안에서 시험만 해요
     pool = st.get("pool")
     if not pool or pool.get("week") != week_id():
         pool = st["pool"] = fresh_pool()
     cur = st["versions"][-1]
     cur_m = evaluate(cur["genome"], ctx)
     eng = engine_state(st)
-    if "--no-github" not in args:
+    if gh:
         scout_engine_ideas(st, eng, rnd, today)
-    if "--no-github" not in args:   # 자유 라이선스 코드를 읽어 지식 창고에 팁을 쌓아요 (읽기만 함)
+    if gh:   # 자유 라이선스 코드를 읽어 지식 창고에 팁을 쌓아요 (읽기만 함)
         try:
             kn = codeknow.read()
             new_tips = codeknow.read_round(kn, rnd, model=getattr(config, "CODEEATER_MODEL", None))
@@ -503,7 +507,7 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
     arm = eng["arms"][akey]
     cands = []
     n_git = 0
-    if "--no-github" not in args:
+    if gh:
         try:
             repos = github_scout.pick_repos(st["seen"], n=repos_n, rnd=rnd)
         except Exception as e:
@@ -656,6 +660,68 @@ def push_data():
             return
 
 
+def set_low_priority():
+    """탐색은 하루 종일 돌기 때문에 다른 작업(점검·감시)을 방해하지 않게 우선순위를 낮춰요 (윈도우)."""
+    try:
+        import ctypes
+        ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), 0x4000)   # BELOW_NORMAL
+    except Exception:
+        pass
+
+
+def touch_lock():
+    try:
+        LOCK.write_text(str(time.time()))
+    except Exception:
+        pass
+
+
+def scout_busy():
+    try:
+        return time.time() - LOCK.stat().st_mtime < 150
+    except Exception:
+        return False
+
+
+def wait_for_scout(max_sec=180):
+    """16:30 적용은 탐색 반복이 끝나길 잠깐 기다려요."""
+    t0 = time.time()
+    while scout_busy() and time.time() - t0 < max_sec:
+        time.sleep(10)
+
+
+def scout_loop(st, ctx, args):
+    """평일 09:00~16:28 쉬지 않고 계속 탐색해요. 깃허브 호출 여유가 있는 회차에는 깃허브도 읽고, 없는 회차에는 PC 안에서 후보 시험만 해요."""
+    set_low_priority()
+    last_push, rounds = time.time(), 0
+    print("탐색 반복을 시작합니다 (16:28 까지 쉬지 않고 계속).")
+    while in_scout_window(end=SCOUT_STOP):
+        touch_lock()
+        pool = st.get("pool") or {}
+        if pool.get("week") == week_id() and pool.get("tests", 0) >= WEEK_TEST_CAP:
+            time.sleep(300)
+            continue
+        gh = github_scout.budget_ok()
+        try:
+            tried, _ = scout(st, ctx, args, n_mut=30, gh=gh)
+        except Exception as e:
+            print("탐색 회차 오류(계속):", str(e)[:80])
+            github_scout.note_error("회차 오류: " + str(e))
+            time.sleep(30)
+            continue
+        rounds += 1
+        if time.time() - last_push > 3600:   # 한 시간에 한 번 깃허브에 올려 대시보드에 보이게 해요
+            push_data()
+            last_push = time.time()
+        time.sleep(2 if tried else 60)   # 새로 시험할 후보가 없으면 잠깐 쉬었다가 다시 만들어요
+    push_data()
+    try:
+        LOCK.unlink()
+    except Exception:
+        pass
+    print(f"오늘 탐색을 마칩니다 (회차 {rounds}번).")
+
+
 def main():
     args = sys.argv[1:]
     if sys.stdout is None or sys.stderr is None:   # pythonw(창 없음)로 실행되면 출력 대신 로그 파일에 기록
@@ -679,10 +745,15 @@ def main():
     cur = st["versions"][-1]
     print(f"현재 V{cur['v']} ({describe(cur['genome'])})")
     if is_scout:
-        scout(st, ctx, args)
-        if datetime.now().hour >= 16:   # 하루 마지막 즈음의 탐색만 깃허브에 올려 기록이 너무 늘지 않게
-            push_data()
+        if "--force" in args or "--once" in args:   # 한 회차만 (시험·수동용)
+            scout(st, ctx, args, gh=github_scout.budget_ok())
+            return
+        scout_loop(st, ctx, args)
         return
+    if is_apply:
+        wait_for_scout()
+        st = read_state()   # 탐색이 마지막으로 쓴 기록을 다시 읽어요
+        ensure_v1(st, today)
     if not is_apply:   # 수동: 한 번 크게 탐색하고 바로 적용
         scout(st, ctx, args, repos_n=4, n_mut=30)
     promoted, tried, n_git, mets, gain = apply_week(st, ctx, args)

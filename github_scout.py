@@ -59,9 +59,19 @@ def has_token():
 
 def rate_status():
     """깃허브 검색 호출 한도 현황 (이 조회 자체는 한도를 쓰지 않아요). {'limit':, 'remaining':, 'reset': 'HH:MM'}"""
-    d = json.loads(_get(f"{API}/rate_limit")).get("resources", {}).get("search", {})
+    res = json.loads(_get(f"{API}/rate_limit")).get("resources", {})
+    d, core = res.get("search", {}), res.get("core", {})
     reset = datetime.fromtimestamp(d.get("reset", 0)).strftime("%H:%M") if d.get("reset") else "?"
-    return {"limit": d.get("limit"), "remaining": d.get("remaining"), "reset": reset}
+    return {"limit": d.get("limit"), "remaining": d.get("remaining"), "reset": reset, "core_remaining": core.get("remaining"), "core_limit": core.get("limit")}
+
+
+def budget_ok(min_search=8, min_core=15):
+    """깃허브를 읽을 여유(검색·일반 호출 한도)가 남았는지. 여유가 없으면 이번 회차는 깃허브 없이 PC 안에서만 시험해요."""
+    try:
+        r = rate_status()
+        return (r["remaining"] or 0) >= min_search and (r["core_remaining"] if r["core_remaining"] is not None else 99) >= min_core
+    except Exception:
+        return False
 
 
 def _token():
