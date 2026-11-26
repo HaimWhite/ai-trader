@@ -266,6 +266,12 @@ def test_proposal():
 
 
 def apply_pending(quiet=False):
+    try:   # 코드이터 도구 승인·거절 답장도 함께 확인
+        import plugins
+        for t in plugins.poll():
+            print(t)
+    except Exception as e:
+        print("도구 답장 확인 오류:", str(e)[:60])
     log = _read(LOG, [])
     pend = [e for e in log if e["status"] == "pending"]
     if not pend:
@@ -307,6 +313,8 @@ def poll():
     unknown = False
     for m in replies or []:   # 가장 먼저 온 분명한 답을 따름
         w = _norm(m.get("content"))
+        if re.search(r"도구\d+", w):   # '승인 도구1' 같은 도구 답장은 plugins 가 처리해요
+            continue
         if w in APPROVE:
             decision = "applied"
         elif w in REJECT:

@@ -695,6 +695,13 @@ def main():
     if e.get("versions") and not st.get("engine_msg"):
         msg += f"\n(탐색 방식 현재 E{e['versions'][-1]['e']}: {describe_engine(e['versions'][-1]['opts'])})"
     print("\n" + msg.replace("**", ""))
+    try:   # 승인·설치된 도구가 있으면 격리해서 실행하고, 결과를 글로만 덧붙여요
+        import plugins
+        outs = plugins.run_all(msg)
+        if outs:
+            msg += "\n\n🧰 설치된 도구 결과\n" + "\n".join(f"· {t}: {o}" for t, o in outs)
+    except Exception as e:
+        print("도구 실행 오류(무시):", str(e)[:60])
     if "--no-dm" not in args:
         notify.send(msg, mention=promoted)
 

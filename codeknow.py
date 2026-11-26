@@ -240,10 +240,17 @@ def draft_plugin(k, model=None):
         return f"플러그인 초안은 안전 검사를 통과하지 못해 버렸어요 ({why})."
     DRAFTS.mkdir(exist_ok=True)
     name = f"draft_{datetime.now():%Y%m%d}_{len(k['drafts']) + 1}.py"
-    header = f'"""[초안 - 설치·실행되지 않음] {title}\n하임님이 허락하기 전에는 어디에서도 불러 쓰지 않아요.\n"""\n'
+    header = f'"""[초안 - 승인 전에는 설치·실행되지 않음] {title}\n"""\n'
     (DRAFTS / name).write_text(header + code + "\n", encoding="utf-8")
     k["drafts"].append({"file": name, "title": title, "date": datetime.now().strftime("%Y-%m-%d")})
-    return f"새 기능 초안 '{title}' 을 plugins_proposed/{name} 에 만들었어요 (설치·실행은 안 했어요)."
+    try:
+        import plugins
+        n = plugins.register(name, title)
+    except Exception as e:
+        return f"새 기능 초안 '{title}' 을 만들었지만 승인 요청에 실패했어요 ({str(e)[:50]})."
+    if n is None:
+        return f"새 기능 초안 '{title}' 을 plugins_proposed/{name} 에 만들었어요 (승인 대기 중인 도구가 이미 많아서 승인 요청은 보내지 않았어요)."
+    return f"새 도구 초안 '도구 {n}: {title}' 을 만들고 승인 요청을 따로 보냈어요. '승인 도구{n}' 이라고 답하시면 설치해요."
 
 
 # ---------- 6. 다음 키워드 ----------

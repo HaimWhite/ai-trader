@@ -147,7 +147,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama 모델별) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="rng" id="aisel" style="position:static;margin:10px 0 0"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
-  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
+  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div id="cetools"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -886,6 +886,9 @@ function render(){
       $("ceknow").innerHTML = (CK.tips || []).length ? table(["점수", "배운 팁", "출처 (라이선스)", "날짜"], (CK.tips || []).slice(-8).reverse().map(t =>
         `<tr><td>${t.score}</td><td style="text-align:left;white-space:normal;min-width:240px">${esc(t.tip)}</td><td style="text-align:left;white-space:normal">${esc(t.repo)}<div class="sub">${esc(t.license || "")}</div></td><td>${esc((t.date || "").slice(5))}</td></tr>`)) : "";
     } else { $("ceknowhd").textContent = ""; $("ceknow").innerHTML = ""; }
+    const PL = D.pl && D.pl.items ? D.pl.items.filter(x => x.status !== "removed") : [], PLN = {pending: "⏳ 승인 대기", installed: "✅ 설치됨", rejected: "거절", expired: "만료", disabled: "⚠️ 오류로 꺼짐"};
+    $("cetools").innerHTML = PL.length ? `<div class="sub" style="margin:10px 0 2px">🧩 코드이터가 만든 도구 (승인한 것만 설치돼요 · 디스코드에 '승인 도구N' / '거절 도구N' / '제거 도구N' 로 답해요)</div>` + PL.slice().reverse().slice(0, 6).map(x =>
+      `<div class="sub">· 도구 ${x.n} <b>${esc(x.title)}</b> (${esc(x.date)}) — ${PLN[x.status] || esc(x.status)}${x.last ? " · " + esc(x.last) : ""}</div>`).join("") : "";
     $("ceideash").textContent = (CE.ideas && CE.ideas.length) ? "최근에 돌아다닌 깃허브 저장소와 배운 것" : "";
     $("ceideas").innerHTML = (CE.ideas || []).slice(-8).reverse().map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${e.kind === "engine" ? "[탐색 방식] " : ""}${esc(e.repo)}</b> <span class="sub">★${e.stars} · ${esc(e.date.slice(5))} · 시험한 후보 ${e.tested}개</span>${(e.found && e.found.length) ? e.found.map(f => `<div class="sub">· ${esc(f)}</div>`).join("") : '<div class="sub">· 시험해 볼 만한 규칙이 없었어요</div>'}</div>`).join("");
   }
@@ -1027,7 +1030,8 @@ async function main(){
     const ns = await load("news_shadow").catch(() => null);
     const ce = await load("codeeater").catch(() => null);
     const ck = await load("ce_knowledge").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce, ck};
+    const pl = await load("plugin_state").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce, ck, pl};
     render();
   }catch(e){
     $("updated").textContent = "";
