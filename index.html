@@ -855,13 +855,14 @@ function render(){
       plI = D.pl && D.pl.items ? D.pl.items : [], plOn = plI.filter(x => x.status === "installed").length, plWait = plI.filter(x => x.status === "pending").length,
       trN = D.ck && D.ck.train ? (D.ck.train.count || 0) : 0, bar = f => `<span style="display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--line);vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, f * 100).toFixed(0)}%;background:#10b981"></span></span>`,
       chip = (t, on) => `<span style="padding:3px 10px;border-radius:12px;border:1px solid var(--line);font-size:13px;${on ? "font-weight:700" : "opacity:.6"}">${t}</span>`;
-    $("celine").innerHTML = chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip("두뇌 <b>" + (mV ? "M" + mV : "-") + "</b>", !!mV)
+    const LA = D.la || {}, laWait = (LA.pending || []).filter(x => x.status === "pending");
+    $("celine").innerHTML = chip("본 전략 <b>V" + (LA.live_v || 1) + "</b>" + (laWait.length ? " · 승인 대기 V" + laWait[0].v : ""), true) + chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip("두뇌 <b>" + (mV ? "M" + mV : "-") + "</b>", !!mV)
       + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0)
       + chip("학습 데이터 <b>" + trN + "/300</b> " + bar(trN / 300), trN >= 300);
-    $("celine").title = "V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
+    $("celine").title = "본 전략: 실제 매매에 쓰는 V · V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
     const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
     $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
-      + `<br>평일 09:00~16:28 에는 쉬지 않고 계속 (깃허브 호출 한도가 남을 때는 깃허브의 주식 전략 글과 코드를 읽고, 아니면 PC 안에서 후보를 만들어) 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`
+      + `<br>평일 09:00~16:28 에는 쉬지 않고 계속 (깃허브 호출 한도가 남을 때는 깃허브의 주식 전략 글과 코드를 읽고, 아니면 PC 안에서 후보를 만들어) 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 하임님이 디스코드로 '승인 V번호' 라고 답하실 때만 적용돼요.`
       + (pool ? `<br>📡 이번 주 탐색: <b>${pool.rounds}번</b> · 시험 <b>${pool.tests}개</b> · 후보 풀 <b>${(pool.cands || []).length}개</b> · 현재 기준 ${pool.need}% 이상 개선 필요 (마지막 ${esc((pool.last || "").slice(5))})`
         + ((pool.top || []).length ? `<br>지금 1등 후보: 연수익÷낙폭 ${pool.top[0].cal} (현재 V${cur.v}는 ${pool.cur_cal}) · ${esc(pool.top[0].idea || "")}` : "") + ((pool.rounds >= 3 && !pool.git_ideas) ? `<br>⚠️ 깃허브에서 배운 아이디어가 아직 없어요 (스스로 변형 시험만 하는 중). python check_codeeater.py 로 확인해 보세요.` : "") + ((pool.errors || []).length ? `<br><span class="sub">최근 오류: ${esc(pool.errors[pool.errors.length - 1])}${pool.token ? "" : " · GITHUB_TOKEN 이 없어서 호출 한도가 작아요"}</span>` : "") : `<br>📡 이번 주 탐색은 월요일 09:00 에 시작돼요.`);
     $("cetable").innerHTML = table(["버전", "탄생일", "바뀐 점 · 배운 곳", "연수익", "최대 낙폭", "연수익÷낙폭", "최근 3년 연수익", "V" + v1.v + " 대비"], V.slice().reverse().map(x =>
@@ -1050,7 +1051,8 @@ async function main(){
     const ce = await load("codeeater").catch(() => null);
     const ck = await load("ce_knowledge").catch(() => null);
     const pl = await load("plugin_state").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce, ck, pl};
+    const la = await load("live_apply").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce, ck, pl, la};
     render();
   }catch(e){
     $("updated").textContent = "";

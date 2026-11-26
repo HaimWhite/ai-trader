@@ -439,6 +439,43 @@ def forward(st, ctx):
     return out
 
 
+def live_check(st, ctx, promoted):
+    """금요일: ① V 가 올랐으면 본 전략 적용을 물어보고 ② 적용한 뒤 성적이 계속 나쁘면 되돌릴지 물어봐요 (둘 다 하임님이 답해야만 바뀌어요)"""
+    import live_apply
+    out = []
+    cur = st["versions"][-1]
+    ls = live_apply.read()
+    if promoted:
+        fw = ""
+        try:
+            lv = next((v for v in st["versions"] if v["v"] == ls["live_v"]), st["versions"][0])
+            ml, mc = evaluate(lv["genome"], ctx), evaluate(cur["genome"], ctx)
+            if ml["cal"] > 0:
+                fw = f"- 같은 과거 데이터로 다시 계산하면 V{lv['v']}보다 연수익÷낙폭 {(mc['cal'] / ml['cal'] - 1) * 100:+.0f}% (연 {mc['cagr']:.0f}% · 낙폭 {mc['mdd']:.0f}%)"
+        except Exception:
+            pass
+        t = live_apply.propose_apply(cur["v"], cur["genome"], fw)
+        if t:
+            out.append(t)
+    if ls.get("prev") and ls.get("live_since"):
+        try:
+            i0 = int(ctx["idx"].searchsorted(pd.Timestamp(ls["live_since"])))
+            days = ctx["n"] - 1 - i0
+            lv = next(v for v in st["versions"] if v["v"] == ls["live_v"])
+            if days >= live_apply.ROLLBACK_MIN_DAYS:
+                r = []
+                for g in (lv["genome"], ls["prev"]["genome"]):
+                    cv = evaluate(g, ctx, since_i=i0)
+                    r.append((float(cv[ctx["n"] - 1]) / float(cv[i0]) - 1) * 100)
+                if r[0] - r[1] <= live_apply.ROLLBACK_GAP:
+                    t = live_apply.propose_rollback(live_apply._text(ls["prev"]["genome"]), r[0], r[1], days)
+                    if t:
+                        out.append(t)
+        except Exception as e:
+            out.append("되돌리기 점검 오류(무시): " + str(e)[:50])
+    return out
+
+
 def scoreboard(st):
     """금요일 보고에 붙이는 한 장 요약"""
     cur = st["versions"][-1]
@@ -682,7 +719,7 @@ def message(st, promoted, tried, n_git, mets, gain=MIN_GAIN):
     imp = improvement_lines(st, mets, cur["v"])
     return (f"하임님, 코드이터가 **V{cur['v']}**로 올라갔어요! 역대 버전과 비교하면 " + ", ".join(imp) + " 더 좋아요 (연수익÷낙폭 기준, 같은 과거 데이터로 다시 계산).\n"
             f"- 이번에 바뀐 점: {cur['idea']}\n- 배운 곳: {cur['source']}\n- 성적: 연 {m['cagr']}% · 최대 낙폭 {m['mdd']}% · 최근 3년 연 {m['cagr_r']}%\n"
-            f"- 이번 주 시험 {tried}개 (기준 {gain * 100:.1f}% 이상 개선)\n- 설정: {describe(cur['genome'])}\n본 전략에는 자동으로 적용하지 않았어요. 적용하고 싶으시면 말씀해 주세요.")
+            f"- 이번 주 시험 {tried}개 (기준 {gain * 100:.1f}% 이상 개선)\n- 설정: {describe(cur['genome'])}\n본 전략에는 하임님이 승인하실 때만 적용돼요 (아래 안내 참고).")
 
 
 def show_status():
@@ -818,6 +855,17 @@ def main():
     e = st.get("engine") or {}
     if e.get("versions") and not st.get("engine_msg"):
         msg += f"\n(탐색 방식 현재 E{e['versions'][-1]['e']}: {describe_engine(e['versions'][-1]['opts'])})"
+    try:
+        lc = live_check(st, ctx, promoted) if "--no-dm" not in args else []
+        if lc:
+            msg += "\n\n" + "\n".join("🔗 " + t for t in lc)
+    except Exception as e:
+        print("본 전략 연결 단계 오류(무시):", str(e)[:80])
+    try:
+        ls = __import__("live_apply").read()
+        msg += f"\n\n(지금 본 전략: V{ls['live_v']})"
+    except Exception:
+        pass
     try:
         msg += "\n\n" + scoreboard(st)
     except Exception as e:

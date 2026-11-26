@@ -211,6 +211,24 @@ def _apply_tuning():
 
 _apply_tuning()
 
+
+def _apply_live_override():
+    """승인해서 적용한 코드이터 V (data/live_override.json) 가 있으면 허용 범위 안에서만 본 전략 설정을 덮어써요"""
+    import json
+    p = DATA_DIR / "live_override.json"
+    if not p.exists():
+        return
+    try:
+        d = json.load(open(p, encoding="utf-8"))
+        s, l, sl, tr = int(d["SHORT_MA"]), int(d["LONG_MA"]), float(d["STOP_LOSS_PCT"]), float(d["TRAIL_STOP_PCT"])
+    except Exception:
+        return
+    if 3 <= s < l <= 250 and -0.15 <= sl <= -0.02 and 0.05 <= tr <= 0.40 and not globals().get("LONG_MAS"):
+        globals().update(SHORT_MA=s, LONG_MA=l, STOP_LOSS_PCT=sl, TRAIL_STOP_PCT=tr)
+
+
+_apply_live_override()
+
 # 디스코드 보고에 붙일 대시보드 주소 (GitHub Pages). 필요 없으면 빈 글자("")로 두세요.
 DASHBOARD_URL = "https://haimwhite.github.io/ai-trader/"
 

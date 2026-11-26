@@ -265,9 +265,12 @@ def test_proposal():
         print("DM 을 보내지 못했어요. .env 의 DISCORD_BOT_TOKEN / DISCORD_USER_ID 를 확인해 주세요.")
 
 
-def apply_pending(quiet=False):
+def _codeeater_checks():
     try:   # 코드이터 도구 승인·거절 답장도 함께 확인
         import plugins
+        import live_apply
+        for t in live_apply.poll():
+            print(t)
         for t in plugins.poll():
             print(t)
     except Exception as e:
@@ -277,6 +280,9 @@ def apply_pending(quiet=False):
         ce_health.check()
     except Exception as e:
         print("코드이터 점검 오류:", str(e)[:60])
+
+
+def apply_pending(quiet=False):
     log = _read(LOG, [])
     pend = [e for e in log if e["status"] == "pending"]
     if not pend:
@@ -305,6 +311,7 @@ def _norm(text):
 
 def poll():
     """대기 중인 제안에 대한 DM 답장을 확인해서 승인/거절/만료 처리합니다."""
+    _codeeater_checks()   # 코드이터 도구·본 전략 적용 답장, 이상 알림은 대기 제안이 없어도 확인해요
     log = _read(LOG, [])
     pend = [e for e in log if e["status"] == "pending"]
     if not pend:
@@ -318,7 +325,7 @@ def poll():
     unknown = False
     for m in replies or []:   # 가장 먼저 온 분명한 답을 따름
         w = _norm(m.get("content"))
-        if re.search(r"도구\d+", w):   # '승인 도구1' 같은 도구 답장은 plugins 가 처리해요
+        if re.search(r"(도구|v)\d+", w):   # '승인 도구1', '승인 V6' 같은 답장은 plugins / live_apply 가 처리해요
             continue
         if w in APPROVE:
             decision = "applied"
