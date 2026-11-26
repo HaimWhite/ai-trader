@@ -41,6 +41,15 @@ def main():
                 print("   오류:", e)
         else:
             print("   이번 주 탐색 기록 없음 (월요일 09:00 부터 시작, 금요일 적용 직후에도 이렇게 나와요)")
+    kn = load(config.DATA_DIR / "ce_knowledge.json", {})
+    if kn:
+        s = kn.get("stats", {})
+        md = (kn.get("models") or [None])[-1]
+        print(f"📚 지식 창고: 읽은 코드 {s.get('read', 0)}개 · 거른 위험 코드 {s.get('rejected', 0)}개 · 저장 팁 {len(kn.get('tips', []))}개 · 모델 {('M' + str(md['m'])) if md else '아직 없음'} · 학습 데이터 {(kn.get('train') or {}).get('count', 0)}/300 · 플러그인 초안 {len(kn.get('drafts', []))}개")
+        if s.get("read", 0) >= 10 and not kn.get("tips"):
+            print("⚠️ 코드를 10개 넘게 읽었는데 저장된 팁이 없어요. Ollama 채점이 실패하고 있을 수 있어요 (python check_ollama.py).")
+    else:
+        print("– 지식 창고 기록 없음 (탐색이 한 번 돌면 생겨요)")
     for key, name, days in (("codeeater_scout", "탐색", 4), ("codeeater", "적용", 9)):
         s = sx.get(key)
         if s:

@@ -157,7 +157,7 @@ NEWS_MODE = "keyword"   # "ollama" 로 바꾸면 내 PC 의 Ollama 가 뉴스를
 # Ollama(내 PC 로컬 AI) 그림자 모드: 뉴스 판단을 매매에는 쓰지 않고 키워드 판단과 나란히 기록만 합니다 (check_news_shadow.py 로 비교)
 OLLAMA_SHADOW = True
 OLLAMA_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen3-vl:4b"
+OLLAMA_MODEL = "qwen3:8b"
 OLLAMA_TIMEOUT = 90        # 종목당 최대 대기 시간(초)
 OLLAMA_POLISH = True       # 일일·중간·주간·월간 보고서의 말투를 Ollama 로 다듬기 (숫자가 바뀌면 원문 사용). 개장 보고는 시간이 중요해서 제외
 OLLAMA_POLISH_TIMEOUT = 60 # 보고서 한 통을 다듬는 최대 대기 시간(초)
@@ -215,5 +215,5 @@ _apply_tuning()
 DASHBOARD_URL = "https://haimwhite.github.io/ai-trader/"
 
 
-# ---- 코드이터 (매주 금요일 깃허브를 돌아다니며 주식 전략을 스스로 강화, python codeeater.py) ----
+# ---- 코드이터 (평일 09:00~16:30 깃허브를 돌아다니며 탐색, 금요일 16:30 에 최고 후보를 골라 적용, python codeeater.py) ----
 CODEEATER_MODEL = "qwen3:8b"    # 깃허브 글(README)에서 전략 규칙을 뽑아내는 Ollama 모델 (생각을 끌 수 있는 모델을 권장)

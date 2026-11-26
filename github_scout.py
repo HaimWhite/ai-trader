@@ -83,7 +83,8 @@ def _get(url, accept="application/vnd.github+json", timeout=20):
 def search(query, page=1, per_page=8):
     q = urllib.parse.quote(query + " language:python")
     d = json.loads(_get(f"{API}/search/repositories?q={q}&sort=stars&order=desc&per_page={per_page}&page={page}"))
-    return [{"full": x["full_name"], "stars": x.get("stargazers_count", 0), "pushed": (x.get("pushed_at") or "")[:10], "desc": (x.get("description") or "")[:120]} for x in d.get("items", [])]
+    return [{"full": x["full_name"], "stars": x.get("stargazers_count", 0), "pushed": (x.get("pushed_at") or "")[:10], "desc": (x.get("description") or "")[:120],
+             "license": ((x.get("license") or {}).get("spdx_id") or "")} for x in d.get("items", [])]
 
 
 def readme(full, limit=6000):
@@ -153,3 +154,43 @@ def extract_engine_ideas(text, clamp_engine, model=None):
         if opts or human:
             out.append({"summary": str(it.get("summary", ""))[:80], "opts": opts, "human": human})
     return out
+
+
+# ---------- 코드 읽기 (실행하지 않고 읽기만) ----------
+FREE_LICENSES = {"MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unlicense", "CC0-1.0", "0BSD"}
+GOOD_PATH = ("strateg", "backtest", "optim", "indicator", "signal", "genetic", "walk", "fitness", "evolv", "search", "param")
+
+
+def pick_code_repos(query, seen, rnd, n=1, min_stars=20):
+    """자유롭게 쓸 수 있는 라이선스(MIT·Apache 등)의 파이썬 저장소만 고릅니다."""
+    out = []
+    for page in (1, rnd.choice([2, 3])):
+        for r in search(query, page=page, per_page=10):
+            if r["license"] in FREE_LICENSES and r["full"] not in seen and r["stars"] >= min_stars:
+                out.append(r)
+        if out:
+            break
+        time.sleep(2)
+    rnd.shuffle(out)
+    return out[:n]
+
+
+def _skip_path(path):
+    p = path.lower()
+    name = p.rsplit("/", 1)[-1]
+    return (name.startswith("test_") or name.endswith("_test.py") or name in ("setup.py", "__init__.py", "conftest.py")
+            or any(seg in ("tests", "test", "docs", "examples", "example") for seg in p.split("/")[:-1]))
+
+
+def list_py_files(full, max_files=2, max_bytes=30000):
+    """저장소의 파이썬 파일 중 전략·최적화와 관련 있어 보이는 파일 이름만 고릅니다 (내용은 아직 읽지 않아요)."""
+    tree = json.loads(_get(f"{API}/repos/{full}/git/trees/HEAD?recursive=1")).get("tree", [])
+    cands = [t for t in tree if t.get("type") == "blob" and t["path"].endswith(".py") and 500 <= t.get("size", 0) <= max_bytes
+             and not _skip_path(t["path"])]
+    cands.sort(key=lambda t: (-sum(k in t["path"].lower() for k in GOOD_PATH), -t.get("size", 0)))
+    return [t["path"] for t in cands[:max_files]]
+
+
+def fetch_file(full, path, limit=8000):
+    raw = _get(f"{API}/repos/{full}/contents/{urllib.parse.quote(path)}", accept="application/vnd.github.raw")
+    return raw.decode("utf-8", "replace")[:limit]

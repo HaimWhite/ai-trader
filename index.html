@@ -147,7 +147,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama 모델별) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="rng" id="aisel" style="position:static;margin:10px 0 0"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
-  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
+  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -877,6 +877,15 @@ function render(){
         `<tr><td style="text-align:left;white-space:normal;min-width:200px">${key(a.opts) === key(ecur.opts) ? "<b>지금 방식</b> · " : ""}${esc(desc(a.opts))}</td><td>${(a.recs || []).length}</td><td>${q == null ? "시험 중" : q.toFixed(2)}</td><td style="text-align:left;white-space:normal">${esc(a.source || "")}</td></tr>`));
       $("cenotes").innerHTML = (EN.notes || []).length ? `<div class="sub" style="margin:8px 0 2px">📝 코드를 직접 고쳐야 쓸 수 있는 아이디어 (하임님이 원하시면 제가 적용해요)</div>` + EN.notes.slice().reverse().slice(0, 5).map(n => `<div class="sub">· ${esc(n.text)} <span style="opacity:.7">(${esc(n.repo)})</span></div>`).join("") : "";
     } else { $("ceenghd").textContent = ""; $("ceeng").innerHTML = ""; $("cenotes").innerHTML = ""; }
+    const CK = D.ck;
+    if(CK && (CK.tips || []).length + ((CK.stats || {}).read || 0) > 0){
+      const stt = CK.stats || {}, md = (CK.models || [])[(CK.models || []).length - 1], tc = (CK.train || {}).count || 0;
+      $("ceknowhd").innerHTML = `📚 지식 창고 · 읽은 코드 <b>${stt.read || 0}개</b> (위험해서 거른 것 ${stt.rejected || 0}개, 점수가 낮아 버린 것 ${stt.low || 0}개) → 저장한 팁 <b>${(CK.tips || []).length}개</b>`
+        + `<br>🧠 두뇌(codeeater-trader): ${md ? "<b>M" + md.m + "</b> (" + esc(md.date) + ", 팁 " + md.tips_in + "개 반영)" : "아직 만들지 않았어요 (팁 3개 이상 쌓이면 금요일에 만들어요)"} · 📈 학습 데이터 <b>${tc}/300</b>${tc >= 300 ? " (Colab 파인튜닝을 해볼 만해요)" : ""} · 🧩 플러그인 초안 ${(CK.drafts || []).length}개 (설치 안 함)`
+        + `<br>🔎 다음에 찾아볼 검색어: ${(CK.queue || []).length ? esc(CK.queue.slice(0, 4).join(", ")) : "기본 목록에서 고름"}<br><span class="sub">자유 라이선스(MIT·Apache 등) 파이썬 코드만 읽고, 실행은 하지 않아요. 점수 6점 이상만 저장해요.</span>`;
+      $("ceknow").innerHTML = (CK.tips || []).length ? table(["점수", "배운 팁", "출처 (라이선스)", "날짜"], (CK.tips || []).slice(-8).reverse().map(t =>
+        `<tr><td>${t.score}</td><td style="text-align:left;white-space:normal;min-width:240px">${esc(t.tip)}</td><td style="text-align:left;white-space:normal">${esc(t.repo)}<div class="sub">${esc(t.license || "")}</div></td><td>${esc((t.date || "").slice(5))}</td></tr>`)) : "";
+    } else { $("ceknowhd").textContent = ""; $("ceknow").innerHTML = ""; }
     $("ceideash").textContent = (CE.ideas && CE.ideas.length) ? "최근에 돌아다닌 깃허브 저장소와 배운 것" : "";
     $("ceideas").innerHTML = (CE.ideas || []).slice(-8).reverse().map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${e.kind === "engine" ? "[탐색 방식] " : ""}${esc(e.repo)}</b> <span class="sub">★${e.stars} · ${esc(e.date.slice(5))} · 시험한 후보 ${e.tested}개</span>${(e.found && e.found.length) ? e.found.map(f => `<div class="sub">· ${esc(f)}</div>`).join("") : '<div class="sub">· 시험해 볼 만한 규칙이 없었어요</div>'}</div>`).join("");
   }
@@ -1017,7 +1026,8 @@ async function main(){
     const tm = await load("time_machine").catch(() => null);
     const ns = await load("news_shadow").catch(() => null);
     const ce = await load("codeeater").catch(() => null);
-    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce};
+    const ck = await load("ce_knowledge").catch(() => null);
+    D = {latest, account, trades, history, prices, bt, live, div, tune, stat, indices, fc, review, p1, eqi, ai, tm, ns, ce, ck};
     render();
   }catch(e){
     $("updated").textContent = "";

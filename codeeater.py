@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 import backtest
+import codeknow
 import config
 import github_scout
 import llm
@@ -489,6 +490,15 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
     eng = engine_state(st)
     if "--no-github" not in args:
         scout_engine_ideas(st, eng, rnd, today)
+    if "--no-github" not in args:   # 자유 라이선스 코드를 읽어 지식 창고에 팁을 쌓아요 (읽기만 함)
+        try:
+            kn = codeknow.read()
+            new_tips = codeknow.read_round(kn, rnd, model=getattr(config, "CODEEATER_MODEL", None))
+            codeknow.write(kn)
+            if new_tips:
+                print(f"지식 창고에 새 팁 {new_tips}개 저장 (총 {len(kn['tips'])}개)")
+        except Exception as e:
+            github_scout.note_error("코드 읽기 오류: " + str(e))
     akey = pick_arm(eng, rnd)
     arm = eng["arms"][akey]
     cands = []
@@ -539,6 +549,8 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
                 if src.startswith("깃허브 " + e["repo"]):
                     e["tested"] += 1
                     break
+        if rnd.random() < 0.3:   # 시험 기록의 일부를 학습용 문제·정답 쌍으로 쌓아요
+            codeknow.record_trial(describe(cur["genome"]), cur_m["cal"], diff_text(cur["genome"], g), m, passes_at(m, cur_m, need_gain(pool["tests"])))
         wf_ok = (not arm["opts"].get("wf")) or (m["cal_tr"] >= cur_m["cal_tr"] and m["cal_ho"] >= cur_m["cal_ho"] * 0.95)   # '뒤 30% 구간 검증' 방식이면 두 구간 모두 확인
         if m["cal"] >= cur_m["cal"] and m["cal_r"] >= cur_m["cal_r"] * 0.95 and (wf_ok or src.startswith("깃허브 ")):   # 현재 이상인 것만 후보 풀에 보관 (최종 판단은 금요일)
             pool["cands"].append({"genome": g, "source": src, "idea": idea, "cal": m["cal"], "found": today})
@@ -582,6 +594,12 @@ def apply_week(st, ctx, args):
         st["versions"].append({"v": cur["v"] + 1, "genome": g, "born": today, "source": src, "idea": idea or diff_text(cur["genome"], g)})
     cur_v = st["versions"][-1]["v"]
     st["engine_msg"] = adopt_engine(st)
+    try:   # 금요일: 두뇌 강화(모델) + 플러그인 초안 + 다음 키워드 + 학습 데이터 알림
+        kn = codeknow.read()
+        st["know_msgs"] = codeknow.weekly(kn, model=getattr(config, "CODEEATER_MODEL", None))
+        codeknow.write(kn)
+    except Exception as e:
+        st["know_msgs"] = ["지식 창고 단계 오류: " + str(e)[:60]]
     mets = {v["v"]: evaluate(v["genome"], ctx) for v in st["versions"]}
     for v in st["versions"]:
         v["metrics"] = mets[v["v"]]
@@ -649,6 +667,7 @@ def main():
     if not config.DATA_DIR.exists():
         config.DATA_DIR.mkdir()
     is_scout, is_apply = "--scout" in args, "--apply" in args
+    llm._state["scout"] = is_scout   # 탐색은 점검·보고서가 Ollama 를 쓰는 동안 비켜 줘요
     if is_scout and "--force" not in args and not in_scout_window():
         print("탐색 시간(평일 09:00~16:30)이 아니라서 건너뜁니다. (--force 로 강제 실행)")
         return
@@ -670,6 +689,8 @@ def main():
     msg = message(st, promoted, tried, n_git, mets, gain)
     if st.get("engine_msg"):
         msg += "\n\n" + st["engine_msg"]
+    if st.get("know_msgs"):
+        msg += "\n\n" + "\n".join("· " + t for t in st["know_msgs"])
     e = st.get("engine") or {}
     if e.get("versions") and not st.get("engine_msg"):
         msg += f"\n(탐색 방식 현재 E{e['versions'][-1]['e']}: {describe_engine(e['versions'][-1]['opts'])})"

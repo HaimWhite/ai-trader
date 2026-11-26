@@ -2,27 +2,55 @@
 - 꺼져 있거나 느리면 조용히 건너뛰고(원래 글을 그대로 사용), 한 번 연결에 실패하면 그 실행에서는 다시 시도하지 않아요.
 - 숫자·날짜·링크가 바뀌면 AI 가 쓴 글을 버리고 원래 글을 써요 (numbers_ok)."""
 import json
+import os
 import re
+import tempfile
+import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import config
 
-_state = {"off": False, "err": "", "diag": ""}
+_state = {"off": False, "err": "", "diag": "", "scout": False}
+_warm, _fails = set(), {}   # 이미 불러온(따뜻한) 모델 / 모델별 연속 시간 초과 횟수
+BUSY = Path(tempfile.gettempdir()) / "ai_trader_ollama.busy"   # 보고서·점검 등이 Ollama 를 쓰는 중이라는 표시 (코드이터 탐색이 비켜 주려고)
+BUSY_SEC = 600
+
+
+def _touch():
+    try:
+        BUSY.write_text(str(time.time()))
+    except Exception:
+        pass
+
+
+def other_busy():
+    """다른 작업(점검·보고서 등)이 최근 10분 안에 Ollama 를 썼는지"""
+    try:
+        return time.time() - BUSY.stat().st_mtime < BUSY_SEC
+    except Exception:
+        return False
 
 
 def _call(model, system, user, json_mode, timeout, limit):
     opts = {"temperature": 0 if json_mode else 0.2, "num_ctx": 8192}   # 기본 기억 공간(4096)이 모자라 답이 잘리는 일을 막아요
     if limit:
         opts["num_predict"] = limit
-    body = {"model": model or config.OLLAMA_MODEL, "stream": False, "think": False, "options": opts,
+    body = {"model": model or config.OLLAMA_MODEL, "stream": False, "think": False, "keep_alive": "30m", "options": opts,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
     if json_mode:
         body["format"] = "json"
     req = urllib.request.Request(config.OLLAMA_URL.rstrip("/") + "/api/chat", data=json.dumps(body).encode("utf-8"),
                                  headers={"content-type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout or config.OLLAMA_TIMEOUT) as r:
-        return json.loads(r.read().decode("utf-8"))
+    name = body["model"]
+    t = timeout or config.OLLAMA_TIMEOUT
+    if name not in _warm:
+        t = max(t, 300)   # 모델을 처음 불러올 때는 오래 걸려서(수십 초~몇 분) 첫 호출만 넉넉하게 기다려요
+    with urllib.request.urlopen(req, timeout=t) as r:
+        out = json.loads(r.read().decode("utf-8"))
+    _warm.add(name)
+    return out
 
 
 def _text(resp):
@@ -43,6 +71,15 @@ def chat(system, user, json_mode=False, timeout=None, model=None):
     JSON 모드에서 빈 답이 오면(작은 모델에서 가끔 있어요) JSON 모드를 끄고 한 번 더 물어봅니다."""
     if _state["off"]:
         return None
+    name = model or config.OLLAMA_MODEL
+    if _fails.get(name, 0) >= 2:   # 같은 모델이 연달아 시간 초과면 이번 실행에서는 더 기다리지 않아요
+        _state["err"] = "시간 초과가 연속돼서 건너뜀"
+        return None
+    if _state["scout"] and other_busy():   # 코드이터 탐색은 다른 작업이 Ollama 를 쓰는 동안 비켜 줘요
+        _state["err"] = "다른 작업이 Ollama 사용 중이라 건너뜀"
+        return None
+    if not _state["scout"]:
+        _touch()
     _state["err"] = ""
     try:
         text = _text(_call(model, system, user + ("\n\n/no_think" if json_mode else ""), json_mode, timeout, 3000 if json_mode else None))
@@ -57,8 +94,15 @@ def chat(system, user, json_mode=False, timeout=None, model=None):
         return None
     except Exception as e:
         _state["err"] = ("시간 초과" if "timed out" in str(e) else "호출 실패: " + str(e)[:50])
-        print("Ollama 호출 실패(무시):", str(e)[:60])
+        print(f"Ollama 호출 실패(무시, 모델 {name}):", str(e)[:60])
+        if "timed out" in str(e):
+            _fails[name] = _fails.get(name, 0) + 1
+            if _fails[name] >= 2:
+                print(f"  → {name} 이(가) 연속으로 시간 초과라서 이번 실행에서는 더 시도하지 않아요. (모델을 불러오는 중이거나 PC 가 바쁠 수 있어요)")
         return None
+    _fails[name] = 0
+    if not _state["scout"]:
+        _touch()
     if not text:
         _state["err"] = "빈 답 (" + _state.get("diag", "") + ")"
     return text or None
