@@ -147,7 +147,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama 모델별) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="rng" id="aisel" style="position:static;margin:10px 0 0"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
-  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
+  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -867,8 +867,18 @@ function render(){
       g += pl(B, 'style="stroke:var(--text)"') + pl(A, 'stroke="#10b981"') + `<text class="ax" x="${L}" y="${H - 6}">${esc(A[0][0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(A[A.length - 1][0].slice(5))}</text>`;
       el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub"><span style="color:#10b981">━</span> 지금 버전 V${cur.v} &nbsp; <span style="color:var(--text)">━</span> V${v1.v}(기준) · 코드이터를 시작한 ${esc(A[0][0])}부터 이 설정으로 매매했다면의 가상 결과예요</div>`;
     } else el.innerHTML = "";
+    const EN = CE.engine, desc = o => ["한 번에 " + o.genes + "곳 변경"].concat(o.crossover ? ["좋은 후보 섞기"] : [], o.local ? ["좋은 후보 주변 탐색"] : [], o.wide ? ["넓은 값 범위"] : [], o.wf ? ["뒤 30% 구간 검증"] : []).join(" · ");
+    if(EN && EN.versions && EN.versions.length){
+      const ev = EN.versions, ecur = ev[ev.length - 1], key = o => JSON.stringify(Object.keys(o).sort().reduce((r, k) => (r[k] = o[k], r), {})), arms = Object.values(EN.arms || {});
+      const qual = a => { const r = a.recs || []; if(r.length < 40) return null; const t = r.slice().sort((x, y) => y[0] - x[0]).slice(0, 5); return t.reduce((s2, x) => s2 + x[1], 0) / t.length; };
+      $("ceenghd").innerHTML = `🧬 코드이터의 탐색 방식: <b>E${ecur.e}</b> (${esc(desc(ecur.opts))})` + ev.slice(1).map(x => `<br><span class="sub">E${x.e} (${esc(x.born)}): ${esc(desc(x.opts))} · 이전보다 검증 품질 ${esc(x.vs_prev || "")} · ${esc(x.source || "")}</span>`).join("")
+        + `<br><span class="sub">매주 금요일에 새 탐색 방식과 지금 방식을 비교해요. 앞 70% 기간으로 후보를 고르고 뒤 30% 기간 성적이 10% 이상 좋을 때만 E가 올라요 (시험 후보 40개 이상 필요).</span>`;
+      $("ceeng").innerHTML = table(["탐색 방식", "시험 후보 수", "검증 품질(뒤 30% 연수익÷낙폭)", "배운 곳"], arms.map(a => [a, qual(a)]).sort((x, y) => (y[1] == null ? -9 : y[1]) - (x[1] == null ? -9 : x[1])).map(([a, q]) =>
+        `<tr><td style="text-align:left;white-space:normal;min-width:200px">${key(a.opts) === key(ecur.opts) ? "<b>지금 방식</b> · " : ""}${esc(desc(a.opts))}</td><td>${(a.recs || []).length}</td><td>${q == null ? "시험 중" : q.toFixed(2)}</td><td style="text-align:left;white-space:normal">${esc(a.source || "")}</td></tr>`));
+      $("cenotes").innerHTML = (EN.notes || []).length ? `<div class="sub" style="margin:8px 0 2px">📝 코드를 직접 고쳐야 쓸 수 있는 아이디어 (하임님이 원하시면 제가 적용해요)</div>` + EN.notes.slice().reverse().slice(0, 5).map(n => `<div class="sub">· ${esc(n.text)} <span style="opacity:.7">(${esc(n.repo)})</span></div>`).join("") : "";
+    } else { $("ceenghd").textContent = ""; $("ceeng").innerHTML = ""; $("cenotes").innerHTML = ""; }
     $("ceideash").textContent = (CE.ideas && CE.ideas.length) ? "최근에 돌아다닌 깃허브 저장소와 배운 것" : "";
-    $("ceideas").innerHTML = (CE.ideas || []).slice(-8).reverse().map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${esc(e.repo)}</b> <span class="sub">★${e.stars} · ${esc(e.date.slice(5))} · 시험한 후보 ${e.tested}개</span>${(e.found && e.found.length) ? e.found.map(f => `<div class="sub">· ${esc(f)}</div>`).join("") : '<div class="sub">· 시험해 볼 만한 규칙이 없었어요</div>'}</div>`).join("");
+    $("ceideas").innerHTML = (CE.ideas || []).slice(-8).reverse().map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${e.kind === "engine" ? "[탐색 방식] " : ""}${esc(e.repo)}</b> <span class="sub">★${e.stars} · ${esc(e.date.slice(5))} · 시험한 후보 ${e.tested}개</span>${(e.found && e.found.length) ? e.found.map(f => `<div class="sub">· ${esc(f)}</div>`).join("") : '<div class="sub">· 시험해 볼 만한 규칙이 없었어요</div>'}</div>`).join("");
   }
 
   // 뉴스 판단 비교 (키워드 vs Ollama 그림자 기록)

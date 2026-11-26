@@ -86,3 +86,11 @@ Ollama 호출 실패(무시): timed out
 2024      58.0     17.2    -9.6    28.6
 2025      18.6     41.3    75.6    20.4
 2026       8.2    -12.0    11.5     1.5
+warning: in the working copy of 'backup.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'codeeater.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'register_tasks.py', LF will be replaced by CRLF the next time Git touches it
+[main 613d960] daily update
+ 23 files changed, 489 insertions(+), 342 deletions(-)
+ create mode 100644 update_log.txt
+To https://github.com/HaimWhite/ai-trader.git
+   dbba619..613d960  main -> main

@@ -41,8 +41,25 @@ FRAME_CACHE = Path(tempfile.gettempdir()) / "ai_trader_ce_frames.pkl"   # 깃허
 GRID = {"short": [10, 15, 20, 30], "long": [60, 90, 120, 150], "stop": [-0.05, -0.07, -0.10], "trail": [0.15, 0.20, 0.25, 0.30],
         "rsi_max": [None, 65, 70, 75, 80], "breakout_n": [None, 20, 60, 120], "mom_min": [None, 0.0, 0.05, 0.10],
         "vol_max": [None, 0.03, 0.04, 0.05], "slope_up": [False, True]}
+# '넓은 범위' 탐색 방식이 켜졌을 때만 쓰는 추가 값
+WIDE = {"short": [5, 7, 12, 25], "long": [40, 50, 75, 100, 200], "stop": [-0.03, -0.15], "trail": [0.10, 0.35, 0.40], "rsi_max": [60, 85],
+        "breakout_n": [10, 40, 200], "mom_min": [-0.05, 0.15, 0.20], "vol_max": [0.02, 0.06]}
+
+
+def _merge(a, b):
+    vals = list(a) + [x for x in b if x not in a]
+    return sorted((v for v in vals if v is not None), key=lambda v: float(v)) if not any(isinstance(v, bool) for v in vals) else vals
+
+
+ALL = {k: ([None] if None in GRID[k] else []) + _merge([v for v in GRID[k] if v is not None], WIDE.get(k, [])) for k in GRID}
 ALIAS = {"short_ma": "short", "long_ma": "long"}
-MA_LIST = sorted(set(GRID["short"]) | set(GRID["long"]) | {config.SHORT_MA, config.LONG_MA})
+MA_LIST = sorted(set(ALL["short"]) | set(ALL["long"]) | {config.SHORT_MA, config.LONG_MA})
+
+# 코드이터가 '탐색하는 방식' 자체의 설정 (E1, E2, … 로 진화). E1 = 기존 방식
+ENGINE_DEFAULT = {"genes": 2, "crossover": False, "local": False, "wide": False, "wf": False}
+ENGINE_GRID = {"genes": [1, 2, 3], "crossover": [False, True], "local": [False, True], "wide": [False, True], "wf": [False, True]}
+ENGINE_GAIN = 0.10       # 탐색 방식은 검증 구간 품질이 10% 이상 좋을 때만 교체
+ENGINE_MIN_RECS = 40     # 탐색 방식을 평가하려면 최소 이만큼의 후보를 시험해 봐야 해요
 START_I = max(MA_LIST) + 2
 
 
@@ -145,7 +162,7 @@ def build_context():
         up, dn = delta.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean(), (-delta.clip(upper=0)).ewm(alpha=1 / 14, adjust=False).mean()
         ind[code] = {"rsi": (100 - 100 / (1 + up / dn.replace(0, np.nan))).to_numpy(), "mom": (c / c.shift(60) - 1).to_numpy(),
                      "vol": c.pct_change().rolling(20).std().to_numpy(), "close": d["close"],
-                     "hi": {n: c.shift(1).rolling(n).max().to_numpy() for n in GRID["breakout_n"] if n}}
+                     "hi": {n: c.shift(1).rolling(n).max().to_numpy() for n in ALL["breakout_n"] if n}}
     return {"idx": idx, "data": data, "ind": ind, "n": len(idx), "cache": {}}
 
 
@@ -174,6 +191,34 @@ def key_of(g):
     return json.dumps(g, sort_keys=True)
 
 
+def ekey(o):
+    return json.dumps(o, sort_keys=True)
+
+
+def clamp_engine(p):
+    """외부(AI)가 준 탐색 방식 옵션을 허용된 값으로만 깎아요."""
+    out = {}
+    for k, v in (p or {}).items():
+        if k not in ENGINE_GRID:
+            continue
+        if k == "genes":
+            try:
+                out[k] = min(ENGINE_GRID[k], key=lambda o: abs(o - float(v)))
+            except Exception:
+                pass
+        elif v in (True, "true", "True", 1):
+            out[k] = True
+    return out
+
+
+def describe_engine(o):
+    parts = [f"한 번에 {o['genes']}곳 변경"]
+    for k, t in (("crossover", "좋은 후보 섞기"), ("local", "좋은 후보 주변 탐색"), ("wide", "넓은 값 범위"), ("wf", "뒤 30% 구간 검증")):
+        if o.get(k):
+            parts.append(t)
+    return " · ".join(parts)
+
+
 def evaluate(g, ctx, since_i=None):
     """전략 설정 한 벌을 같은 조건(같은 시작일·수수료)으로 백테스트해서 성적을 돌려줍니다."""
     if since_i is None and key_of(g) in ctx["cache"]:
@@ -189,7 +234,9 @@ def evaluate(g, ctx, since_i=None):
     r0 = max(START_I, ctx["n"] - RECENT_DAYS)
     b = backtest.metrics(curve[r0:], idx[r0:])
     cal = lambda m: round(float(m["cagr"] / abs(m["mdd"])), 3) if m["mdd"] else 0.0
-    res = {"cagr": float(a["cagr"]), "mdd": float(a["mdd"]), "cal": cal(a), "cagr_r": float(b["cagr"]), "mdd_r": float(b["mdd"]), "cal_r": cal(b), "trades": len(trades)}
+    sp = START_I + int(0.7 * (ctx["n"] - START_I))   # 앞 70% 로 고르고 뒤 30% 로 확인하는 경계
+    tr, ho = backtest.metrics(curve[START_I:sp], idx[START_I:sp]), backtest.metrics(curve[sp:], idx[sp:])
+    res = {"cal_tr": cal(tr), "cal_ho": cal(ho), "cagr": float(a["cagr"]), "mdd": float(a["mdd"]), "cal": cal(a), "cagr_r": float(b["cagr"]), "mdd_r": float(b["mdd"]), "cal_r": cal(b), "trades": len(trades)}
     ctx["cache"][key_of(g)] = res
     return res
 
@@ -199,20 +246,134 @@ def passes(new, cur):
             and new["cagr"] >= 0.9 * cur["cagr"])
 
 
-def mutations(cur, rnd, k):
-    """깃허브·Ollama 를 못 쓸 때(또는 후보를 채울 때) 현재 버전을 한두 군데 바꿔 본 변형들"""
-    out, seen = [], set()
-    keys = list(GRID)
-    for _ in range(k * 6):
-        if len(out) >= k:
-            break
-        g = dict(cur)
-        for key in rnd.sample(keys, rnd.choice([1, 2])):
-            g[key] = rnd.choice(GRID[key])
-        if valid(g) and g != cur and key_of(g) not in seen:
+def neighbors(g, grid, rnd):
+    """좋은 후보의 이웃: 설정 하나를 값 목록에서 한 칸 옆 값으로"""
+    out = []
+    for key in grid:
+        vals = grid[key]
+        if g.get(key) in vals and len(vals) > 1:
+            i = vals.index(g[key])
+            for j in (i - 1, i + 1):
+                if 0 <= j < len(vals):
+                    out.append({**g, key: vals[j]})
+    rnd.shuffle(out)
+    return out
+
+
+def gen_candidates(cur, pool_cands, opts, rnd, k):
+    """탐색 방식(opts)에 따라 후보를 만들어요: 변형 / 좋은 후보 섞기 / 좋은 후보 주변 탐색"""
+    grid = ALL if opts.get("wide") else GRID
+    keys = list(grid)
+    tops = [c["genome"] for c in pool_cands[:10]]
+    n_cross = k // 3 if opts.get("crossover") and tops else 0
+    n_local = k // 3 if opts.get("local") else 0
+    n_mut = k - n_cross - n_local
+    out, seen = [], {key_of(cur)}
+
+    def add(g):
+        if valid(g) and key_of(g) not in seen:
             seen.add(key_of(g))
             out.append(g)
+    for _ in range(n_mut * 6):
+        if len(out) >= n_mut:
+            break
+        g = dict(cur)
+        for key in rnd.sample(keys, rnd.randint(1, opts.get("genes", 2))):
+            g[key] = rnd.choice(grid[key])
+        add(g)
+    parents = [cur] + tops
+    for _ in range(n_cross * 6):
+        if len(out) >= n_mut + n_cross or len(parents) < 2:
+            break
+        a, b = rnd.sample(parents, 2)
+        add({key: rnd.choice([a[key], b[key]]) for key in keys})
+    bases = (tops[:3] or [cur])
+    nb = [x for b in bases for x in neighbors(b, grid, rnd)]
+    rnd.shuffle(nb)
+    for g in nb:
+        if len(out) >= k:
+            break
+        add(g)
     return out
+
+
+# ---------- 탐색 방식 (코드이터 자신의 강화) ----------
+def engine_state(st):
+    e = st.setdefault("engine", {})
+    if not e.get("versions"):
+        e["versions"] = [{"e": 1, "opts": dict(ENGINE_DEFAULT), "born": datetime.now().strftime("%Y-%m-%d"), "source": "기준 (기존 탐색 방식)", "q": None}]
+    e.setdefault("arms", {})
+    e.setdefault("notes", [])
+    return e
+
+
+def arm_quality(arm):
+    """탐색 방식의 품질 = 앞 70% 구간 성적이 좋은 후보 5개를 골랐을 때, 뒤 30% 구간에서의 연수익÷낙폭 평균 (모두 같은 방식으로 비교)"""
+    recs = arm.get("recs", [])
+    if len(recs) < ENGINE_MIN_RECS:
+        return None
+    top = sorted(recs, key=lambda r: -r[0])[:5]
+    return round(sum(r[1] for r in top) / len(top), 3)
+
+
+def trial_opts(e):
+    """시험해 볼 탐색 방식들: 깃허브에서 배운 것 + 지금 방식에서 옵션 하나만 바꾼 것"""
+    base = e["versions"][-1]["opts"]
+    out = {}
+    for k, vals in ENGINE_GRID.items():
+        for v in vals:
+            if v != base[k]:
+                o = {**base, k: v}
+                out[ekey(o)] = (o, "스스로 변형: " + k + "=" + str(v))
+    for key, arm in e["arms"].items():
+        if arm.get("from_idea"):
+            out[key] = (arm["opts"], arm["source"])
+    out.pop(ekey(base), None)
+    return out
+
+
+def pick_arm(e, rnd):
+    base = e["versions"][-1]["opts"]
+    bk = ekey(base)
+    e["arms"].setdefault(bk, {"opts": base, "source": "지금 방식", "recs": []})
+    if rnd.random() < 0.5:
+        return bk
+    tr = trial_opts(e)
+    for key, (o, src) in tr.items():
+        e["arms"].setdefault(key, {"opts": o, "source": src, "recs": []})
+    # 시험이 가장 적은 방식부터 (깃허브에서 배운 것 우선)
+    return min(tr, key=lambda k: (len(e["arms"][k]["recs"]), 0 if e["arms"][k].get("from_idea") else 1, rnd.random()))
+
+
+def adopt_engine(st):
+    """금요일: 탐색 방식 중 지금 방식보다 확실히 나은 것이 있으면 E 를 올려요. 알림용 글을 돌려줘요."""
+    e = engine_state(st)
+    base_v = e["versions"][-1]
+    bk = ekey(base_v["opts"])
+    base_q = arm_quality(e["arms"].get(bk, {}))
+    best = None
+    if base_q is not None:
+        for k, arm in e["arms"].items():
+            q = arm_quality(arm)
+            if k == bk or q is None:
+                continue
+            ok = q >= base_q * (1 + ENGINE_GAIN) if base_q > 0 else q >= base_q + 0.2
+            if ok and (best is None or q > best[1]):
+                best = (k, q)
+    text = None
+    if best:
+        k, q = best
+        arm = e["arms"][k]
+        pct = f"{(q / base_q - 1) * 100:+.0f}%" if base_q > 0 else f"{q - base_q:+.2f}"
+        base_v["q"] = base_q
+        e["versions"].append({"e": base_v["e"] + 1, "opts": arm["opts"], "born": datetime.now().strftime("%Y-%m-%d"), "source": arm["source"], "q": q, "vs_prev": pct})
+        text = (f"탐색 방식도 **E{base_v['e'] + 1}**로 올라갔어요! ({describe_engine(arm['opts'])}) 이전 방식(E{base_v['e']})보다 검증 구간 품질 {pct} 좋아요 · 배운 곳: {arm['source']}")
+        e["arms"] = {k: {"opts": arm["opts"], "source": arm["source"], "recs": arm["recs"][-200:]}}
+    else:
+        for arm in e["arms"].values():
+            arm["recs"] = arm["recs"][-300:]
+    e["last_check"] = {"date": datetime.now().strftime("%Y-%m-%d"), "base_q": base_q, "adopted": bool(best)}
+    return text
 
 
 # ---------- 기록 ----------
@@ -289,6 +450,32 @@ def ensure_v1(st, today):
     return False
 
 
+def scout_engine_ideas(st, eng, rnd, today):
+    """깃허브에서 '탐색 방식을 개선하는 글'을 한 곳 읽어요 (코드는 실행하지 않고, 정해진 옵션만 시험 후보로 등록)."""
+    try:
+        repos = github_scout.pick_repos(st["seen"], n=1, rnd=rnd, queries=github_scout.ENGINE_QUERIES)
+    except Exception as e:
+        github_scout.note_error("탐색방식 검색 실패: " + str(e))
+        return
+    base = eng["versions"][-1]["opts"]
+    for r in repos:
+        st["seen"].append(r["full"])
+        try:
+            ideas = github_scout.extract_engine_ideas(github_scout.readme(r["full"]), clamp_engine, model=getattr(config, "CODEEATER_MODEL", None))
+        except Exception as e:
+            github_scout.note_error(f"{r['full']} 읽기 실패: {e}")
+            continue
+        print(f"  [탐색 방식] {r['full']} (★{r['stars']}): 아이디어 {len(ideas)}개")
+        st["ideas"].append({"date": today, "repo": r["full"], "stars": r["stars"], "kind": "engine", "found": [i["summary"] for i in ideas], "tested": 0})
+        for it in ideas:
+            if it["opts"]:
+                o = {**base, **it["opts"]}
+                if o != base:
+                    eng["arms"].setdefault(ekey(o), {"opts": o, "source": f"깃허브 {r['full']} (★{r['stars']}): {it['summary']}", "recs": [], "from_idea": True})
+            if it["human"] and it["human"] not in [n["text"] for n in eng["notes"]]:
+                eng["notes"] = (eng["notes"] + [{"date": today, "repo": r["full"], "text": it["human"]}])[-15:]
+
+
 def scout(st, ctx, args, repos_n=2, n_mut=10):
     """탐색 한 번: 깃허브에서 아이디어를 읽고 + 스스로 변형을 만들어 시험하고, 쓸 만한 후보를 이번 주 후보 풀에 모아요 (버전은 안 바뀜)."""
     now = datetime.now()
@@ -299,6 +486,11 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
         pool = st["pool"] = fresh_pool()
     cur = st["versions"][-1]
     cur_m = evaluate(cur["genome"], ctx)
+    eng = engine_state(st)
+    if "--no-github" not in args:
+        scout_engine_ideas(st, eng, rnd, today)
+    akey = pick_arm(eng, rnd)
+    arm = eng["arms"][akey]
     cands = []
     n_git = 0
     if "--no-github" not in args:
@@ -323,10 +515,12 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
                 if valid(g):
                     cands.append((g, f"깃허브 {r['full']} (★{r['stars']})", it["summary"]))
                     n_git += 1
-    for g in mutations(cur["genome"], rnd, n_mut):
-        cands.append((g, "스스로 변형 시험", ""))
     tried = 0
-    for g, src, idea in cands:
+    for g in gen_candidates(cur["genome"], pool["cands"], arm["opts"], rnd, n_mut):
+        cands.append((g, "스스로 변형 시험", "", akey))
+    cands = [x if len(x) == 4 else (*x, None) for x in cands]
+    print(f"이번 탐색 방식: E{eng['versions'][-1]['e']} 기준 {'(지금 방식)' if akey == ekey(eng['versions'][-1]['opts']) else '(새 방식 시험: ' + describe_engine(arm['opts']) + ')'}")
+    for g, src, idea, ak in cands:
         if pool["tests"] >= WEEK_TEST_CAP:
             print("이번 주 시험 상한에 도달 — 더 시험하지 않아요")
             break
@@ -337,12 +531,16 @@ def scout(st, ctx, args, repos_n=2, n_mut=10):
         pool["tests"] += 1
         tried += 1
         m = evaluate(g, ctx)
+        if ak:
+            eng["arms"][ak]["recs"].append([m["cal_tr"], m["cal_ho"]])
+            eng["arms"][ak]["recs"] = eng["arms"][ak]["recs"][-400:]
         if src.startswith("깃허브 "):
             for e in reversed(st["ideas"]):
                 if src.startswith("깃허브 " + e["repo"]):
                     e["tested"] += 1
                     break
-        if m["cal"] >= cur_m["cal"] and m["cal_r"] >= cur_m["cal_r"] * 0.95:   # 현재 이상인 것만 후보 풀에 보관 (최종 판단은 금요일)
+        wf_ok = (not arm["opts"].get("wf")) or (m["cal_tr"] >= cur_m["cal_tr"] and m["cal_ho"] >= cur_m["cal_ho"] * 0.95)   # '뒤 30% 구간 검증' 방식이면 두 구간 모두 확인
+        if m["cal"] >= cur_m["cal"] and m["cal_r"] >= cur_m["cal_r"] * 0.95 and (wf_ok or src.startswith("깃허브 ")):   # 현재 이상인 것만 후보 풀에 보관 (최종 판단은 금요일)
             pool["cands"].append({"genome": g, "source": src, "idea": idea, "cal": m["cal"], "found": today})
     pool["cands"].sort(key=lambda c: -c["cal"])
     pool["cands"] = pool["cands"][:POOL_KEEP]
@@ -383,6 +581,7 @@ def apply_week(st, ctx, args):
         g, m, src, idea = best
         st["versions"].append({"v": cur["v"] + 1, "genome": g, "born": today, "source": src, "idea": idea or diff_text(cur["genome"], g)})
     cur_v = st["versions"][-1]["v"]
+    st["engine_msg"] = adopt_engine(st)
     mets = {v["v"]: evaluate(v["genome"], ctx) for v in st["versions"]}
     for v in st["versions"]:
         v["metrics"] = mets[v["v"]]
@@ -469,6 +668,11 @@ def main():
         scout(st, ctx, args, repos_n=4, n_mut=30)
     promoted, tried, n_git, mets, gain = apply_week(st, ctx, args)
     msg = message(st, promoted, tried, n_git, mets, gain)
+    if st.get("engine_msg"):
+        msg += "\n\n" + st["engine_msg"]
+    e = st.get("engine") or {}
+    if e.get("versions") and not st.get("engine_msg"):
+        msg += f"\n(탐색 방식 현재 E{e['versions'][-1]['e']}: {describe_engine(e['versions'][-1]['opts'])})"
     print("\n" + msg.replace("**", ""))
     if "--no-dm" not in args:
         notify.send(msg, mention=promoted)
