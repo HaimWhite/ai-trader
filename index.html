@@ -147,7 +147,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama 모델별) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="rng" id="aisel" style="position:static;margin:10px 0 0"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
-  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div id="cetools"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
+  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div id="celine" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px"></div><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div id="cetools"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -851,6 +851,12 @@ function render(){
   if(CE && CE.versions && CE.versions.length){
     const V = CE.versions, cur = V[V.length - 1], v1 = V[0], mt = x => x.metrics || {};
     const imp = (a, b) => (mt(b).cal > 0 && mt(a).cal != null) ? (mt(a).cal / mt(b).cal - 1) * 100 : null, fp = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(0) + "%";
+    const eV = CE.engine && CE.engine.versions && CE.engine.versions.length ? CE.engine.versions[CE.engine.versions.length - 1].e : null, mV = D.ck && (D.ck.models || []).length ? D.ck.models[D.ck.models.length - 1].m : null,
+      plI = D.pl && D.pl.items ? D.pl.items : [], plOn = plI.filter(x => x.status === "installed").length, plWait = plI.filter(x => x.status === "pending").length,
+      chip = (t, on) => `<span style="padding:3px 10px;border-radius:12px;border:1px solid var(--line);font-size:13px;${on ? "font-weight:700" : "opacity:.6"}">${t}</span>`;
+    $("celine").innerHTML = chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip("두뇌 <b>" + (mV ? "M" + mV : "-") + "</b>", !!mV)
+      + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0);
+    $("celine").title = "V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
     const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
     $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
       + `<br>평일 09:00~16:30 에는 30분마다 깃허브의 주식 전략 글을 읽고 규칙 후보를 만들어 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 자동 적용되지 않아요.`
