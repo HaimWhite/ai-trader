@@ -145,7 +145,7 @@
  },
  "NVDA": {
   "ok": true,
-  "yield_pct": 0.33,
+  "yield_pct": 0.35,
   "annual": 0.52,
   "last_date": "2026-09-10",
   "currency": "USD"
@@ -159,7 +159,7 @@
  },
  "MSFT": {
   "ok": true,
-  "yield_pct": 0.75,
+  "yield_pct": 0.76,
   "annual": 3.71,
   "last_date": "2026-11-19",
   "currency": "USD"
@@ -179,7 +179,7 @@
  },
  "META": {
   "ok": true,
-  "yield_pct": 0.36,
+  "yield_pct": 0.34,
   "annual": 2.1,
   "last_date": "2026-09-21",
   "currency": "USD"
@@ -203,5 +203,5 @@
   "annual": 0,
   "last_date": null
  },
- "_updated": "2026-11-25"
+ "_updated": "2026-11-26"
 }

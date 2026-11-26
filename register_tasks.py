@@ -67,9 +67,11 @@ Write-Output 'fixed'"""
 FIX_TASKS = """$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -MultipleInstances IgnoreNew
-foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderUpdate','AITraderApprove','AITraderMonitorUS') {
+foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderUpdate','AITraderMonitorUS') {
   if (Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName $n -Settings $s | Out-Null; Write-Output "$n fixed" }
 }
+$s2 = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
+if (Get-ScheduledTask -TaskName AITraderApprove -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName AITraderApprove -Settings $s2 | Out-Null; Write-Output "AITraderApprove fixed (10분마다라서 절전 해제는 끔)" }
 """
 
 

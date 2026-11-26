@@ -16,6 +16,8 @@ import pickle
 import random
 import subprocess
 import sys
+import tempfile
+from pathlib import Path
 from datetime import datetime
 
 import numpy as np
@@ -35,7 +37,7 @@ MAX_CANDIDATES = 40
 WEEK_TEST_CAP = 400      # 한 주에 시험하는 후보 수 상한
 SCOUT_START, SCOUT_END = (9, 0), (16, 30)
 POOL_KEEP = 30
-FRAME_CACHE = config.BASE_DIR / ".ce_frames.pkl"
+FRAME_CACHE = Path(tempfile.gettempdir()) / "ai_trader_ce_frames.pkl"   # 깃허브에 올라가지 않도록 임시 폴더에 저장
 GRID = {"short": [10, 15, 20, 30], "long": [60, 90, 120, 150], "stop": [-0.05, -0.07, -0.10], "trail": [0.15, 0.20, 0.25, 0.30],
         "rsi_max": [None, 65, 70, 75, 80], "breakout_n": [None, 20, 60, 120], "mom_min": [None, 0.0, 0.05, 0.10],
         "vol_max": [None, 0.03, 0.04, 0.05], "slope_up": [False, True]}
@@ -385,8 +387,7 @@ def apply_week(st, ctx, args):
     for v in st["versions"]:
         v["metrics"] = mets[v["v"]]
         v["describe"] = describe(v["genome"])
-    tried, n_git = pool.get("tests", 0), sum(1 for c in pool.get("cands", []) if c["source"].startswith("깃허브"))
-    git_tested = sum(e.get("tested", 0) for e in st["ideas"] if e["date"] >= (datetime.now() - pd.Timedelta(days=7)).strftime("%Y-%m-%d"))
+    tried, git_tested = pool.get("tests", 0), pool.get("git_ideas", 0)   # 이번 주 시험 수 / 그중 깃허브 아이디어로 만든 후보 수
     st["runs"].append({"date": today, "tried": tried, "from_github": git_tested, "promoted": promoted, "version": cur_v, "need": round(gain * 100, 1)})
     st["pool"] = fresh_pool()
     st["pool"]["week"] = "applied-" + week_id()   # 다음 월요일 탐색에서 새 풀로 시작
