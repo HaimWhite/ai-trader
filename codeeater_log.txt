@@ -83,3 +83,196 @@ Press any key to continue . . .
 시세와 시험 환경을 준비하는 중...
 현재 V2 (20/60일선 · 손절 -5% · 추적 20%)
 탐색 15번째: 이번에 3개 시험(깃허브에서 배운 것 0개), 이번 주 누적 67개, 후보 풀 6개
+===== 2026-11-27 10:35 codeeater --scout =====
+시세와 시험 환경을 준비하는 중...
+현재 V3 (20/60일선 · 손절 -5% · 추적 20% · 변동성≤5%)
+탐색 반복을 시작합니다 (16:28 까지 쉬지 않고 계속).
+  [코드 거름] 0x596173736972/MarketRegimeTrader/backtesting/walk_forward_analyzer.py: 파이썬으로 읽히지 않음
+  [코드 거름] 0x596173736972/MarketRegimeTrader/strategies/strategy_evolution_ui.py: 파이썬으로 읽히지 않음
+  pranavvss/Automated-Trading-Bot-v1 (★33): 아이디어 0개
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 뒤 30% 구간 검증)
+탐색 2번째: 이번에 23개 시험(깃허브에서 배운 것 0개), 이번 주 누적 33개, 후보 풀 0개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 3번째: 이번에 14개 시험(깃허브에서 배운 것 0개), 이번 주 누적 47개, 후보 풀 0개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 주변 탐색)
+탐색 4번째: 이번에 8개 시험(깃허브에서 배운 것 0개), 이번 주 누적 55개, 후보 풀 0개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 3곳 변경)
+탐색 5번째: 이번에 15개 시험(깃허브에서 배운 것 0개), 이번 주 누적 70개, 후보 풀 1개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 6번째: 이번에 15개 시험(깃허브에서 배운 것 0개), 이번 주 누적 85개, 후보 풀 1개
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 7번째: 이번에 5개 시험(깃허브에서 배운 것 0개), 이번 주 누적 90개, 후보 풀 1개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 넓은 값 범위)
+탐색 8번째: 이번에 19개 시험(깃허브에서 배운 것 0개), 이번 주 누적 109개, 후보 풀 4개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 9번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 111개, 후보 풀 6개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 10번째: 이번에 5개 시험(깃허브에서 배운 것 0개), 이번 주 누적 116개, 후보 풀 9개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 11번째: 이번에 12개 시험(깃허브에서 배운 것 0개), 이번 주 누적 128개, 후보 풀 9개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 12번째: 이번에 8개 시험(깃허브에서 배운 것 0개), 이번 주 누적 136개, 후보 풀 9개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 주변 탐색)
+탐색 13번째: 이번에 14개 시험(깃허브에서 배운 것 0개), 이번 주 누적 150개, 후보 풀 14개
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 14번째: 이번에 6개 시험(깃허브에서 배운 것 0개), 이번 주 누적 156개, 후보 풀 14개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 섞기)
+탐색 15번째: 이번에 11개 시험(깃허브에서 배운 것 0개), 이번 주 누적 167개, 후보 풀 18개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 16번째: 이번에 4개 시험(깃허브에서 배운 것 0개), 이번 주 누적 171개, 후보 풀 21개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 17번째: 이번에 9개 시험(깃허브에서 배운 것 0개), 이번 주 누적 180개, 후보 풀 21개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 3곳 변경)
+탐색 18번째: 이번에 10개 시험(깃허브에서 배운 것 0개), 이번 주 누적 190개, 후보 풀 21개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 19번째: 이번에 3개 시험(깃허브에서 배운 것 0개), 이번 주 누적 193개, 후보 풀 22개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 20번째: 이번에 7개 시험(깃허브에서 배운 것 0개), 이번 주 누적 200개, 후보 풀 22개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 21번째: 이번에 10개 시험(깃허브에서 배운 것 0개), 이번 주 누적 210개, 후보 풀 22개
+  [코드 거름] edouardpoitras/NowTrade/nowtrade/technical_indicator.py: 파이썬으로 읽히지 않음
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 22번째: 이번에 4개 시험(깃허브에서 배운 것 0개), 이번 주 누적 214개, 후보 풀 23개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 23번째: 이번에 7개 시험(깃허브에서 배운 것 0개), 이번 주 누적 221개, 후보 풀 23개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 24번째: 이번에 6개 시험(깃허브에서 배운 것 0개), 이번 주 누적 227개, 후보 풀 23개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 25번째: 이번에 4개 시험(깃허브에서 배운 것 0개), 이번 주 누적 231개, 후보 풀 23개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 넓은 값 범위)
+탐색 26번째: 이번에 20개 시험(깃허브에서 배운 것 0개), 이번 주 누적 251개, 후보 풀 24개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 섞기)
+탐색 27번째: 이번에 10개 시험(깃허브에서 배운 것 0개), 이번 주 누적 261개, 후보 풀 28개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 28번째: 이번에 6개 시험(깃허브에서 배운 것 0개), 이번 주 누적 267개, 후보 풀 28개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 29번째: 이번에 7개 시험(깃허브에서 배운 것 0개), 이번 주 누적 274개, 후보 풀 28개
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 주변 탐색)
+탐색 30번째: 이번에 5개 시험(깃허브에서 배운 것 0개), 이번 주 누적 279개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 31번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 281개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 뒤 30% 구간 검증)
+탐색 32번째: 이번에 7개 시험(깃허브에서 배운 것 0개), 이번 주 누적 288개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 33번째: 이번에 1개 시험(깃허브에서 배운 것 0개), 이번 주 누적 289개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 3곳 변경)
+탐색 34번째: 이번에 10개 시험(깃허브에서 배운 것 0개), 이번 주 누적 299개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 35번째: 이번에 1개 시험(깃허브에서 배운 것 0개), 이번 주 누적 300개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 36번째: 이번에 5개 시험(깃허브에서 배운 것 0개), 이번 주 누적 305개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 37번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 307개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 38번째: 이번에 1개 시험(깃허브에서 배운 것 0개), 이번 주 누적 308개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 39번째: 이번에 4개 시험(깃허브에서 배운 것 0개), 이번 주 누적 312개, 후보 풀 29개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 40번째: 이번에 1개 시험(깃허브에서 배운 것 0개), 이번 주 누적 313개, 후보 풀 30개
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 주변 탐색)
+탐색 41번째: 이번에 7개 시험(깃허브에서 배운 것 0개), 이번 주 누적 320개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 42번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 322개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 43번째: 이번에 1개 시험(깃허브에서 배운 것 0개), 이번 주 누적 323개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 44번째: 이번에 5개 시험(깃허브에서 배운 것 0개), 이번 주 누적 328개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 45번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 330개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 뒤 30% 구간 검증)
+탐색 46번째: 이번에 1개 시험(깃허브에서 배운 것 0개), 이번 주 누적 331개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 좋은 후보 섞기)
+탐색 47번째: 이번에 6개 시험(깃허브에서 배운 것 0개), 이번 주 누적 337개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 2곳 변경 · 뒤 30% 구간 검증)
+탐색 48번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 339개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 49번째: 이번에 2개 시험(깃허브에서 배운 것 0개), 이번 주 누적 341개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded
+이번 탐색 방식: E1 기준 (새 방식 시험: 한 번에 1곳 변경)
+탐색 50번째: 이번에 0개 시험(깃허브에서 배운 것 0개), 이번 주 누적 341개, 후보 풀 30개
+이번 탐색 방식: E1 기준 (지금 방식)
+탐색 51번째: 이번에 5개 시험(깃허브에서 배운 것 0개), 이번 주 누적 346개, 후보 풀 30개
+깃허브 검색 실패(건너뜀): HTTP Error 403: rate limit exceeded

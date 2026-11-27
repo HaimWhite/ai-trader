@@ -176,3 +176,8 @@ Ollama 호출 실패(무시, 모델 qwen3:8b): timed out
 2024      58.0     17.2    -9.6    28.6
 2025      18.6     41.3    75.6    20.4
 2026       8.9    -11.4    11.8     1.5
+warning: in the working copy of 'update_log.txt', LF will be replaced by CRLF the next time Git touches it
+[main 063ad36] daily update
+ 16 files changed, 558 insertions(+), 404 deletions(-)
+To https://github.com/HaimWhite/ai-trader.git
+   8e8ff85..063ad36  main -> main

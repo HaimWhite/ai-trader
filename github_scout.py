@@ -49,7 +49,14 @@ IDEA_SYSTEM = (
 ERRORS = []   # 이번 실행에서 난 탐색 오류 (codeeater 가 기록해서 대시보드·점검 도구에 보여줘요)
 
 
+COOLDOWN_UNTIL = 0.0   # 호출 한도에 걸리면 이 시각(초)까지 깃허브를 쉬어요
+
+
 def note_error(msg):
+    if "rate limit" in str(msg).lower() or "HTTP Error 403" in str(msg) or "HTTP Error 429" in str(msg):
+        global COOLDOWN_UNTIL
+        COOLDOWN_UNTIL = time.time() + (120 if has_token() else 360)   # 한도 초과는 예상된 일이라 오류로 세지 않고 잠깐 쉬어요
+        return
     ERRORS.append(str(msg)[:80])
 
 
@@ -67,6 +74,8 @@ def rate_status():
 
 def budget_ok(min_search=8, min_core=15):
     """깃허브를 읽을 여유(검색·일반 호출 한도)가 남았는지. 여유가 없으면 이번 회차는 깃허브 없이 PC 안에서만 시험해요."""
+    if time.time() < COOLDOWN_UNTIL:
+        return False
     try:
         r = rate_status()
         return (r["remaining"] or 0) >= min_search and (r["core_remaining"] if r["core_remaining"] is not None else 99) >= min_core

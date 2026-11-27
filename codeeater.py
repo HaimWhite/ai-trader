@@ -783,7 +783,7 @@ def wait_for_scout(max_sec=180):
 def scout_loop(st, ctx, args):
     """평일 09:00~16:28 쉬지 않고 계속 탐색해요. 깃허브 호출 여유가 있는 회차에는 깃허브도 읽고, 없는 회차에는 PC 안에서 후보 시험만 해요."""
     set_low_priority()
-    last_push, rounds = time.time(), 0
+    last_push, rounds, last_gh = time.time(), 0, 0.0
     print("탐색 반복을 시작합니다 (16:28 까지 쉬지 않고 계속).")
     while in_scout_window(end=SCOUT_STOP):
         touch_lock()
@@ -791,7 +791,10 @@ def scout_loop(st, ctx, args):
         if pool.get("week") == week_id() and pool.get("tests", 0) >= WEEK_TEST_CAP:
             time.sleep(300)
             continue
-        gh = github_scout.budget_ok()
+        # 깃허브는 토큰이 없으면 6분, 있으면 1분에 한 번만 (한 회차에 검색을 여러 번 써서 한도가 금방 차요)
+        gh = (time.time() - last_gh >= (60 if github_scout.has_token() else 360)) and github_scout.budget_ok()
+        if gh:
+            last_gh = time.time()
         try:
             tried, _ = scout(st, ctx, args, n_mut=30, gh=gh)
         except Exception as e:
