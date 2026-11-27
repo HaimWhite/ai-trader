@@ -67,10 +67,10 @@ def _call_claude(name, headlines):
 _ollama = {"off": False, "spent": 0.0}
 
 
-def _call_ollama(name, headlines):
+def _call_ollama(name, headlines, model=None):
     import llm
     llm._state["off"] = _ollama["off"]
-    text = llm.chat(SYSTEM, f"종목: {name}\n최근 뉴스 제목:\n" + "\n".join(f"- {h}" for h in headlines), json_mode=True)
+    text = llm.chat(SYSTEM, f"종목: {name}\n최근 뉴스 제목:\n" + "\n".join(f"- {h}" for h in headlines), json_mode=True, model=model)
     _ollama["off"] = llm._state["off"]
     if text is None:
         raise urllib.error.URLError("ollama") if _ollama["off"] else RuntimeError("응답 없음")
@@ -95,15 +95,48 @@ def shadow_ollama(code, name, headlines, kw):
     finally:
         _ollama["spent"] += time.time() - t0
     _log_shadow(code, name, headlines, kw, r)
+    for m in _other_models():   # 코드이터 모델도 같은 뉴스를 판단해 나란히 기록 (모델을 계속 바꾸면 느려서 끝날 때 한꺼번에)
+        _queue.append((code, name, headlines, kw, m))
+    if _queue and not _flush_registered[0]:
+        import atexit
+        atexit.register(flush_shadow_models)
+        _flush_registered[0] = True
 
 
-def _log_shadow(code, name, headlines, kw, r):
+_queue, _flush_registered = [], [False]
+
+
+def _other_models():
+    return [m for m in getattr(config, "OLLAMA_TRADER_MODELS", []) if m and m != config.OLLAMA_MODEL]
+
+
+def flush_shadow_models():
+    """모아 둔 뉴스를 다른 모델(코드이터)에게 모델별로 한 번에 판단시켜 그림자 기록에 남겨요. 실패해도 무시."""
+    import time
+    dead = set()
+    t0 = time.time()
+    for code, name, heads, kw, m in list(_queue):
+        if m in dead or time.time() - t0 > config.OLLAMA_BUDGET_SEC * 2:
+            continue
+        try:
+            _log_shadow(code, name, heads, kw, _parse(_call_ollama(name, heads, model=m)), model=m)
+        except urllib.error.URLError:
+            dead.add(m)
+        except Exception as e:
+            print(f"[{name}] {m} 뉴스 판단 실패(무시): {str(e)[:50]}")
+            if "응답 없음" in str(e):
+                dead.add(m)   # 모델이 없거나 안 켜지면 이번에는 포기
+    _queue.clear()
+
+
+def _log_shadow(code, name, headlines, kw, r, model=None):
     f = config.DATA_DIR / "news_shadow.json"
     log = json.load(open(f, encoding="utf-8")) if f.exists() else []
     day = datetime.now().strftime("%Y-%m-%d")
-    log = [e for e in log if not (e["date"] == day and e["code"] == code)]
+    model = model or config.OLLAMA_MODEL
+    log = [e for e in log if not (e["date"] == day and e["code"] == code and (e.get("model") or config.OLLAMA_MODEL) == model)]
     log.append({"date": day, "code": code, "name": name, "n": len(headlines), "kw": kw["score"], "ollama": r["score"],
-                "summary": r["summary"], "model": config.OLLAMA_MODEL})
+                "summary": r["summary"], "model": model})
     config.DATA_DIR.mkdir(exist_ok=True)
     with open(f, "w", encoding="utf-8") as fh:
         json.dump(log[-3000:], fh, ensure_ascii=False, indent=1)

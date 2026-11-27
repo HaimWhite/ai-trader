@@ -233,5 +233,5 @@ _apply_live_override()
 DASHBOARD_URL = "https://haimwhite.github.io/ai-trader/"
 
 
-# ---- 코드이터 (평일 09:00~16:30 깃허브를 돌아다니며 탐색, 금요일 16:30 에 최고 후보를 골라 적용, python codeeater.py) ----
+# ---- 코드이터 (PC 가 켜진 동안 계속 깃허브를 돌아다니며 탐색, 금요일 16:15 에 최고 후보를 골라 적용, python codeeater.py) ----
 CODEEATER_MODEL = "qwen3:8b"    # 깃허브 글(README)에서 전략 규칙을 뽑아내는 Ollama 모델 (생각을 끌 수 있는 모델을 권장)

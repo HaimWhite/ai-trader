@@ -26,6 +26,8 @@ h1{font-size:20px;margin:0 0 4px}
 .rng button{border:1px solid var(--line);background:var(--card);color:var(--text);padding:6px 12px;border-radius:16px;font-size:13px;cursor:pointer}
 .rng button.on{background:var(--text);color:var(--bg)}
 .scroll{overflow-x:auto}
+#aisum,#newssum,#cesum,#aidec{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#aisum table,#newssum table{min-width:max-content}
 .tall{max-height:380px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
@@ -746,11 +748,11 @@ function render(){
   srows.push(`<tr><td>장중 감시(5분)</td><td>${lv ? esc(lv.slice(0, 16)) : "-"}</td><td>${fmtAgo(lvAge)}</td><td>${lv == null ? "–" : (marketNow && lvAge > 15) ? "⚠️" : "✅"}</td><td class="r">${marketNow && lv && lvAge > 15 ? "장중인데 갱신이 멈춘 것 같아요" : "장 시간에만 갱신돼요"}</td></tr>`);
   const sx = stat || {};
   addStat("16:00 정기 점검", (sx.main || {}).time, (sx.main || {}).ok, 4, (sx.main || {}).note);
-  addStat("12:30 중간 보고", (sx.report || {}).time, (sx.report || {}).ok, 4, (sx.report || {}).note);
+  addStat("12:00 중간 보고", (sx.report || {}).time, (sx.report || {}).ok, 4, (sx.report || {}).note);
   addStat("백테스트", bt ? bt.generated_at : null, true, 10, "");
   addStat("설정 점검(주 1회)", (sx.advisor || {}).time, (sx.advisor || {}).ok, 9, (sx.advisor || {}).note);
-  addStat("코드이터 탐색(평일 쉬지 않고)", (sx.codeeater_scout || {}).time, (sx.codeeater_scout || {}).ok, 4, (sx.codeeater_scout || {}).note);
-  addStat("코드이터 적용(금 16:30)", (sx.codeeater || {}).time, (sx.codeeater || {}).ok, 9, (sx.codeeater || {}).note);
+  addStat("코드이터 탐색(PC 켜진 동안 계속)", (sx.codeeater_scout || {}).time, (sx.codeeater_scout || {}).ok, 4, (sx.codeeater_scout || {}).note);
+  addStat("코드이터 적용(금 16:15)", (sx.codeeater || {}).time, (sx.codeeater || {}).ok, 9, (sx.codeeater || {}).note);
   addStat("주간 리포트", (sx.weekly || {}).time, (sx.weekly || {}).ok, 9, "");
   addStat("배당 수집", div && div._updated ? div._updated + " 00:00:00" : null, true, 4, "");
   $("stattable").innerHTML = table(["작업", "마지막 실행", "경과", "상태", "메모"], srows) + '<div class="sub" style="margin-top:6px">✅ 정상 · ⚠️ 오래됨/멈춤 · ❌ 마지막 실행이 오류 · – 기록 없음. 12:30 보고·장중 감시는 PC에만 먼저 기록되고, 16:00 점검 때 함께 올라와요.</div>';
@@ -862,7 +864,7 @@ function render(){
     $("celine").title = "본 전략: 실제 매매에 쓰는 V · V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
     const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
     $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
-      + `<br>평일 09:00~16:28 에는 쉬지 않고 계속 (깃허브 호출 한도가 남을 때는 깃허브의 주식 전략 글과 코드를 읽고, 아니면 PC 안에서 후보를 만들어) 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:30</b> 에 그 주의 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 하임님이 디스코드로 '승인 V번호' 라고 답하실 때만 적용돼요.`
+      + `<br>컴퓨터가 켜져 있는 동안 쉬지 않고 계속 (깃허브 호출 한도가 남을 때는 깃허브의 주식 전략 글과 코드를 읽고, 아니면 PC 안에서 후보를 만들어) 같은 과거 데이터로 시험해서 후보를 모아요. <b>금요일 16:15</b> 에 그동안 모은 최고 후보를 골라, 전체 기간 <b>연수익÷낙폭</b>이 기준(기본 5%, 시험이 많을수록 상승) 이상 좋아지고 최근 3년도 나빠지지 않을 때만 V가 올라가요. 본 전략에는 하임님이 디스코드로 '승인 V번호' 라고 답하실 때만 적용돼요.`
       + (pool ? `<br>📡 이번 주 탐색: <b>${pool.rounds}번</b> · 시험 <b>${pool.tests}개</b> · 후보 풀 <b>${(pool.cands || []).length}개</b> · 현재 기준 ${pool.need}% 이상 개선 필요 (마지막 ${esc((pool.last || "").slice(5))})`
         + ((pool.top || []).length ? `<br>지금 1등 후보: 연수익÷낙폭 ${pool.top[0].cal} (현재 V${cur.v}는 ${pool.cur_cal}) · ${esc(pool.top[0].idea || "")}` : "") + ((pool.rounds >= 3 && !pool.git_ideas) ? `<br>⚠️ 깃허브에서 배운 아이디어가 아직 없어요 (스스로 변형 시험만 하는 중). python check_codeeater.py 로 확인해 보세요.` : "") + ((pool.errors || []).length ? `<br><span class="sub">최근 오류: ${esc(pool.errors[pool.errors.length - 1])}${pool.token ? "" : " · GITHUB_TOKEN 이 없어서 호출 한도가 작아요"}</span>` : "") : `<br>📡 이번 주 탐색은 월요일 09:00 에 시작돼요.`);
     $("cetable").innerHTML = table(["버전", "탄생일", "바뀐 점 · 배운 곳", "연수익", "최대 낙폭", "연수익÷낙폭", "최근 3년 연수익", "V" + v1.v + " 대비"], V.slice().reverse().map(x =>
@@ -923,13 +925,14 @@ function render(){
       let i = -1; for(let k = 0; k < p.dates.length; k++){ if(p.dates[k] <= day) i = k; else break; }
       return i < 0 || i + 5 >= p.dates.length ? null : (p.close[i + 5] / p.close[i] - 1) * 100;
     };
-    const days = [...new Set(NS.map(e => e.date))].sort(), agree = NS.filter(e => grp(e.kw) === grp(e.ollama)).length;
+    const aiNm = m => /codeeater/i.test(m || "") ? "코드이터" : "일반 Ollama", MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
+    const days = [...new Set(NS.map(e => e.date))].sort(), agreeTxt = MS.map(m => { const a = byM(m); return aiNm(m) + " <b>" + (a.filter(e => grp(e.kw) === grp(e.ollama)).length / a.length * 100).toFixed(0) + "%</b>"; }).join(" · ");
     const res = NS.map(e => fwd5(e.code, e.date)), done = res.filter(r => r !== null).length;
-    $("newssum").innerHTML = `기록 ${NS.length}건 (${esc(days[0])} ~ ${esc(days[days.length - 1])}, 모델 ${esc(NS[NS.length - 1].model || "?")}) · 두 판단이 같은 비율 <b>${(agree / NS.length * 100).toFixed(0)}%</b> · 판단 뒤 5거래일이 지나 결과를 볼 수 있는 기록 <b>${done}/${NS.length}건</b><br>Ollama 뉴스 판단을 키워드 방식과 나란히 기록만 하고 있어요(매매에는 쓰이지 않아요). 악재라고 한 종목이 그 뒤 5거래일 동안 더 떨어지면 쓸 만한 판단이에요.`;
+    $("newssum").innerHTML = `기록 ${NS.length}건 (${esc(days[0])} ~ ${esc(days[days.length - 1])}, 모델 ${MS.map(aiNm).join("·")}) · 키워드와 같은 판단 비율 ${agreeTxt} · 판단 뒤 5거래일이 지나 결과를 볼 수 있는 기록 <b>${done}/${NS.length}건</b><br>Ollama 뉴스 판단을 키워드 방식과 나란히 기록만 하고 있어요(매매에는 쓰이지 않아요). 악재라고 한 종목이 그 뒤 5거래일 동안 더 떨어지면 쓸 만한 판단이에요.`;
     const rows = []; let enough = true;
-    [["키워드", "kw"], ["Ollama", "ollama"]].forEach(([nm, k]) => {
+    [["키워드", "kw", byM(MS[0])]].concat(MS.map(m => [aiNm(m), "ollama", byM(m)])).forEach(([nm, k, arr]) => {
       [0, 1, 2].forEach(g => {
-        const rs = NS.map((e, i) => grp(e[k]) === g ? res[i] : null).filter(r => r !== null);
+        const rs = arr.map(e => grp(e[k]) === g ? res[NS.indexOf(e)] : null).filter(r => r !== null);
         if(rs.length < 30) enough = false;
         const avg = rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null;
         rows.push(`<tr><td style="text-align:left">${nm}</td><td style="text-align:left;white-space:nowrap">${GN[g]}</td><td>${rs.length}건</td><td class="${avg === null ? "" : avg >= 0 ? "up" : "down"}">${avg === null ? "-" : (avg >= 0 ? "+" : "") + avg.toFixed(2) + "%"}</td><td>${rs.length ? (rs.filter(r => r < 0).length / rs.length * 100).toFixed(0) + "%" : "-"}</td></tr>`);
@@ -939,7 +942,7 @@ function render(){
     $("newsverdict").textContent = enough ? "각 그룹이 30건 이상이라 비교해 볼 만해요. 악재 그룹 평균이 중립·호재보다 뚜렷하게 낮은 쪽이 더 쓸 만한 판단이에요." : "아직 결론을 내릴 수 없어요. 판단 뒤 5거래일이 지나야 결과가 채워지고, 각 그룹이 30건 이상 쌓일 때까지는 우연일 수 있어요.";
     const diff = NS.filter(e => grp(e.kw) !== grp(e.ollama)).slice(-8).reverse();
     $("newsdiffh").textContent = diff.length ? "두 판단이 달랐던 최근 사례" : "";
-    $("newsdiff").innerHTML = diff.map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${esc(e.name)}</b> <span class="sub">${esc(e.date.slice(5))}</span> · 키워드 <b>${e.kw > 0 ? "+" : ""}${e.kw}</b> / Ollama <b>${e.ollama > 0 ? "+" : ""}${e.ollama}</b><div class="sub">${esc(e.summary || "")}</div></div>`).join("");
+    $("newsdiff").innerHTML = diff.map(e => `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13px"><b>${esc(e.name)}</b> <span class="sub">${esc(e.date.slice(5))}</span> · 키워드 <b>${e.kw > 0 ? "+" : ""}${e.kw}</b> / ${aiNm(e.model)} <b>${e.ollama > 0 ? "+" : ""}${e.ollama}</b><div class="sub">${esc(e.summary || "")}</div></div>`).join("");
   }
 
   // 거래 복기

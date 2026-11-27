@@ -1,6 +1,6 @@
-"""코드이터 (주식 전략 자동 강화): 평일 09:00~16:30 에 깃허브를 돌아다니며 아이디어를 모아 시험하고 → 금요일 16:30 에 그 주의 최고 후보를 골라 확실히 좋아졌을 때만 V 를 올립니다.
-  python codeeater.py --scout      탐색 한 번 (평일 09:00~16:30 사이 30분마다 작업 스케줄러가 실행. 후보 모으기·시험만, 버전은 안 바뀜)
-  python codeeater.py --apply      고르기·적용 (금요일 16:30 에 작업 스케줄러가 실행. 버전 상승 + 디스코드 알림)
+"""코드이터 (주식 전략 자동 강화): PC 가 켜진 동안 계속 깃허브를 돌아다니며 아이디어를 모아 시험하고 → 금요일 16:15 에 그동안 모은 최고 후보를 골라 확실히 좋아졌을 때만 V 를 올립니다.
+  python codeeater.py --scout      탐색 (PC 가 켜진 동안 계속. 후보 모으기·시험만, 버전은 안 바뀜)
+  python codeeater.py --apply      고르기·적용 (금요일 16:15 에 작업 스케줄러가 실행. 버전 상승 + 디스코드 알림)
   python codeeater.py              탐색 + 적용을 한꺼번에 (수동 실행용)
   python codeeater.py --status     현재 버전과 역대 버전 성적, 이번 주 탐색 현황 보기
   python codeeater.py --no-github  깃허브·Ollama 없이 내 PC 안에서만 변형을 시험
@@ -38,7 +38,8 @@ MIN_GAIN = 0.05
 MAX_CANDIDATES = 40
 WEEK_TEST_CAP = 20000    # 한 주에 시험하는 후보 수 상한 (사실상 계속 탐색, 대신 시험이 많을수록 기준을 올려요)
 SCOUT_START, SCOUT_END = (9, 0), (16, 30)
-SCOUT_STOP = (16, 28)    # 탐색 반복은 여기서 멈춰서 16:30 적용과 겹치지 않게 해요
+SCOUT_STOP = (16, 28)    # (예전 방식의 자취, 지금은 쓰지 않아요)
+PAUSE = Path(tempfile.gettempdir()) / "ai_trader_ce_pause"   # 금요일 적용 중에는 탐색이 이 파일을 보고 쉬어요
 LOCK = Path(tempfile.gettempdir()) / "ai_trader_ce_scout.lock"
 POOL_KEEP = 30
 FRAME_CACHE = Path(tempfile.gettempdir()) / "ai_trader_ce_frames.pkl"   # 깃허브에 올라가지 않도록 임시 폴더에 저장
@@ -531,9 +532,20 @@ def fresh_pool():
 
 
 def in_scout_window(now=None, end=None):
-    now = now or datetime.now()
-    hm = (now.hour, now.minute)
-    return now.weekday() < 5 and SCOUT_START <= hm <= (end or SCOUT_END)
+    """PC 가 켜져 있는 동안은 요일·시간과 상관없이 계속 탐색해요 (금요일 적용 시간에는 잠깐 멈춰요)."""
+    return True
+
+
+def pool_active(pool):
+    """아직 적용하지 않고 모으는 중인 풀인지. 금요일 적용이 끝나면 새 풀이 시작돼요 (시계가 아니라 '적용'이 한 주의 경계)."""
+    return bool(pool) and not str(pool.get("week", "")).startswith("applied")
+
+
+def pause_active():
+    try:
+        return time.time() - PAUSE.stat().st_mtime < 45 * 60
+    except Exception:
+        return False
 
 
 def ensure_v1(st, today):
@@ -576,7 +588,7 @@ def scout(st, ctx, args, repos_n=2, n_mut=10, gh=True):
     today = now.strftime("%Y-%m-%d")
     gh = gh and "--no-github" not in args   # 깃허브 호출 여유가 없는 회차는 PC 안에서 시험만 해요
     pool = st.get("pool")
-    if not pool or pool.get("week") != week_id():
+    if not pool_active(pool):
         pool = st["pool"] = fresh_pool()
     cur = st["versions"][-1]
     cur_m = evaluate(cur["genome"], ctx)
@@ -733,7 +745,7 @@ def show_status():
         m = v.get("metrics") or {}
         print(f"  V{v['v']} {v['born']}  연 {m.get('cagr', '?')}%  낙폭 {m.get('mdd', '?')}%  연수익÷낙폭 {m.get('cal', '?')}  | {v.get('describe', '')}")
     p = st.get("pool")
-    if p and p.get("week") == week_id():
+    if pool_active(p):
         print(f"이번 주 탐색: {p['rounds']}번, 시험 {p['tests']}개, 후보 {len(p['cands'])}개 (마지막 {p.get('last', '?')})")
     else:
         print("이번 주 탐색: 아직 없어요")
@@ -774,21 +786,22 @@ def scout_busy():
 
 
 def wait_for_scout(max_sec=180):
-    """16:30 적용은 탐색 반복이 끝나길 잠깐 기다려요."""
+    """16:15 적용은 탐색 반복이 멈추길 잠깐 기다려요."""
     t0 = time.time()
     while scout_busy() and time.time() - t0 < max_sec:
         time.sleep(10)
 
 
 def scout_loop(st, ctx, args):
-    """평일 09:00~16:28 쉬지 않고 계속 탐색해요. 깃허브 호출 여유가 있는 회차에는 깃허브도 읽고, 없는 회차에는 PC 안에서 후보 시험만 해요."""
+    """PC 가 켜져 있는 동안 쉬지 않고 계속 탐색해요. 깃허브 호출 여유가 있는 회차에는 깃허브도 읽고, 없는 회차에는 PC 안에서 후보 시험만 해요.
+    4시간마다 스스로 끝나고(작업 스케줄러가 15분 안에 다시 시작해서 최신 시세로 새로 준비해요), 금요일 적용 때는 신호를 보고 멈춰요."""
     set_low_priority()
-    last_push, rounds, last_gh = time.time(), 0, 0.0
-    print("탐색 반복을 시작합니다 (16:28 까지 쉬지 않고 계속).")
-    while in_scout_window(end=SCOUT_STOP):
+    last_push, rounds, last_gh, t_start = time.time(), 0, 0.0, time.time()
+    print("탐색 반복을 시작합니다 (PC 가 켜진 동안 계속).")
+    while not pause_active() and time.time() - t_start < 4 * 3600:
         touch_lock()
         pool = st.get("pool") or {}
-        if pool.get("week") == week_id() and pool.get("tests", 0) >= WEEK_TEST_CAP:
+        if pool_active(pool) and pool.get("tests", 0) >= WEEK_TEST_CAP:
             time.sleep(300)
             continue
         # 깃허브는 토큰이 없으면 6분, 있으면 1분에 한 번만 (한 회차에 검색을 여러 번 써서 한도가 금방 차요)
@@ -807,12 +820,13 @@ def scout_loop(st, ctx, args):
             push_data()
             last_push = time.time()
         time.sleep(2 if tried else 60)   # 새로 시험할 후보가 없으면 잠깐 쉬었다가 다시 만들어요
-    push_data()
     try:
         LOCK.unlink()
     except Exception:
         pass
-    print(f"오늘 탐색을 마칩니다 (회차 {rounds}번).")
+    if not pause_active():
+        push_data()
+    print(f"탐색을 잠시 마칩니다 (회차 {rounds}번, {'금요일 적용 중' if pause_active() else '최신 시세로 다시 시작'}).")
 
 
 def main():
@@ -827,8 +841,8 @@ def main():
         config.DATA_DIR.mkdir()
     is_scout, is_apply = "--scout" in args, "--apply" in args
     llm._state["scout"] = is_scout   # 탐색은 점검·보고서가 Ollama 를 쓰는 동안 비켜 줘요
-    if is_scout and "--force" not in args and not in_scout_window():
-        print("탐색 시간(평일 09:00~16:30)이 아니라서 건너뜁니다. (--force 로 강제 실행)")
+    if is_scout and "--force" not in args and pause_active():
+        print("금요일 적용 중이라 탐색은 쉽니다.")
         return
     st = {"versions": [], "runs": [], "ideas": [], "seen": []} if "--fresh" in args else read_state()
     print("시세와 시험 환경을 준비하는 중...")
@@ -844,7 +858,10 @@ def main():
         scout_loop(st, ctx, args)
         return
     if is_apply:
-        wait_for_scout()
+        import atexit
+        PAUSE.write_text(str(time.time()))   # 탐색에게 "잠깐 쉬어" 신호 (끝나면 지워요)
+        atexit.register(lambda: PAUSE.unlink() if PAUSE.exists() else None)
+        wait_for_scout(max_sec=300)
         st = read_state()   # 탐색이 마지막으로 쓴 기록을 다시 읽어요
         ensure_v1(st, today)
     if not is_apply:   # 수동: 한 번 크게 탐색하고 바로 적용

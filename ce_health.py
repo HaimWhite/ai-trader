@@ -1,6 +1,6 @@
 """코드이터 이상 알림 (가볍게 확인만 해요). advisor.py --poll 이 10분마다 부르고, 문제가 있으면 하루에 한 종류당 한 번만 디스코드로 알려요.
-  ① 평일 09:40~16:30 인데 탐색 기록이 40분 넘게 갱신되지 않을 때
-  ② 금요일 17:00 이후인데 오늘 16:30 적용 기록이 없을 때
+  ① PC 를 켠 지 25분이 지났는데 탐색 기록이 40분 넘게 갱신되지 않을 때 (탐색은 PC 가 켜진 동안 계속 돌아요)
+  ② 금요일 16:45 이후인데 오늘 16:15 적용 기록이 없을 때
   ③ 최근 2시간 안에 탐색 오류가 5번 이상 쌓였을 때"""
 import json
 from datetime import datetime
@@ -25,10 +25,17 @@ def _age_min(ts, now=None):
         return None
 
 
+def _uptime_min():
+    """윈도우가 켜진 지 몇 분인지 (모르면 None). 막 켠 직후에는 탐색이 아직 시작 전이라 알림을 미뤄요."""
+    try:
+        import ctypes
+        return ctypes.windll.kernel32.GetTickCount64() / 60000.0
+    except Exception:
+        return None
+
+
 def check(now=None):
     now = now or datetime.now()
-    if now.weekday() >= 5:
-        return []
     today = now.strftime("%Y-%m-%d")
     hm = (now.hour, now.minute)
     stat = _load(config.DATA_DIR / "status.json", {})
@@ -37,14 +44,15 @@ def check(now=None):
     if done.get("date") != today:
         done = {"date": today, "sent": []}
     found = []
-    if (9, 40) <= hm <= (16, 30):
+    up = _uptime_min()
+    if up is None or up >= 25:
         age = _age_min((stat.get("codeeater_scout") or {}).get("time", ""), now)
         if age is None or age > 40:
             found.append(("scout", "코드이터 탐색이 멈춘 것 같아요 (40분 넘게 기록이 없어요). PC 가 절전 중이거나 프로그램이 꺼졌을 수 있어요. python check_codeeater.py 로 확인해 보세요."))
-    if now.weekday() == 4 and hm >= (17, 0):
+    if now.weekday() == 4 and hm >= (16, 45):
         ap = (stat.get("codeeater") or {}).get("time", "")
         if not ap.startswith(today):
-            found.append(("apply", "오늘 금요일 16:30 코드이터 적용 기록이 없어요. python codeeater.py --apply 로 직접 실행하거나 python check_codeeater.py 로 확인해 보세요."))
+            found.append(("apply", "오늘 금요일 16:15 코드이터 적용 기록이 없어요. python codeeater.py --apply 로 직접 실행하거나 python check_codeeater.py 로 확인해 보세요."))
     errs = [e for e in ((st.get("pool") or {}).get("errors") or [])]
     recent = 0
     for e in errs:

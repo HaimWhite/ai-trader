@@ -1,8 +1,8 @@
 """자동 실행 작업(작업 스케줄러)을 한 번에 등록합니다. 이미 등록된 것은 건드리지 않아요.
   python register_tasks.py           빠진 작업만 등록
   python register_tasks.py --print   실행하지 않고 등록 명령만 보기
-등록되는 작업: 평일 08:55 장중 감시 / 12:30 중간 보고 / 16:00 정기 점검, 금요일 16:30 설정 점검 / 17:00 주간 리포트,
-코드이터: 평일 09:00~16:28 쉬지 않고 탐색 / 금요일 16:30 고르기·적용"""
+등록되는 작업: 평일 08:55 장중 감시 / 12:00 중간 보고 / 16:00 정기 점검, 금요일 16:30 설정 점검 / 17:00 주간 리포트,
+코드이터: PC 가 켜진 동안 쉬지 않고 탐색 / 금요일 16:15 고르기·적용"""
 import base64
 import subprocess
 import sys
@@ -13,7 +13,7 @@ WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 # (작업 이름, 실행 파일, 요일, 시각, 절전 해제, 놓친 실행 보충, 설명)
 TASKS = [
     ("AITrader", "run_auto.bat", WEEKDAYS, "16:00", True, True, "평일 16:00 정기 점검"),
-    ("AITraderMidday", "run_report.bat", WEEKDAYS, "12:30", True, False, "평일 12:30 중간 보고"),
+    ("AITraderMidday", "run_report.bat", WEEKDAYS, "12:00", True, False, "평일 12:00 중간 보고"),
     ("AITraderMonitor", "run_monitor.bat", WEEKDAYS, "08:55", True, True, "평일 08:55 장중 5분 감시"),
     ("AITraderUpdate", "run_daily_update.bat", WEEKDAYS, "09:00", True, True, "평일 09:00 전체 점검 (데이터 갱신 + 백테스트 + 대시보드 올리기, 매매 없음)"),
     ("AITraderAdvisor", "run_advisor.bat", ("Friday",), "16:30", False, True, "금요일 16:30 설정 점검"),
@@ -32,23 +32,24 @@ REPEAT_TASKS = [
     ("AITraderApprove", "run_approve.bat", 10, "10분마다 설정 제안 승인·거절 답장 확인"),
 ]
 
-# 코드이터: 평일 09:00 에 시작해 16:28 까지 쉬지 않고 탐색(한 번 켜지면 계속 돎, 15분마다 확인해서 꺼져 있으면 다시 시작) + 금요일 16:30 적용. 이미 있으면 지우고 새로 등록(시각 변경 반영)
+# 코드이터: PC 를 켜면(로그인 2분 뒤) 시작해서 쉬지 않고 탐색(4시간마다 스스로 끝나고, 15분마다 확인해서 꺼져 있으면 다시 시작) + 금요일 16:15 적용(탐색은 그동안 잠깐 쉼). 이미 있으면 지우고 새로 등록(시각 변경 반영)
 CE_TASKS = {
-    "AITraderCodeEaterScout": "평일 09:00~16:28 코드이터 쉬지 않고 탐색 (꺼지면 15분마다 다시 시작, 창 없이 조용히)",
-    "AITraderCodeEaterWeekly": "금요일 16:30 코드이터 고르기·적용 (버전 상승 + 알림)",
+    "AITraderCodeEaterScout": "PC 가 켜진 동안 코드이터 쉬지 않고 탐색 (15분마다 확인, 창 없이 조용히)",
+    "AITraderCodeEaterWeekly": "금요일 16:15 코드이터 고르기·적용 (버전 상승 + 알림)",
 }
 CE_PS = r"""
 foreach ($n in 'AITraderCodeEaterScout','AITraderCodeEaterWeekly') { Unregister-ScheduledTask -TaskName $n -Confirm:$false -ErrorAction SilentlyContinue }
 $p = @{AllowStartIfOnBatteries = $true; DontStopIfGoingOnBatteries = $true; StartWhenAvailable = $true; MultipleInstances = 'IgnoreNew'}
-$s1 = New-ScheduledTaskSettingsSet @p -ExecutionTimeLimit (New-TimeSpan -Hours 8)
+$s1 = New-ScheduledTaskSettingsSet @p -ExecutionTimeLimit ([TimeSpan]::Zero)
 $a1 = New-ScheduledTaskAction -Execute 'pythonw.exe' -Argument 'codeeater.py --scout' -WorkingDirectory $d
-$t1 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At '09:00'
-$t1.Repetition = (New-ScheduledTaskTrigger -Once -At '09:00' -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Hours 7)).Repetition
-Register-ScheduledTask -TaskName AITraderCodeEaterScout -Action $a1 -Trigger $t1 -Settings $s1 | Out-Null
+$t1a = New-ScheduledTaskTrigger -AtLogOn
+$t1a.Delay = 'PT2M'
+$t1b = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration (New-TimeSpan -Days 3650)
+Register-ScheduledTask -TaskName AITraderCodeEaterScout -Action $a1 -Trigger @($t1a,$t1b) -Settings $s1 | Out-Null
 Write-Output 'AITraderCodeEaterScout registered'
 $s2 = New-ScheduledTaskSettingsSet @p -WakeToRun
 $a2 = New-ScheduledTaskAction -Execute "$d\run_codeeater.bat" -WorkingDirectory $d
-$t2 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At '16:30'
+$t2 = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Friday -At '16:15'
 Register-ScheduledTask -TaskName AITraderCodeEaterWeekly -Action $a2 -Trigger $t2 -Settings $s2 | Out-Null
 Write-Output 'AITraderCodeEaterWeekly registered'
 """
@@ -69,6 +70,10 @@ $ProgressPreference = 'SilentlyContinue'
 $s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -WakeToRun -MultipleInstances IgnoreNew
 foreach ($n in 'AITrader','AITraderMidday','AITraderAdvisor','AITraderWeekly','AITraderMonthly','AITraderUpdate','AITraderMonitorUS') {
   if (Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName $n -Settings $s | Out-Null; Write-Output "$n fixed" }
+}
+if (Get-ScheduledTask -TaskName AITraderMidday -ErrorAction SilentlyContinue) {
+  $tm = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At '12:00'
+  Set-ScheduledTask -TaskName AITraderMidday -Trigger $tm | Out-Null; Write-Output "AITraderMidday 12:00 으로 변경"
 }
 $s2 = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
 if (Get-ScheduledTask -TaskName AITraderApprove -ErrorAction SilentlyContinue) { Set-ScheduledTask -TaskName AITraderApprove -Settings $s2 | Out-Null; Write-Output "AITraderApprove fixed (10분마다라서 절전 해제는 끔)" }
