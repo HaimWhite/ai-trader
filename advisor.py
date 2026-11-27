@@ -266,15 +266,13 @@ def test_proposal():
 
 
 def _codeeater_checks():
-    try:   # 코드이터 도구 승인·거절 답장도 함께 확인
-        import plugins
-        import live_apply
-        for t in live_apply.poll():
-            print(t)
-        for t in plugins.poll():
-            print(t)
-    except Exception as e:
-        print("도구 답장 확인 오류:", str(e)[:60])
+    for name, fn in (("본 전략 적용", "live_apply.poll"), ("도구", "plugins.poll"), ("파인튜닝", "codeknow.poll_finetune")):   # 하나가 실패해도 나머지는 계속 확인
+        try:
+            mod, f = fn.split(".")
+            for t in getattr(__import__(mod), f)():
+                print(t)
+        except Exception as e:
+            print(f"{name} 답장 확인 오류:", str(e)[:60])
     try:   # 코드이터 이상 알림 (멈춤·오류, 하루 한 번)
         import ce_health
         ce_health.check()
@@ -325,7 +323,7 @@ def poll():
     unknown = False
     for m in replies or []:   # 가장 먼저 온 분명한 답을 따름
         w = _norm(m.get("content"))
-        if re.search(r"(도구|v)\d+", w):   # '승인 도구1', '승인 V6' 같은 답장은 plugins / live_apply 가 처리해요
+        if re.search(r"(도구|v)\d+|파인튜닝", w):   # '승인 도구1', '승인 V6' 같은 답장은 plugins / live_apply 가 처리해요
             continue
         if w in APPROVE:
             decision = "applied"

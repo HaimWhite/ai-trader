@@ -155,7 +155,20 @@ def past_stats(frames, long_frames):
 
 def models_to_run():
     ms = [m for m in (getattr(config, "OLLAMA_TRADER_MODELS", None) or [config.OLLAMA_TRADER_MODEL or config.OLLAMA_MODEL]) if m]
-    return list(dict.fromkeys(ms))
+    ms = list(dict.fromkeys(ms))
+    have = _installed_models()
+    # 아직 만들어지지 않은 모델(예: 코드이터 두뇌 M1 전)은 건너뛰어요. 안 그러면 주문 없는 빈 계좌가 생겨 성적이 왜곡돼요.
+    return [m for m in ms if have is None or m == ms[0] or m in have or m.split(":")[0] + ":latest" in have and m.endswith(":latest")]
+
+
+def _installed_models():
+    try:
+        import json, urllib.request
+        base = (getattr(config, "OLLAMA_URL", None) or "http://localhost:11434").rstrip("/")
+        d = json.load(urllib.request.urlopen(base + "/api/tags", timeout=5))
+        return {m["name"] for m in d.get("models", [])}
+    except Exception:
+        return None   # 확인 못 하면 거르지 않아요
 
 
 def run_one(model, first, frames, feat, prices, past, day):

@@ -1,7 +1,8 @@
 """코드이터 이상 알림 (가볍게 확인만 해요). advisor.py --poll 이 10분마다 부르고, 문제가 있으면 하루에 한 종류당 한 번만 디스코드로 알려요.
   ① PC 를 켠 지 25분이 지났는데 탐색 기록이 40분 넘게 갱신되지 않을 때 (탐색은 PC 가 켜진 동안 계속 돌아요)
   ② 금요일 16:45 이후인데 오늘 16:15 적용 기록이 없을 때
-  ③ 최근 2시간 안에 탐색 오류가 5번 이상 쌓였을 때"""
+  ③ 최근 2시간 안에 탐색 오류가 5번 이상 쌓였을 때
+  ④ 학습 데이터가 1000개가 되면 '파인튜닝 할까요?' 를 바로 한 번 물어봐요 (보류하면 500개 더 쌓였을 때 다시)"""
 import json
 from datetime import datetime
 
@@ -65,6 +66,14 @@ def check(now=None):
     if recent >= 5:
         found.append(("errors", f"코드이터 탐색 오류가 최근 2시간에 {recent}번 났어요. GitHub 호출 한도(토큰이 없으면 작아요)나 Ollama 문제일 수 있어요. python check_codeeater.py 로 확인해 보세요."))
     sent = []
+    try:   # 학습 데이터가 기준(1000개)을 넘으면 금요일을 기다리지 않고 바로 '파인튜닝 할까요?' 를 한 번 물어봐요
+        import codeknow
+        kk = codeknow.read()
+        if codeknow.ask_finetune(kk):
+            codeknow.write(kk)
+            sent.append("finetune_ask")
+    except Exception:
+        pass
     for kind, text in found:
         if kind in done["sent"]:
             continue

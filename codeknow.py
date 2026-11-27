@@ -3,7 +3,7 @@
 2. 검토: 위험한 코드는 걸러내고, Ollama(qwen3:8b)가 0~10점으로 채점해서 6점 이상의 '팁'만 지식 창고(data/ce_knowledge.json)에 저장해요.
 3. 두뇌 강화: 금요일 16:30 에 지식 창고의 팁을 담아 Ollama 모델 codeeater-trader 를 새로 만들어요 (M1, M2, …). 기존 codeeater 모델은 건드리지 않아요.
 4. 새 기능: 금요일에 간단한 텍스트 도구 '초안' 하나를 plugins_proposed 폴더에 만들어요. 설치·실행은 하지 않아요 (하임님이 허락한 것만 제가 검토해서 설치).
-5. 학습 데이터: 코드이터의 시험 기록(설정 → 성적)과 배운 팁으로 문제·정답 쌍을 data/ce_train.jsonl 에 쌓아요. 300개가 되면 Colab 파인튜닝을 추천하는 알림을 보내요.
+5. 학습 데이터: 코드이터의 시험 기록(설정 → 성적)과 배운 팁으로 문제·정답 쌍을 data/ce_train.jsonl 에 쌓아요. 1000개가 되면 파인튜닝을 할지 디스코드로 물어봐요 (답장: 파인튜닝 진행 / 파인튜닝 보류).
 6. 다음 키워드: 점수가 높았던 팁에서 다음에 찾아볼 검색어를 스스로 정해요."""
 import ast
 import json
@@ -22,7 +22,9 @@ KNOW = config.DATA_DIR / "ce_knowledge.json"
 TRAIN = config.DATA_DIR / "ce_train.jsonl"
 DRAFTS = config.BASE_DIR / "plugins_proposed"
 MIN_SCORE = 6
-TRAIN_ALERT = 300
+TRAIN_ALERT = 1000       # 이만큼 쌓이면 '파인튜닝 할까요?' 하고 디스코드로 물어봐요 (보류하면 500개 더 쌓였을 때 다시)
+TRAIN_RETRY = 500
+EVAL_N = 50
 MODEL_NAME = "codeeater-trader"
 BASE_MODEL = getattr(config, "CODEEATER_MODEL", "qwen3:8b")
 MAX_TIPS_IN_MODEL = 12
@@ -300,11 +302,80 @@ def weekly(k, model=None):
         pass
     n = train_count()
     if n < TRAIN_ALERT:
-        msgs.append(f"학습 데이터 {n}/{TRAIN_ALERT}개 ({n * 100 // TRAIN_ALERT}%) 모였어요. 300개가 되면 Colab 파인튜닝을 알려드릴게요.")
-    if n >= TRAIN_ALERT and not k["train"].get("alerted"):
-        k["train"]["alerted"] = True
-        msgs.append(f"학습 데이터가 {n}개 쌓였어요(data/ce_train.jsonl). Colab 파인튜닝을 해볼 만한 양이에요. 원하시면 방법을 안내해 드릴게요. 효과는 보장되지 않아서 결과는 별도 계좌로 비교해야 해요.")
+        msgs.append(f"학습 데이터 {n}/{TRAIN_ALERT}개 ({n * 100 // TRAIN_ALERT}%) 모였어요. {TRAIN_ALERT}개가 되면 파인튜닝을 할지 여쭤볼게요.")
     return msgs
+
+
+# ---------- 5-2. 파인튜닝 결정 (디스코드로 묻고 답을 받아요) ----------
+def prepare_dataset():
+    """학습 데이터를 정리해 data/ce_train_ready.jsonl(학습용)과 data/ce_train_eval.jsonl(평가용 50개)로 나눠 저장. (학습 수, 평가 수, 통과 수) 를 돌려줘요."""
+    rows, seen = [], set()
+    try:
+        for ln in open(TRAIN, encoding="utf-8"):
+            d = json.loads(ln)
+            if d["instruction"] not in seen:   # 같은 문제는 한 번만
+                seen.add(d["instruction"])
+                rows.append(d)
+    except Exception:
+        pass
+    ok = [d for d in rows if "판정: 통과" in d["output"]]
+    no = [d for d in rows if "판정: 통과" not in d["output"]]
+    rnd = random.Random(7)
+    rnd.shuffle(no)
+    keep = ok + no[:max(len(ok) * 2, 200)]   # 미통과가 훨씬 많아서 그대로 쓰면 '다 미통과'라고만 배워요
+    rnd.shuffle(keep)
+    ev, tr = keep[:EVAL_N], keep[EVAL_N:]
+    for name, part in (("ce_train_ready.jsonl", tr), ("ce_train_eval.jsonl", ev)):
+        with open(config.DATA_DIR / name, "w", encoding="utf-8") as f:
+            for d in part:
+                f.write(json.dumps(d, ensure_ascii=False) + "\n")
+    return len(tr), len(ev), len(ok)
+
+
+def ask_finetune(k):
+    """학습 데이터가 기준을 넘으면 '파인튜닝 할까요?' 를 디스코드로 한 번 물어봐요. 보냈으면 True."""
+    import notify
+    t = k["train"]
+    n = train_count()
+    need = TRAIN_ALERT if not t.get("asked_n") else t["asked_n"] + TRAIN_RETRY
+    if t.get("status") in ("asked", "go") or n < need:
+        return False
+    msg = (f"하임님, 코드이터 학습 데이터가 {n}개 모였어요. 파인튜닝을 해볼까요?\n"
+           "- 기대: 답변 형식이 안정되는 정도. 매매 성적이 오른다는 근거는 약해요 (데이터가 코드이터 자신의 시험 기록이라서요).\n"
+           "- 진행하면: 데이터를 정리해 학습용·평가용으로 나눠 두고, Colab 에서 하는 순서를 안내해 드려요. 지금 쓰는 모델은 그대로 남아요.\n"
+           f"- 보류하면: {TRAIN_RETRY}개 더 쌓였을 때 다시 여쭤볼게요.\n"
+           "답장: **파인튜닝 진행** 또는 **파인튜닝 보류**")
+    if notify.send(msg, mention=True):
+        t.update(status="asked", asked_n=n, asked_date=datetime.now().strftime("%Y-%m-%d"), msg_id=getattr(notify, "LAST_MESSAGE_ID", None), acked=[])
+        return True
+    return False
+
+
+def poll_finetune():
+    """'파인튜닝 진행/보류' 답장을 확인해요. 처리한 내용 글 목록을 돌려줘요."""
+    import notify
+    k = read()
+    t = k["train"]
+    out = []
+    if t.get("status") != "asked" or not t.get("msg_id"):
+        return out
+    for m in notify.fetch_replies(t["msg_id"]) or []:
+        mm = re.search(r"파인튜닝\s*(진행|보류)", m.get("content") or "")
+        if not mm or m["id"] in t.get("acked", []):
+            continue
+        t.setdefault("acked", []).append(m["id"])
+        if mm.group(1) == "진행":
+            a, b, c = prepare_dataset()
+            t["status"] = "go"
+            out.append(f"좋아요! 학습 데이터를 정리했어요: 학습용 {a}개, 평가용 {b}개 (통과 사례 {c}개, 같은 문제는 한 번만). 파일은 data/ce_train_ready.jsonl 과 data/ce_train_eval.jsonl 이에요. Claude 와 대화창에서 '파인튜닝 안내' 라고 말씀해 주시면 Colab 순서를 쉬운 말로 안내해 드려요. 끝나면 새 모델은 별도 가상 계좌로 비교해 보세요.")
+        else:
+            t["status"] = "hold"
+            out.append(f"알겠어요, 파인튜닝은 보류할게요. 학습 데이터가 {t.get('asked_n', 0) + TRAIN_RETRY}개 되면 다시 여쭤볼게요.")
+        notify.react(m["id"], "✅")
+    write(k)
+    for x in out:
+        notify.send("하임님, " + x, mention=True)
+    return out
 
 
 if __name__ == "__main__":

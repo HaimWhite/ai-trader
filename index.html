@@ -805,7 +805,8 @@ function render(){
   if(AI && AI.history && AI.history.length){
     const AIS = [AI].concat(AI.others || []).filter(x => x.history && x.history.length), COLORS = ["#8b5cf6", "#f59e0b", "#10b981"];
     const ceV = D.ce && D.ce.versions && D.ce.versions.length ? D.ce.versions[D.ce.versions.length - 1].v : null;
-    const aiName = m => /codeeater/i.test(m || "") ? "코드이터" + (ceV ? " V" + ceV : "") : "일반 Ollama";
+    const mNow = D.ck && (D.ck.models || []).length ? D.ck.models[D.ck.models.length - 1].m : null;
+    const aiName = m => /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" + (mNow ? " M" + mNow : "") : /codeeater/i.test(m || "") ? "코드이터" + (ceV ? " V" + ceV : "") : "일반 Ollama";
     AIS.forEach(x => { x.label = aiName(x.model); });
     if(typeof AISEL === "undefined" || AISEL >= AIS.length) window.AISEL = 0;
     const start = AIS.map(x => x.history[0].date).sort().pop();   // 모두가 거래를 시작한 뒤의 같은 기간으로 비교
@@ -860,7 +861,7 @@ function render(){
     const LA = D.la || {}, laWait = (LA.pending || []).filter(x => x.status === "pending");
     $("celine").innerHTML = chip("본 전략 <b>V" + (LA.live_v || 1) + "</b>" + (laWait.length ? " · 승인 대기 V" + laWait[0].v : ""), true) + chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip(mV ? "두뇌 <b>M" + mV + "</b>" : "두뇌 <b>M0</b> · 팁 " + Math.min(3, ((D.ck || {}).tips || []).length) + "/3", !!mV)
       + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0)
-      + chip("학습 데이터 <b>" + trN + "/300</b> " + bar(trN / 300), trN >= 300);
+      + chip("학습 데이터 <b>" + trN + "/1000</b> " + bar(trN / 1000), trN >= 1000);
     $("celine").title = "본 전략: 실제 매매에 쓰는 V · V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
     const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
     $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
@@ -925,7 +926,7 @@ function render(){
       let i = -1; for(let k = 0; k < p.dates.length; k++){ if(p.dates[k] <= day) i = k; else break; }
       return i < 0 || i + 5 >= p.dates.length ? null : (p.close[i + 5] / p.close[i] - 1) * 100;
     };
-    const aiNm = m => /codeeater/i.test(m || "") ? "코드이터" : "일반 Ollama", MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
+    const aiNm = m => /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" : /codeeater/i.test(m || "") ? "코드이터" : "일반 Ollama", MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
     const days = [...new Set(NS.map(e => e.date))].sort(), agreeTxt = MS.map(m => { const a = byM(m); return aiNm(m) + " <b>" + (a.filter(e => grp(e.kw) === grp(e.ollama)).length / a.length * 100).toFixed(0) + "%</b>"; }).join(" · ");
     const res = NS.map(e => fwd5(e.code, e.date)), done = res.filter(r => r !== null).length;
     $("newssum").innerHTML = `기록 ${NS.length}건 (${esc(days[0])} ~ ${esc(days[days.length - 1])}, 모델 ${MS.map(aiNm).join("·")}) · 키워드와 같은 판단 비율 ${agreeTxt} · 판단 뒤 5거래일이 지나 결과를 볼 수 있는 기록 <b>${done}/${NS.length}건</b><br>Ollama 뉴스 판단을 키워드 방식과 나란히 기록만 하고 있어요(매매에는 쓰이지 않아요). 악재라고 한 종목이 그 뒤 5거래일 동안 더 떨어지면 쓸 만한 판단이에요.`;

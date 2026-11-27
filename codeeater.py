@@ -490,7 +490,7 @@ def scoreboard(st):
         n, m_txt = 0, "M?"
     lines = ["📋 이번 주 성적표",
              f"· 버전: V{cur['v']} · 탐색 방식 E{e[-1]['e'] if e else 1} · 두뇌 {m_txt}",
-             f"· 학습 데이터 {n}/300개 ({min(100, n * 100 // 300)}%)"]
+             f"· 학습 데이터 {n}/{codeknow.TRAIN_ALERT}개 ({min(100, n * 100 // codeknow.TRAIN_ALERT)}%)"]
     p = st.get("runs") or []
     if p:
         lines.append(f"· 이번 주 시험 {p[-1].get('tried', 0)}개 (깃허브에서 배운 것 {p[-1].get('from_github', 0)}개)")
