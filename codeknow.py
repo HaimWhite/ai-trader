@@ -361,7 +361,8 @@ def prepare_dataset():
     rnd.shuffle(no)
     keep = ok + no[:max(len(ok) * 2, 200)]   # 미통과가 훨씬 많아서 그대로 쓰면 '다 미통과'라고만 배워요
     rnd.shuffle(keep)
-    ev, tr = keep[:EVAL_N], keep[EVAL_N:]
+    n_ev = max(10, min(EVAL_N, len(keep) // 6))   # 데이터가 적으면 평가용도 적게 (최대 50개)
+    ev, tr = keep[:n_ev], keep[n_ev:]
     for name, part in (("ce_train_ready.jsonl", tr), ("ce_train_eval.jsonl", ev)):
         with open(config.DATA_DIR / name, "w", encoding="utf-8") as f:
             for d in part:
@@ -418,7 +419,13 @@ def poll_finetune():
 if __name__ == "__main__":
     import sys
     kk = read()
-    if "--build" in sys.argv:   # python codeknow.py --build : 지금 가진 팁으로 두뇌(M)를 바로 만들어요 (팁이 적으면 효과도 작아요)
+    if "--prepare" in sys.argv:   # python codeknow.py --prepare : 지금 쌓인 학습 데이터를 파인튜닝용으로 정리해요 (학습용·평가용 파일)
+        a, b, c = prepare_dataset()
+        kk["train"]["status"] = "go"
+        write(kk)
+        print(f"정리 완료: 학습용 {a}개 (data/ce_train_ready.jsonl), 평가용 {b}개 (data/ce_train_eval.jsonl), 통과 사례 {c}개")
+        print("학습용이 100개 미만이면 모델이 거의 못 배워요. 그래도 과정을 연습해 보는 용도로는 괜찮아요.")
+    elif "--build" in sys.argv:   # python codeknow.py --build : 지금 가진 팁으로 두뇌(M)를 바로 만들어요 (팁이 적으면 효과도 작아요)
         res = build_model(kk, force=True)
         write(kk)
         print(res or "만들 수 있는 새 팁이 없어요. 탐색이 더 돌아서 팁이 쌓인 뒤에 다시 해 보세요.")
