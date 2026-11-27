@@ -16,9 +16,10 @@ from broker import PaperBroker, _read_json, _write_json
 MAX_ORDERS = 3
 
 
-def slug_of(model, first):
-    """첫 번째 모델은 기존 파일 이름(ai_account.json …)을 그대로 쓰고, 나머지는 모델 이름을 붙여 따로 저장해요."""
-    return "" if first else "_" + "".join(ch if ch.isalnum() else "-" for ch in model).strip("-")
+def slug_of(model, first, mode="free"):
+    """첫 번째 모델은 기존 파일 이름(ai_account.json …)을 그대로 쓰고, 나머지는 모델 이름을 붙여 따로 저장해요. 'V+모델' 계좌는 이름 앞에 v- 가 붙어요."""
+    base = "".join(ch if ch.isalnum() else "-" for ch in model).strip("-")
+    return "" if first and mode == "free" else "_" + ("v-" if mode == "v" else "") + base
 
 
 class AIBroker(PaperBroker):
@@ -158,7 +159,32 @@ def models_to_run():
     ms = list(dict.fromkeys(ms))
     have = _installed_models()
     # 아직 만들어지지 않은 모델(예: 코드이터 두뇌 M1 전)은 건너뛰어요. 안 그러면 주문 없는 빈 계좌가 생겨 성적이 왜곡돼요.
-    return [m for m in ms if have is None or m == ms[0] or m in have or m.split(":")[0] + ":latest" in have and m.endswith(":latest")]
+    return [m for m in ms if have is None or m == ms[0] or m in have]
+
+
+def v_models_to_run():
+    """'V+모델' 계좌로 돌릴 모델들 (설치된 것만)."""
+    have = _installed_models()
+    return [m for m in dict.fromkeys(getattr(config, "AI_V_MODELS", None) or []) if m and (have is None or m in have)]
+
+
+def v_genome():
+    """코드이터의 가장 최근 V (번호, 설정). 없으면 None."""
+    try:
+        v = json.load(open(config.DATA_DIR / "codeeater.json", encoding="utf-8"))["versions"][-1]
+        return v["v"], v["genome"]
+    except Exception:
+        return None
+
+
+def v_bullish(frames, genome):
+    """V 의 단기선 > 장기선(상승 추세) 인 종목 코드들. (V 의 다른 매수 조건은 쓰지 않아요: 이동평균 조건만)"""
+    out = set()
+    for code, df in frames.items():
+        c = df["Close"].astype(float)
+        if len(c) > genome["long"] and c.rolling(genome["short"]).mean().iloc[-1] > c.rolling(genome["long"]).mean().iloc[-1]:
+            out.add(code)
+    return out
 
 
 def _installed_models():
@@ -171,8 +197,8 @@ def _installed_models():
         return None   # 확인 못 하면 거르지 않아요
 
 
-def run_one(model, first, frames, feat, prices, past, day):
-    slug = slug_of(model, first)
+def run_one(model, first, frames, feat, prices, past, day, mode="free"):
+    slug = slug_of(model, first, mode)
     broker = AIBroker(slug)
     execute_pending(broker, frames, prices)
     eq = broker.equity(prices)
@@ -180,7 +206,16 @@ def run_one(model, first, frames, feat, prices, past, day):
     log_f = config.DATA_DIR / f"ai_decisions{slug}.json"
     decisions = _read_json(log_f, [])
     llm._state["err"] = ""
-    text = llm.chat(SYSTEM, build_prompt(feat, broker, eq, past), json_mode=True, timeout=config.OLLAMA_TRADER_TIMEOUT, model=model)
+    system, vtxt = SYSTEM, ""
+    if mode == "v":   # V+모델: 사는 후보를 V 의 상승 추세 종목으로 제한 (이미 가진 종목은 팔 수 있게 그대로 둬요)
+        vg = v_genome()
+        if not vg:
+            raise RuntimeError("코드이터 V 를 아직 못 읽었어요")
+        vset = v_bullish(frames, vg[1])
+        held = set(broker.account["positions"])
+        feat = {c: f for c, f in feat.items() if c in vset or c in held}
+        system = SYSTEM + f"\n추가 규칙: 코드이터 V{vg[0]}의 조건({vg[1]['short']}일선 > {vg[1]['long']}일선, 상승 추세)을 통과한 종목만 종목표에 있습니다. 표에 없는 종목은 살 수 없어요. 그중에서 더 좋은 종목을 고르거나, 마음에 들지 않으면 사지 않아도 됩니다."
+    text = llm.chat(system, build_prompt(feat, broker, eq, past), json_mode=True, timeout=config.OLLAMA_TRADER_TIMEOUT, model=model)
     if text is None:
         decisions.append({"date": day, "orders": [], "note": "AI 가 응답하지 않아 오늘은 주문을 내지 않았어요." + (f" ({llm._state['err']})" if llm._state.get("err") else "")})
     else:
@@ -193,7 +228,9 @@ def run_one(model, first, frames, feat, prices, past, day):
     broker.save()
     _write_json(log_f, decisions[-200:])
     print(f"AI 가상 트레이더({model}): 총 자산 {eq:,.0f}원, 보유 {len(broker.account['positions'])}종목, 새 주문 {len(broker.account.get('pending', {}))}건")
-    return summary(broker, feat, decisions, model)
+    out = summary(broker, feat, decisions, model)
+    out["mode"] = mode
+    return out
 
 
 def run(frames, long_frames=None):
@@ -204,11 +241,12 @@ def run(frames, long_frames=None):
     day = max(df.index[-1] for df in frames.values()).strftime("%Y-%m-%d")
     past = past_stats(frames, long_frames)
     outs = []
-    for k, model in enumerate(models_to_run()):
+    jobs = [(m, k == 0, "free") for k, m in enumerate(models_to_run())] + [(m, False, "v") for m in v_models_to_run()]
+    for model, first, mode in jobs:   # 같은 모델 계좌들은 이어서 돌려서 모델을 덜 바꿔요 (free 다음 v)
         try:
-            outs.append(run_one(model, k == 0, frames, feat, prices, past, day))
+            outs.append(run_one(model, first, frames, feat, prices, past, day, mode))
         except Exception as e:
-            print(f"AI 가상 트레이더({model}) 실패(건너뜀): {str(e)[:80]}")
+            print(f"AI 가상 트레이더({model}{'/V' if mode == 'v' else ''}) 실패(건너뜀): {str(e)[:80]}")
     if outs:
         main_out = dict(outs[0])
         main_out["others"] = outs[1:]

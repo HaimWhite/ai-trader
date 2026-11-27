@@ -149,7 +149,7 @@ summary{cursor:pointer;display:flex;justify-content:space-between;gap:8px}
   <div class="box" id="tunebox" style="display:none"><h2>AI 설정 조정 기록</h2><div class="scroll" id="tunetable"></div></div>
   <div class="box" id="watchbox" style="display:none"><h2>관찰 목록 (매매하지 않고 신호만 봐요)</h2><div class="sub" id="watchnote"></div><div class="scroll tall" id="watch"></div></div>
   <div class="box" id="aibox" style="display:none"><h2>AI 가상 트레이더 (Ollama 모델별) vs 본 전략</h2><div class="sub" id="aisum"></div><div id="aichart" style="margin-top:8px"></div><div class="rng" id="aisel" style="position:static;margin:10px 0 0"></div><div class="scroll" id="aihold" style="margin-top:8px"></div><div class="sub" id="aidec" style="margin:10px 0 4px"></div><div class="scroll tall" id="aidectable"></div></div>
-  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div id="celine" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px"></div><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div id="cechart2" style="margin-top:8px"></div><div id="cefwd" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div id="cetools"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
+  <div class="box" id="cebox" style="display:none"><h2>코드이터 · 깃허브를 돌아다니며 스스로 강화하는 주식 전략</h2><div id="celine" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px"></div><div class="sub" id="cesum"></div><div class="scroll" id="cetable" style="margin-top:8px"></div><div id="cechart" style="margin-top:8px"></div><div id="cefwd" style="margin-top:8px"></div><div class="sub" id="ceenghd" style="margin:10px 0 4px"></div><div class="scroll" id="ceeng"></div><div id="cenotes"></div><div class="sub" id="ceknowhd" style="margin:12px 0 4px"></div><div class="scroll" id="ceknow"></div><div id="cetools"></div><div class="sub" id="ceideash" style="margin:10px 0 4px"></div><div id="ceideas"></div></div>
   <div class="box"><h2>최근 거래 (최대 30건)</h2><div class="scroll" id="trades"></div></div>
 </div>
 <script>
@@ -803,11 +803,11 @@ function render(){
   const AI = D.ai;
   $("aibox").style.display = AI && AI.history && AI.history.length ? "" : "none";
   if(AI && AI.history && AI.history.length){
-    const AIS = [AI].concat(AI.others || []).filter(x => x.history && x.history.length), COLORS = ["#8b5cf6", "#f59e0b", "#10b981"];
+    const AIS = [AI].concat(AI.others || []).filter(x => x.history && x.history.length), COLORS = ["#8b5cf6", "#f59e0b", "#10b981", "#3b82f6", "#ec4899", "#14b8a6"];
     const ceV = D.ce && D.ce.versions && D.ce.versions.length ? D.ce.versions[D.ce.versions.length - 1].v : null;
     const mNow = D.ck && (D.ck.models || []).length ? D.ck.models[D.ck.models.length - 1].m : null;
-    const aiName = m => /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" + (mNow ? " M" + mNow : "") : /codeeater/i.test(m || "") ? "코드이터" + (ceV ? " V" + ceV : "") : "일반 Ollama";
-    AIS.forEach(x => { x.label = aiName(x.model); });
+    const aiName = (m, mode) => mode === "v" ? (/codeeater-ft/i.test(m || "") ? "V+FT" : /codeeater-trader/i.test(m || "") ? "V+M" : "V+" + (m || "")) : /codeeater-ft/i.test(m || "") ? "FT (파인튜닝)" : /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" + (mNow ? " M" + mNow : "") : /codeeater/i.test(m || "") ? "코드이터" + (ceV ? " V" + ceV : "") : "일반 Ollama";
+    AIS.forEach(x => { x.label = aiName(x.model, x.mode); });
     if(typeof AISEL === "undefined" || AISEL >= AIS.length) window.AISEL = 0;
     const start = AIS.map(x => x.history[0].date).sort().pop();   // 모두가 거래를 시작한 뒤의 같은 기간으로 비교
     const mine = (D.history || []).filter(x => x.date >= start);
@@ -815,7 +815,7 @@ function render(){
     const ser = AIS.map(x => x.history.filter(h => h.date >= start));
     const ret = r => r.length > 1 ? (r[r.length - 1].equity / r[0].equity - 1) * 100 : null, fp = v => v == null ? "-" : (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
     $("aisum").innerHTML = `내 PC의 AI들이 같은 원금의 별도 가상 계좌로 각자 매매해 본 결과예요. 본 전략의 매매에는 영향이 없어요. 비교 기간은 모두가 매매를 시작한 <b>${esc(start)}</b>부터예요.<br>`
-      + table(["", "AI 모델", "기간 수익률", "총 자산", "거래", "이익 매도"], AIS.map((x, i) => `<tr><td><span style="color:${COLORS[i % 3]}">━</span></td><td style="text-align:left">${esc(x.label)}</td><td class="${(ret(ser[i]) || 0) >= 0 ? "up" : "down"}">${fp(ret(ser[i]))}</td><td>${num(x.history[x.history.length - 1].equity)}원</td><td>${x.n_trades}건</td><td>${x.wins}/${x.n_sells}</td></tr>`).concat([`<tr><td><span>━</span></td><td style="text-align:left">본 전략</td><td class="${(myRet || 0) >= 0 ? "up" : "down"}">${fp(myRet)}</td><td>${mine.length ? num(mine[mine.length - 1].equity) + "원" : "-"}</td><td></td><td></td></tr>`]))
+      + table(["", "AI 모델", "기간 수익률", "총 자산", "거래", "이익 매도"], AIS.map((x, i) => `<tr><td><span style="color:${COLORS[i % COLORS.length]}">━</span></td><td style="text-align:left">${esc(x.label)}</td><td class="${(ret(ser[i]) || 0) >= 0 ? "up" : "down"}">${fp(ret(ser[i]))}</td><td>${num(x.history[x.history.length - 1].equity)}원</td><td>${x.n_trades}건</td><td>${x.wins}/${x.n_sells}</td></tr>`).concat([`<tr><td><span>━</span></td><td style="text-align:left">본 전략</td><td class="${(myRet || 0) >= 0 ? "up" : "down"}">${fp(myRet)}</td><td>${mine.length ? num(mine[mine.length - 1].equity) + "원" : "-"}</td><td></td><td></td></tr>`]))
       + `<span class="sub">작은 AI의 판단은 틀릴 수 있고 기간이 짧을수록 우연이 커요. 몇 달 이상 쌓인 뒤에 비교하세요.</span>`;
     // 수익률 그래프 (비교 시작일을 0%로)
     // 그래프는 각 AI 가 자기 시작일부터 보여줘요(새로 시작한 AI 의 기록이 하루뿐이어도 선이 보이도록). 선마다 자기 시작일이 0% 예요.
@@ -832,10 +832,10 @@ function render(){
       let g = ticks(y0, y1, 4).map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(1)}%</text>`).join("");
       g += `<line x1="${L}" x2="${W - R}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--sub)" stroke-dasharray="4 4"/>`;
       const path = arr => arr.map((v, i) => v == null ? null : X(i).toFixed(1) + "," + Y(v).toFixed(1)).filter(Boolean).join(" ");
-      lines.forEach((ln, i) => { g += `<polyline fill="none" stroke-width="2" stroke="${COLORS[i % 3]}" points="${path(ln)}"/>`; const k = ln.map(v => v != null).lastIndexOf(true); if(k >= 0) g += `<circle cx="${X(k).toFixed(1)}" cy="${Y(ln[k]).toFixed(1)}" r="3.5" fill="${COLORS[i % 3]}"/>`; });
+      lines.forEach((ln, i) => { g += `<polyline fill="none" stroke-width="2" stroke="${COLORS[i % COLORS.length]}" points="${path(ln)}"/>`; const k = ln.map(v => v != null).lastIndexOf(true); if(k >= 0) g += `<circle cx="${X(k).toFixed(1)}" cy="${Y(ln[k]).toFixed(1)}" r="3.5" fill="${COLORS[i % COLORS.length]}"/>`; });
       g += `<polyline fill="none" stroke-width="2" style="stroke:var(--text)" points="${path(M)}"/>`;
       g += `<text class="ax" x="${L}" y="${H - 6}">${esc(dts[0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(dts[dts.length - 1].slice(5))}</text>`;
-      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub">${AIS.map((x, i) => `<span style="color:${COLORS[i % 3]}">━</span> ${esc(x.label)}`).join(" &nbsp; ")} &nbsp; <span style="color:var(--text)">━</span> 본 전략 &nbsp; (선마다 자기 시작일이 0%)</div>`;
+      el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub">${AIS.map((x, i) => `<span style="color:${COLORS[i % COLORS.length]}">━</span> ${esc(x.label)}`).join(" &nbsp; ")} &nbsp; <span style="color:var(--text)">━</span> 본 전략 &nbsp; (선마다 자기 시작일이 0%)</div>`;
     }
     // 모델 선택 버튼 + 선택한 모델의 보유 종목·판단
     const sel = AIS[AISEL];
@@ -859,9 +859,11 @@ function render(){
       trN = D.ck && D.ck.train ? (D.ck.train.count || 0) : 0, bar = f => `<span style="display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--line);vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, f * 100).toFixed(0)}%;background:#10b981"></span></span>`,
       chip = (t, on) => `<span style="padding:3px 10px;border-radius:12px;border:1px solid var(--line);font-size:13px;${on ? "font-weight:700" : "opacity:.6"}">${t}</span>`;
     const LA = D.la || {}, laWait = (LA.pending || []).filter(x => x.status === "pending");
+    const ftOn = !!((D.ai && [D.ai].concat(D.ai.others || []).some(x => /codeeater-ft/i.test(x.model || "") && x.mode !== "v")));
     $("celine").innerHTML = chip("본 전략 <b>V" + (LA.live_v || 1) + "</b>" + (laWait.length ? " · 승인 대기 V" + laWait[0].v : ""), true) + chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip(mV ? "두뇌 <b>M" + mV + "</b>" : "두뇌 <b>M0</b> · 팁 " + Math.min(3, ((D.ck || {}).tips || []).length) + "/3", !!mV)
       + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0)
-      + chip("학습 데이터 <b>" + trN + "/1000</b> " + bar(trN / 1000), trN >= 1000);
+     
+ + chip(ftOn ? "FT <b>사용 중</b>" : "FT <b>없음</b> · " + ({asked: "승인 대기", go: "데이터 준비됨", hold: "보류"}[(D.ck && D.ck.train || {}).status] || "데이터 " + trN + "/1000"), ftOn) + chip("학습 데이터 <b>" + trN + "/1000</b> " + bar(trN / 1000), trN >= 1000);
     $("celine").title = "본 전략: 실제 매매에 쓰는 V · V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
     const last = (CE.runs || [])[CE.runs.length - 1], pool = CE.pool && !String(CE.pool.week).startsWith("applied") && CE.pool.rounds ? CE.pool : null;
     $("cesum").innerHTML = `현재 <b>V${cur.v}</b> · ${esc(CE.updated || "")} 마지막 갱신` + (last ? ` · 지난 적용(${esc(last.date.slice(5))}): 후보 ${last.tried}개 시험, 깃허브에서 배운 것 ${last.from_github}개, ${last.promoted ? "버전 상승!" : "유지"}` : "")
@@ -879,15 +881,6 @@ function render(){
       g += pl(B, 'style="stroke:var(--text)"') + pl(A, 'stroke="#10b981"') + `<text class="ax" x="${L}" y="${H - 6}">${esc(A[0][0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(A[A.length - 1][0].slice(5))}</text>`;
       el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub"><span style="color:#10b981">━</span> 지금 버전 V${cur.v} &nbsp; <span style="color:var(--text)">━</span> V${v1.v}(기준) · 코드이터를 시작한 ${esc(A[0][0])}부터 이 설정으로 매매했다면의 가상 결과예요</div>`;
     } else el.innerHTML = "";
-    const ms = cv.ms || {}, msk = Object.keys(ms), el2 = $("cechart2");
-    if(msk.length >= 2 && ms[msk[0]].length > 1){
-      const COL = ["var(--text)", "#3b82f6", "#f59e0b", "#a855f7", "#ec4899", "#14b8a6", "#ef4444", "#84cc16"], W = el2.clientWidth || 600, H = 210, L = 62, R = 10, T = 12, Bm = 24, base = ms[msk[0]], vals = [].concat(...msk.map(k => ms[k].map(x => x[1])));
-      let y0 = Math.min(...vals), y1 = Math.max(...vals); if(y0 === y1){ y0 -= 1; y1 += 1; }
-      const n = base.length, X = i => L + (W - L - R) * i / (n - 1), Y = v => H - Bm - (H - Bm - T) * (v - y0) / (y1 - y0);
-      let g = ticks(y0, y1, 4).map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${(v / 1e6).toFixed(1)}백만</text>`).join("");
-      g += msk.map((k, j) => `<polyline fill="none" stroke-width="${j === msk.length - 1 ? 2.5 : 1.6}" style="stroke:${COL[j % COL.length]}" points="${ms[k].map((x, i) => X(i).toFixed(1) + "," + Y(x[1]).toFixed(1)).join(" ")}"/>`).join("") + `<text class="ax" x="${L}" y="${H - 6}">${esc(base[0][0].slice(5))}</text><text class="ax" x="${W - R}" y="${H - 6}" text-anchor="end">${esc(base[n - 1][0].slice(5))}</text>`;
-      el2.innerHTML = `<div class="sub" style="margin-bottom:2px">📊 5단계마다 비교 (V1, V5, V10…)</div><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${g}</svg><div class="sub">${msk.map((k, j) => `<span style="color:${COL[j % COL.length]}">━</span> ${k} <b>${((ms[k][ms[k].length - 1][1] / 1e6)).toFixed(1)}백만</b>`).join(" &nbsp; ")} · 같은 기간(코드이터 시작일부터)에 각 버전 설정으로 매매했다면의 가상 결과예요</div>`;
-    } else el2.innerHTML = msk.length ? `<div class="sub">📊 V5 가 되면 V1 · V5 비교 그래프가 여기에 생겨요 (이후 V10, V15… 계속 추가)</div>` : "";
     const FW = CE.forward || [];
     $("cefwd").innerHTML = FW.length ? `<div class="sub" style="margin:4px 0 2px">🔭 태어난 뒤 성적 (버전을 고를 때 못 본 새 기간이라 가장 믿을 만해요 · V1 은 같은 기간 기준)</div>` + table(["버전", "탄생일", "지난 거래일", "그 버전", "V1", "차이"], FW.slice().reverse().map(f => `<tr><td><b>V${f.v}</b></td><td>${esc(f.born)}</td><td>${f.days}</td><td class="${f.ret >= 0 ? "up" : "down"}">${f.ret}%</td><td>${f.base}%</td><td class="${f.diff >= 0 ? "up" : "down"}">${f.diff > 0 ? "+" : ""}${f.diff}%p</td></tr>`)) + (FW.some(f => f.days < 20) ? `<div class="sub">거래일이 20일 미만이면 우연일 가능성이 커서 참고만 하세요.</div>` : "") : "";
     const EN = CE.engine, desc = o => ["한 번에 " + o.genes + "곳 변경"].concat(o.crossover ? ["좋은 후보 섞기"] : [], o.local ? ["좋은 후보 주변 탐색"] : [], o.wide ? ["넓은 값 범위"] : [], o.wf ? ["뒤 30% 구간 검증"] : []).join(" · ");
@@ -926,7 +919,7 @@ function render(){
       let i = -1; for(let k = 0; k < p.dates.length; k++){ if(p.dates[k] <= day) i = k; else break; }
       return i < 0 || i + 5 >= p.dates.length ? null : (p.close[i + 5] / p.close[i] - 1) * 100;
     };
-    const aiNm = m => /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" : /codeeater/i.test(m || "") ? "코드이터" : "Ollama" + (m && m !== "?" ? " (" + m + ")" : ""), MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
+    const aiNm = m => /codeeater-ft/i.test(m || "") ? "FT (파인튜닝)" : /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" : /codeeater/i.test(m || "") ? "코드이터" : "Ollama" + (m && m !== "?" ? " (" + m + ")" : ""), MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
     const days = [...new Set(NS.map(e => e.date))].sort(), agreeTxt = MS.map(m => { const a = byM(m); return aiNm(m) + " <b>" + (a.filter(e => grp(e.kw) === grp(e.ollama)).length / a.length * 100).toFixed(0) + "%</b>"; }).join(" · ");
     const res = NS.map(e => fwd5(e.code, e.date)), done = res.filter(r => r !== null).length;
     $("newssum").innerHTML = `기록 ${NS.length}건 (${esc(days[0])} ~ ${esc(days[days.length - 1])}, 모델 ${MS.map(aiNm).join("·")}) · 키워드와 같은 판단 비율 ${agreeTxt} · 판단 뒤 5거래일이 지나 결과를 볼 수 있는 기록 <b>${done}/${NS.length}건</b><br>Ollama 뉴스 판단을 키워드 방식과 나란히 기록만 하고 있어요(매매에는 쓰이지 않아요). 악재라고 한 종목이 그 뒤 5거래일 동안 더 떨어지면 쓸 만한 판단이에요.`;

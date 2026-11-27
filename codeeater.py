@@ -411,14 +411,6 @@ def curves(st, ctx):
         cv = evaluate(v["genome"], ctx, since_i=i0)
         seg = [(str(ctx["idx"][i].date()), round(float(cv[i]))) for i in range(i0, ctx["n"])]
         out[name] = [x for k, x in enumerate(seg) if k % 5 == 0 or k == len(seg) - 1]
-    # V1, V5, V10, V15 … (5의 배수) 버전들을 한 그래프에서 비교할 수 있게 각각의 곡선도 저장
-    ms = {}
-    for v in st["versions"]:
-        if v["v"] == 1 or v["v"] % 5 == 0:
-            cv = evaluate(v["genome"], ctx, since_i=i0)
-            seg = [(str(ctx["idx"][i].date()), round(float(cv[i]))) for i in range(i0, ctx["n"])]
-            ms["V%d" % v["v"]] = [x for k, x in enumerate(seg) if k % 5 == 0 or k == len(seg) - 1]
-    out["ms"] = ms
     return out
 
 
