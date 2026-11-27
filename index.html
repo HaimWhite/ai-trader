@@ -926,7 +926,7 @@ function render(){
       let i = -1; for(let k = 0; k < p.dates.length; k++){ if(p.dates[k] <= day) i = k; else break; }
       return i < 0 || i + 5 >= p.dates.length ? null : (p.close[i + 5] / p.close[i] - 1) * 100;
     };
-    const aiNm = m => /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" : /codeeater/i.test(m || "") ? "코드이터" : "일반 Ollama", MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
+    const aiNm = m => /codeeater-trader/i.test(m || "") ? "코드이터 두뇌" : /codeeater/i.test(m || "") ? "코드이터" : "Ollama" + (m && m !== "?" ? " (" + m + ")" : ""), MS = [...new Set(NS.map(e => e.model || "?"))], byM = m => NS.filter(e => (e.model || "?") === m);
     const days = [...new Set(NS.map(e => e.date))].sort(), agreeTxt = MS.map(m => { const a = byM(m); return aiNm(m) + " <b>" + (a.filter(e => grp(e.kw) === grp(e.ollama)).length / a.length * 100).toFixed(0) + "%</b>"; }).join(" · ");
     const res = NS.map(e => fwd5(e.code, e.date)), done = res.filter(r => r !== null).length;
     $("newssum").innerHTML = `기록 ${NS.length}건 (${esc(days[0])} ~ ${esc(days[days.length - 1])}, 모델 ${MS.map(aiNm).join("·")}) · 키워드와 같은 판단 비율 ${agreeTxt} · 판단 뒤 5거래일이 지나 결과를 볼 수 있는 기록 <b>${done}/${NS.length}건</b><br>Ollama 뉴스 판단을 키워드 방식과 나란히 기록만 하고 있어요(매매에는 쓰이지 않아요). 악재라고 한 종목이 그 뒤 5거래일 동안 더 떨어지면 쓸 만한 판단이에요.`;

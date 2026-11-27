@@ -154,8 +154,20 @@ def daily_message(equity, return_pct, cash, trades, failed, news=None, news_bloc
     if failed:
         lines.append("")
         lines.append(f"한 가지 더 보고드립니다. {', '.join(failed)} 시세를 가져오지 못했습니다. 확인이 필요합니다.")
+    lines += _ce_lines()
     lines += link_lines()
     return "\n".join(lines)
+
+
+def _ce_lines():
+    """코드이터 학습 데이터가 얼마나 쌓였는지 한 줄 (파인튜닝 결정 기준 대비)"""
+    try:
+        import codeknow
+        n = codeknow.train_count()
+        goal = codeknow.TRAIN_ALERT
+        return ["", f"코드이터 학습 데이터는 {n:,}개 쌓였습니다. (파인튜닝 검토 기준 {goal:,}개의 {min(100, n * 100 // goal)}%)"]
+    except Exception:
+        return []
 
 
 def error_message(tb):

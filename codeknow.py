@@ -158,7 +158,7 @@ def read_round(k, rnd, model=None, max_files=2):
                 k["tips"].append({"date": datetime.now().strftime("%Y-%m-%d"), "repo": r["full"], "path": p, "license": r["license"], "score": s["score"], "tip": s["tip"], "kind": s["kind"]})
                 kept += 1
                 good += 1
-                add_pair(f"주식 전략을 탐색·시험하는 프로그램을 개선하는 방법을 한 줄로 알려줘. (참고 코드: {r['full']})", s["tip"])
+                add_pair(f"주식 전략을 탐색·시험하는 프로그램을 개선하는 방법을 한 줄로 알려줘. (참고 코드: {r['full']})", s["tip"], score=s["score"] * 10)
             else:
                 k["stats"]["low"] = k["stats"].get("low", 0) + 1
     k["used"].append({"q": q, "how": how, "repos": len(repos), "good": good, "date": datetime.now().strftime("%m-%d %H:%M")})
@@ -166,14 +166,50 @@ def read_round(k, rnd, model=None, max_files=2):
 
 
 # ---------- 5. 학습 데이터 ----------
-def add_pair(q, a):
+TRAIN_MAX = 50000     # 학습 데이터 보관 상한. 넘치면 '배울 게 적은' 것부터 지워요 (크게 실패한 사례와 크게 개선된 사례는 남겨요).
+TRAIN_SLACK = 500     # 상한을 조금 넘을 때마다 지우면 파일을 계속 다시 쓰니까, 이만큼 넘었을 때 한꺼번에 정리해요.
+
+
+def pair_score(d):
+    """학습 쌍이 얼마나 배울 게 많은지 (높을수록 오래 보관). 점수가 없는 옛날 기록은 글에서 읽어서 계산해요.
+    통과한 시험이 제일 높고, 그다음은 성적이 크게 바뀐 시험(크게 나빠진 것도, 크게 좋아진 것도 높아요), 거의 안 바뀐 시험이 제일 낮아요.
+    그래서 넘칠 때는 '별 차이 없던' 시험부터 지워지고 크게 실패한 사례는 남아요. 팁은 채점 점수(1~10)를 10배로 환산해요."""
+    sc = d.get("score")
+    if isinstance(sc, (int, float)) and sc >= 0:
+        return float(sc)
+    out = d.get("output", "")
+    if "판정: 통과" in out:
+        return 100.0
+    m = re.search(r"([+-]\d+)% 변해요", out)
+    return min(99.0, abs(float(m.group(1)))) if m else 50.0   # 팁 등 점수가 없는 것은 중간
+
+
+def prune_train(limit=TRAIN_MAX):
+    """상한을 넘으면 점수가 낮은 것부터 지워요 (점수가 같으면 오래된 것부터)."""
+    rows = []
+    for i, ln in enumerate(open(TRAIN, encoding="utf-8")):
+        try:
+            rows.append((pair_score(json.loads(ln)), i, ln))
+        except Exception:
+            continue
+    if len(rows) <= limit:
+        return 0
+    keep = sorted(sorted(rows, key=lambda r: (-r[0], -r[1]))[:limit], key=lambda r: r[1])
+    with open(TRAIN, "w", encoding="utf-8") as f:
+        f.writelines(r[2] if r[2].endswith("\n") else r[2] + "\n" for r in keep)
+    return len(rows) - limit
+
+
+def add_pair(q, a, score=None):
     try:
         config.DATA_DIR.mkdir(exist_ok=True)
+        d = {"instruction": q, "output": a}
+        if score is not None:
+            d["score"] = round(float(score), 1)
         with open(TRAIN, "a", encoding="utf-8") as f:
-            f.write(json.dumps({"instruction": q, "output": a}, ensure_ascii=False) + "\n")
-        if train_count() > 5000:
-            lines = open(TRAIN, encoding="utf-8").read().splitlines()[-5000:]
-            open(TRAIN, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+            f.write(json.dumps(d, ensure_ascii=False) + "\n")
+        if train_count() > TRAIN_MAX + TRAIN_SLACK:
+            prune_train()
     except Exception:
         pass
 
@@ -189,7 +225,8 @@ def record_trial(cur_desc, cur_cal, diff, m, passed):
     """코드이터의 시험 한 건을 '설정 변경 → 성적' 문제·정답 쌍으로 쌓아요 (우리 시스템에서 나온 실제 결과)."""
     pct = (m["cal"] / cur_cal - 1) * 100 if cur_cal else 0
     add_pair(f"주식 전략 기준 설정이 [{cur_desc}] 일 때, [{diff}] 로 바꾸면 연수익÷낙폭(기준 {cur_cal})은 어떻게 변할까?",
-             f"{m['cal']}로 {pct:+.0f}% 변해요. 연 {m['cagr']:.1f}% · 최대 낙폭 {m['mdd']:.1f}% · 최근 3년 연수익÷낙폭 {m['cal_r']}. 판정: {'통과' if passed else '미통과'}")
+             f"{m['cal']}로 {pct:+.0f}% 변해요. 연 {m['cagr']:.1f}% · 최대 낙폭 {m['mdd']:.1f}% · 최근 3년 연수익÷낙폭 {m['cal_r']}. 판정: {'통과' if passed else '미통과'}",
+             score=100 if passed else min(99.0, abs(pct)))
 
 
 # ---------- 3. 두뇌 강화 (Ollama 모델 새로 만들기) ----------
