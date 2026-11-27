@@ -191,11 +191,14 @@ def record_trial(cur_desc, cur_cal, diff, m, passed):
 
 
 # ---------- 3. 두뇌 강화 (Ollama 모델 새로 만들기) ----------
-def build_model(k):
-    """지식 창고의 팁을 시스템 지침에 담아 codeeater-trader 를 새 버전으로 만들어요. 새 팁이 3개 이상 늘었을 때만."""
+def build_model(k, force=False):
+    """지식 창고의 팁을 시스템 지침에 담아 codeeater-trader 를 새 버전으로 만들어요. 새 팁이 3개 이상 늘었을 때만 (force=True 는 수동 실행용: 팁이 1개만 있어도 만들어요)."""
     tips = sorted(k["tips"], key=lambda t: (-t["score"], t["date"]))[:MAX_TIPS_IN_MODEL]
     last = k["models"][-1] if k["models"] else None
-    if len(tips) < 3 or (last and len(k["tips"]) - last["tips_total"] < 3):
+    if force:
+        if not tips or (last and len(k["tips"]) <= last["tips_total"]):
+            return None
+    elif len(tips) < 3 or (last and len(k["tips"]) - last["tips_total"] < 3):
         return None
     n = (last["m"] + 1) if last else 1
     system = ("당신은 한국·미국 주식 모의투자를 돕는 신중한 분석 보조입니다. 규칙: 손절과 포지션 한도를 우선하고, 근거가 약하면 매매하지 않습니다. 아래는 코드 연구에서 배운 참고 팁입니다.\n"
@@ -302,3 +305,14 @@ def weekly(k, model=None):
         k["train"]["alerted"] = True
         msgs.append(f"학습 데이터가 {n}개 쌓였어요(data/ce_train.jsonl). Colab 파인튜닝을 해볼 만한 양이에요. 원하시면 방법을 안내해 드릴게요. 효과는 보장되지 않아서 결과는 별도 계좌로 비교해야 해요.")
     return msgs
+
+
+if __name__ == "__main__":
+    import sys
+    kk = read()
+    if "--build" in sys.argv:   # python codeknow.py --build : 지금 가진 팁으로 두뇌(M)를 바로 만들어요 (팁이 적으면 효과도 작아요)
+        res = build_model(kk, force=True)
+        write(kk)
+        print(res or "만들 수 있는 새 팁이 없어요. 탐색이 더 돌아서 팁이 쌓인 뒤에 다시 해 보세요.")
+    else:
+        print(f"팁 {len(kk['tips'])}개 · 모델 {[m['tag'] for m in kk['models']] or '없음'} · 학습 데이터 {(kk['train'] or {}).get('count', 0)}/300")

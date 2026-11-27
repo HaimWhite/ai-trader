@@ -858,7 +858,7 @@ function render(){
       trN = D.ck && D.ck.train ? (D.ck.train.count || 0) : 0, bar = f => `<span style="display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--line);vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100, f * 100).toFixed(0)}%;background:#10b981"></span></span>`,
       chip = (t, on) => `<span style="padding:3px 10px;border-radius:12px;border:1px solid var(--line);font-size:13px;${on ? "font-weight:700" : "opacity:.6"}">${t}</span>`;
     const LA = D.la || {}, laWait = (LA.pending || []).filter(x => x.status === "pending");
-    $("celine").innerHTML = chip("본 전략 <b>V" + (LA.live_v || 1) + "</b>" + (laWait.length ? " · 승인 대기 V" + laWait[0].v : ""), true) + chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip("두뇌 <b>" + (mV ? "M" + mV : "-") + "</b>", !!mV)
+    $("celine").innerHTML = chip("본 전략 <b>V" + (LA.live_v || 1) + "</b>" + (laWait.length ? " · 승인 대기 V" + laWait[0].v : ""), true) + chip("전략 <b>V" + cur.v + "</b>", true) + chip("탐색 방식 <b>" + (eV ? "E" + eV : "-") + "</b>", !!eV) + chip(mV ? "두뇌 <b>M" + mV + "</b>" : "두뇌 <b>M0</b> · 팁 " + Math.min(3, ((D.ck || {}).tips || []).length) + "/3", !!mV)
       + chip("도구 <b>" + plOn + "개</b> 설치" + (plWait ? " · 승인 대기 " + plWait : ""), plOn > 0 || plWait > 0)
       + chip("학습 데이터 <b>" + trN + "/300</b> " + bar(trN / 300), trN >= 300);
     $("celine").title = "본 전략: 실제 매매에 쓰는 V · V: 전략 설정 · E: 탐색 방식 · M: codeeater-trader 모델 · 도구: 승인해서 설치한 텍스트 도구";
